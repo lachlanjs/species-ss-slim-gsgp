@@ -392,15 +392,79 @@ class SLIM_GSGP_LinearScaling(SLIM_GSGP):
                     p = self.selector(population)
 
                     if random.random() < self.p_inflate:
-                        ms_ = self.ms()
-                        offspring = self.inflate_mutator(
-                            p, ms_, X_train, 
-                            max_depth=max_depth,
-                            p_c=self.pi_init["p_c"],
-                            X_test=X_test,
-                            reconstruct=reconstruct
-                        )
+                        # if the chosen parent is already at maximum depth and therefore cannot be inflated
+                        if max_depth is not None and p.depth == max_depth:
+                            # if copy parent is set to true, the parent who cannot be inflated will be copied as the offspring
+                            if self.copy_parent:
+                                offspring = IndividualLinearScaling(
+                                    collection=p.collection if reconstruct else None,
+                                    train_semantics=p.train_semantics,
+                                    test_semantics=p.test_semantics,
+                                    reconstruct=reconstruct,
+                                )
+                                (
+                                    offspring.nodes_collection,
+                                    offspring.nodes_count,
+                                    offspring.depth_collection,
+                                    offspring.depth,
+                                    offspring.size,
+                                ) = (
+                                    p.nodes_collection,
+                                    p.nodes_count,
+                                    p.depth_collection,
+                                    p.depth,
+                                    p.size,
+                                )
+                                # Inherit linear scaling parameters from parent
+                                offspring.scaling_a = p.scaling_a
+                                offspring.scaling_b = p.scaling_b
+                                offspring.use_linear_scaling = p.use_linear_scaling
+                            # if copy parent is false, the parent is deflated instead of inflated
+                            else:
+                                offspring = self.deflate_mutator(p, reconstruct=reconstruct)
+                        # so the chosen individual can be normally inflated
+                        else:
+                            ms_ = self.ms()
+                            offspring = self.inflate_mutator(
+                                p, ms_, X_train, 
+                                max_depth=self.pi_init["init_depth"],
+                                p_c=self.pi_init["p_c"],
+                                X_test=X_test,
+                                reconstruct=reconstruct
+                            )
+                            
+                            # if offspring resulting from inflation exceedes the max depth
+                            if max_depth is not None and offspring.depth > max_depth:
+                                # if copy parent is set to true, the offspring is discarded and the parent is chosen instead
+                                if self.copy_parent:
+                                    offspring = IndividualLinearScaling(
+                                        collection=p.collection if reconstruct else None,
+                                        train_semantics=p.train_semantics,
+                                        test_semantics=p.test_semantics,
+                                        reconstruct=reconstruct,
+                                    )
+                                    (
+                                        offspring.nodes_collection,
+                                        offspring.nodes_count,
+                                        offspring.depth_collection,
+                                        offspring.depth,
+                                        offspring.size,
+                                    ) = (
+                                        p.nodes_collection,
+                                        p.nodes_count,
+                                        p.depth_collection,
+                                        p.depth,
+                                        p.size,
+                                    )
+                                    # Inherit linear scaling parameters from parent
+                                    offspring.scaling_a = p.scaling_a
+                                    offspring.scaling_b = p.scaling_b
+                                    offspring.use_linear_scaling = p.use_linear_scaling
+                                else:
+                                    # otherwise, deflate the parent
+                                    offspring = self.deflate_mutator(p, reconstruct=reconstruct)
                     else:
+                        # deflation mutation was selected
                         # Check if parent has only one block before deflation
                         if p.size == 1:
                             # if copy parent is set to true, the parent who cannot be deflated will be copied as the offspring
@@ -430,14 +494,77 @@ class SLIM_GSGP_LinearScaling(SLIM_GSGP):
                                 offspring.use_linear_scaling = p.use_linear_scaling
                             else:
                                 # if we choose to not copy the parent, we inflate it instead
-                                ms_ = self.ms()
-                                offspring = self.inflate_mutator(
-                                    p, ms_, X_train,
-                                    max_depth=max_depth,
-                                    p_c=self.pi_init["p_c"],
-                                    X_test=X_test,
-                                    reconstruct=reconstruct
-                                )
+                                # if the chosen parent is already at maximum depth and therefore cannot be inflated
+                                if max_depth is not None and p.depth == max_depth:
+                                    # if copy parent is set to true, the parent who cannot be inflated will be copied as the offspring
+                                    if self.copy_parent:
+                                        offspring = IndividualLinearScaling(
+                                            collection=p.collection if reconstruct else None,
+                                            train_semantics=p.train_semantics,
+                                            test_semantics=p.test_semantics,
+                                            reconstruct=reconstruct,
+                                        )
+                                        (
+                                            offspring.nodes_collection,
+                                            offspring.nodes_count,
+                                            offspring.depth_collection,
+                                            offspring.depth,
+                                            offspring.size,
+                                        ) = (
+                                            p.nodes_collection,
+                                            p.nodes_count,
+                                            p.depth_collection,
+                                            p.depth,
+                                            p.size,
+                                        )
+                                        # Inherit linear scaling parameters from parent
+                                        offspring.scaling_a = p.scaling_a
+                                        offspring.scaling_b = p.scaling_b
+                                        offspring.use_linear_scaling = p.use_linear_scaling
+                                    # if copy parent is false, the parent is deflated instead of inflated
+                                    else:
+                                        offspring = self.deflate_mutator(p, reconstruct=reconstruct)
+                                # so the chosen individual can be normally inflated
+                                else:
+                                    ms_ = self.ms()
+                                    offspring = self.inflate_mutator(
+                                        p, ms_, X_train,
+                                        max_depth=self.pi_init["init_depth"],
+                                        p_c=self.pi_init["p_c"],
+                                        X_test=X_test,
+                                        reconstruct=reconstruct
+                                    )
+                                    
+                                    # if offspring resulting from inflation exceedes the max depth
+                                    if max_depth is not None and offspring.depth > max_depth:
+                                        # if copy parent is set to true, the offspring is discarded and the parent is chosen instead
+                                        if self.copy_parent:
+                                            offspring = IndividualLinearScaling(
+                                                collection=p.collection if reconstruct else None,
+                                                train_semantics=p.train_semantics,
+                                                test_semantics=p.test_semantics,
+                                                reconstruct=reconstruct,
+                                            )
+                                            (
+                                                offspring.nodes_collection,
+                                                offspring.nodes_count,
+                                                offspring.depth_collection,
+                                                offspring.depth,
+                                                offspring.size,
+                                            ) = (
+                                                p.nodes_collection,
+                                                p.nodes_count,
+                                                p.depth_collection,
+                                                p.depth,
+                                                p.size,
+                                            )
+                                            # Inherit linear scaling parameters from parent
+                                            offspring.scaling_a = p.scaling_a
+                                            offspring.scaling_b = p.scaling_b
+                                            offspring.use_linear_scaling = p.use_linear_scaling
+                                        else:
+                                            # otherwise, deflate the parent
+                                            offspring = self.deflate_mutator(p, reconstruct=reconstruct)
                         else:
                             # if the size of the parent is more than 1, normal deflation can occur
                             offspring = self.deflate_mutator(p, reconstruct=reconstruct)
@@ -450,16 +577,22 @@ class SLIM_GSGP_LinearScaling(SLIM_GSGP):
                             test_semantics=offspring.test_semantics,
                             reconstruct=reconstruct
                         )
+                        # Copy all attributes from the original offspring
+                        for attr in ['nodes_collection', 'nodes_count', 'depth_collection', 'depth', 'size']:
+                            if hasattr(offspring, attr):
+                                setattr(offspring_ls, attr, getattr(offspring, attr))
+                        
                         # Inherit linear scaling parameters from parent
                         offspring_ls.scaling_a = p.scaling_a
                         offspring_ls.scaling_b = p.scaling_b
                         offspring_ls.use_linear_scaling = p.use_linear_scaling
                         offspring = offspring_ls
                     else:
-                        # Already IndividualLinearScaling, inherit scaling parameters
-                        offspring.scaling_a = p.scaling_a
-                        offspring.scaling_b = p.scaling_b
-                        offspring.use_linear_scaling = p.use_linear_scaling
+                        # Already IndividualLinearScaling, ensure it has scaling parameters
+                        if not hasattr(offspring, 'scaling_a') or offspring.scaling_a is None:
+                            offspring.scaling_a = p.scaling_a
+                            offspring.scaling_b = p.scaling_b
+                            offspring.use_linear_scaling = p.use_linear_scaling
 
                     offs_pop.append(offspring)
 

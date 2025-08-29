@@ -43,7 +43,6 @@ final_tree = slim_linear_scaling(X_train=X_train, y_train=y_train,
 final_tree.print_tree_representation()
 
 # Show the linear scaling parameters
-print()
 final_tree.print_scaling_info()
 
 # Get the prediction of the best individual on the test set
