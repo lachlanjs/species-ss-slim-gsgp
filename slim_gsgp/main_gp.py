@@ -30,7 +30,7 @@ from slim_gsgp.algorithms.GP.gp import GP
 from slim_gsgp.algorithms.GP.operators.mutators import mutate_tree_subtree
 from slim_gsgp.algorithms.GP.representations.tree_utils import tree_depth
 from slim_gsgp.config.gp_config import *
-from slim_gsgp.selection.selection_algorithms import tournament_selection_max, tournament_selection_min
+from slim_gsgp.selection.selection_algorithms import tournament_selection_max, tournament_selection_min, tournament_selection_pareto
 from slim_gsgp.utils.logger import log_settings
 from slim_gsgp.utils.utils import (get_terminals, validate_inputs, get_best_max, get_best_min)
 
@@ -53,6 +53,7 @@ def gp(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = None
        prob_const: float = gp_pi_init["p_c"],
        tree_functions: list = list(FUNCTIONS.keys()),
        tree_constants: list = [float(key.replace("constant_", "").replace("_", "-")) for key in CONSTANTS],
+       tournament_type: str = "standard",
        tournament_size: int = 2,
        test_elite: bool = gp_solve_parameters["test_elite"]):
 
@@ -106,9 +107,11 @@ def gp(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = None
     tree_functions : list, optional
         List of allowed functions that can appear in the trees. Check documentation for the available functions.
     tree_constants : list, optional
-        List of constants allowed to appear in the trees.
+        List of constants allowed to appear in the trees.    
+    tournament_type : str, optional
+        Type of tournament selection function to use. either "standard" or "pareto"
     tournament_size : int, optional
-        Tournament size to utilize during selection. Only applicable if using tournament selection. (Default is 2)
+        Tournament size to utilize during selection. Only applicable if using tournament selection. (Default is 2)    
     test_elite : bool, optional
         Whether to test the elite individual on the test set after each generation.
 
@@ -130,8 +133,7 @@ def gp(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = None
                     elitism=elitism, n_elites=n_elites, init_depth=init_depth, log_path=log_path, prob_const=prob_const,
                     tree_functions=tree_functions, tree_constants=tree_constants, log=log_level, verbose=verbose,
                     minimization=minimization, n_jobs=n_jobs, test_elite=test_elite, fitness_function=fitness_function,
-                    initializer=initializer, tournament_size=tournament_size)
-
+                    initializer=initializer, tournament_type=tournament_type, tournament_size=tournament_size)
 
     assert 0 <= p_xo <= 1, "p_xo must be a number between 0 and 1"
 
