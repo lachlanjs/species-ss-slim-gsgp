@@ -30,7 +30,8 @@ from slim_gsgp.algorithms.GP.gp import GP
 from slim_gsgp.algorithms.GP.operators.mutators import mutate_tree_subtree
 from slim_gsgp.algorithms.GP.representations.tree_utils import tree_depth
 from slim_gsgp.config.gp_config import *
-from slim_gsgp.selection.selection_algorithms import tournament_selection_max, tournament_selection_min, tournament_selection_pareto
+from slim_gsgp.selection.selection_algorithms import tournament_selection_max, tournament_selection_min
+from slim_gsgp.selection.selection_algorithms import tournament_selection, tournament_selection_pareto 
 from slim_gsgp.utils.logger import log_settings
 from slim_gsgp.utils.utils import (get_terminals, validate_inputs, get_best_max, get_best_min)
 
@@ -215,12 +216,14 @@ def gp(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = None
     )
     gp_parameters["initializer"] = initializer_options[initializer]
 
-    if minimization:
-        gp_parameters["selector"] = tournament_selection_min(tournament_size)
-        gp_parameters["find_elit_func"] = get_best_min
-    else:
-        gp_parameters["selector"] = tournament_selection_max(tournament_size)
-        gp_parameters["find_elit_func"] = get_best_max
+    match tournament_type:
+        case "standard":
+            gp_parameters["selector"] = tournament_selection(tournament_size, minimization)            
+        case "pareto":
+            gp_parameters["selector"] = tournament_selection_pareto(tournament_size, minimization)
+
+    gp_parameters["find_elit_func"] = get_best_min if minimization else get_best_max
+        
     gp_parameters["seed"] = seed
     #   *************** GP_SOLVE_PARAMETERS ***************
 
