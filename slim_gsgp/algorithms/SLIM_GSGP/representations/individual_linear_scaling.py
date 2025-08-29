@@ -103,6 +103,54 @@ class IndividualLinearScaling(BaseIndividual):
         
         return raw_prediction
     
+    def evaluate(self, ffunction, y, testing=False, operator="sum"):
+        """
+        Evaluate the Individual using a fitness function with linear scaling support.
+        
+        Parameters
+        ----------
+        ffunction : Callable
+            Fitness function to evaluate the Individual.
+        y : torch.Tensor
+            Expected output (target) values.
+        testing : bool, optional
+            Boolean indicating if the evaluation is for testing semantics (default is False).
+        operator : str, optional
+            Operator to apply to the semantics (default is "sum").
+            
+        Returns
+        -------
+        None
+        """
+        import torch
+        
+        # Get the correct torch operator based on the slim_gsgp version
+        if operator == "sum":
+            torch_operator = torch.sum
+        else:
+            torch_operator = torch.prod
+
+        # Computing the testing fitness with linear scaling, if applicable
+        if testing:
+            # Get raw test semantics
+            raw_semantics = torch.clamp(
+                torch_operator(self.test_semantics, dim=0),
+                -1000000000000.0,
+                1000000000000.0,
+            )
+            
+            # Apply linear scaling if enabled and parameters are available
+            if self.use_linear_scaling and self.scaling_a is not None:
+                scaled_semantics = self.scaling_a + raw_semantics * self.scaling_b
+            else:
+                scaled_semantics = raw_semantics
+                
+            self.test_fitness = ffunction(y, scaled_semantics)
+            
+        # Computing the training fitness (use parent implementation)
+        else:
+            super().evaluate(ffunction, y, testing, operator)
+    
     def get_scaling_info(self):
         """
         Get linear scaling parameters information.

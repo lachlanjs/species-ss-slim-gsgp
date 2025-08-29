@@ -24,6 +24,7 @@ SLIM_GSGP with Linear Scaling Class for Evolutionary Computation using PyTorch.
 """
 
 import random
+import sys
 import time
 
 import numpy as np
@@ -158,6 +159,23 @@ class SLIM_GSGP_LinearScaling(SLIM_GSGP):
         # evaluating the initial population (with raw outputs)
         population.evaluate(ffunction, y=y_train, operator=self.operator, n_jobs=n_jobs)
 
+        # DEBUG: Mostrar fitness ANTES de aplicar linear scaling
+        print("\n" + "="*80, flush=True)
+        print("=== FITNESS ANTES DE APLICAR LINEAR SCALING ===", flush=True)
+        print("="*80, flush=True)
+        fitness_values_before = []
+        for i, individual in enumerate(population.population):
+            print(f"Individuo {i+1:3d}: Fitness = {individual.fitness:.6f}, Nodos = {individual.nodes_count:3d}", flush=True)
+            fitness_values_before.append(individual.fitness)
+        
+        print(f"\nEstadísticas ANTES del scaling:", flush=True)
+        print(f"  Fitness mínimo:     {min(fitness_values_before):.6f}", flush=True)
+        print(f"  Fitness máximo:     {max(fitness_values_before):.6f}", flush=True)
+        print(f"  Fitness promedio:   {np.mean(fitness_values_before):.6f}", flush=True)
+        print(f"  Desviación estándar: {np.std(fitness_values_before):.6f}", flush=True)
+        print(f"  Mediana:            {np.median(fitness_values_before):.6f}", flush=True)
+        print("="*80 + "\n", flush=True)
+
         # Calculate linear scaling for the initial population
         for individual in population.population:
             individual.calculate_linear_scaling(y_train)
@@ -172,6 +190,34 @@ class SLIM_GSGP_LinearScaling(SLIM_GSGP):
 
         # Update population fitness array after re-evaluation
         population.fit = [individual.fitness for individual in population.population]
+
+        # DEBUG: Mostrar fitness DESPUÉS de aplicar linear scaling
+        print("\n" + "="*80, flush=True)
+        print("=== FITNESS DESPUÉS DE APLICAR LINEAR SCALING ===", flush=True)
+        print("="*80, flush=True)
+        fitness_values_after = []
+        for i, individual in enumerate(population.population):
+            print(f"Individuo {i+1:3d}: Fitness = {individual.fitness:.6f}, Nodos = {individual.nodes_count:3d}, "
+                  f"Scaling: a={individual.scaling_a:.4f}, b={individual.scaling_b:.4f}", flush=True)
+            fitness_values_after.append(individual.fitness)
+        
+        print(f"\nEstadísticas DESPUÉS del scaling:", flush=True)
+        print(f"  Fitness mínimo:     {min(fitness_values_after):.6f}", flush=True)
+        print(f"  Fitness máximo:     {max(fitness_values_after):.6f}", flush=True)
+        print(f"  Fitness promedio:   {np.mean(fitness_values_after):.6f}", flush=True)
+        print(f"  Desviación estándar: {np.std(fitness_values_after):.6f}", flush=True)
+        print(f"  Mediana:            {np.median(fitness_values_after):.6f}", flush=True)
+        
+        # Mostrar comparación entre antes y después
+        print(f"\n--- COMPARACIÓN ANTES vs DESPUÉS ---", flush=True)
+        print(f"  Mejora promedio en fitness: {np.mean(fitness_values_before) - np.mean(fitness_values_after):.6f}", flush=True)
+        print(f"  Mejor fitness antes:        {min(fitness_values_before):.6f}", flush=True)
+        print(f"  Mejor fitness después:      {min(fitness_values_after):.6f}", flush=True)
+        print(f"  Mejora del mejor:           {min(fitness_values_before) - min(fitness_values_after):.6f}", flush=True)
+        
+        print("="*80, flush=True)
+        print("=== FIN DEBUG LINEAR SCALING ===", flush=True)
+        print("="*80 + "\n", flush=True)
 
         end = time.time()
 
