@@ -46,8 +46,6 @@ slim_gsgp/config/gsgp_config.py
 slim_gsgp/config/slim_config.py
 slim_gsgp/datasets/__init__.py
 slim_gsgp/datasets/data_loader.py
-slim_gsgp/datasets/__pycache__/__init__.cpython-310.pyc
-slim_gsgp/datasets/__pycache__/data_loader.cpython-310.pyc
 slim_gsgp/datasets/data/airfoil.txt
 slim_gsgp/datasets/data/bike_sharing_day.txt
 slim_gsgp/datasets/data/bioavailability.txt

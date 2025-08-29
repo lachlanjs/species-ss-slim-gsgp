@@ -212,21 +212,38 @@ def calculate_non_dominated(pop, attrs: list[str], minimization: bool):
            for attr in attrs}
     })    
 
+    # print()
+    # print("----")
+    # print(non_dom_df)
+
     # carve away anything that is dominated
     for idx in range(len(pop)):
         if idx not in non_dom_df.index:
             continue
 
-        remove_idxs = non_dom_df.index
+        # remove_idxs = non_dom_df.index
+        remove_idxs = pd.Series([True for i in range(len(non_dom_df))])
+        
         for attr in attrs:
-            remove_idxs = remove_idxs.intersection(non_dom_df[attr] > non_dom_df[attr][idx])
+            # print(f"{idx}'s {attr}: {non_dom_df[attr][idx]}")
+            # print(f"remove_idxs: {remove_idxs}")
+            # print(f"{non_dom_df[attr] < non_dom_df[attr][idx]}")
+            # print()
+            # remove_idxs = remove_idxs.intersection(non_dom_df[attr] < non_dom_df[attr][idx])
+            remove_idxs = remove_idxs & (non_dom_df[attr] < non_dom_df[attr][idx])
+
+        # print(f"remove_idxs: {remove_idxs}")
 
         # NOTE: we should never have idx in remove_idxs... could check this
 
-        non_dom_df = non_dom_df[non_dom_df.index.difference(remove_idxs)]
+        # non_dom_df = non_dom_df.iloc[non_dom_df.index.difference(remove_idxs)]
+        
+        non_dom_df = non_dom_df[~remove_idxs]
 
     # the remaining df contains the non-dominated set        
     non_dom_idxs = list(non_dom_df.index)    
+
+    # print(f"non_dom_idxs: {non_dom_idxs}")
 
     return non_dom_idxs
 
@@ -283,4 +300,4 @@ def tournament_selection_pareto(pool_size, attrs: list[str], minimization: bool=
 
         return pop.population[selected_idx]    
 
-    return
+    return pts
