@@ -36,8 +36,9 @@ X_val, X_test, y_val, y_test = train_test_split(X_test, y_test, p_test=0.5)
 # Apply the Standard GSGP algorithm
 final_tree = gsgp(X_train=X_train, y_train=y_train,
                   X_test=X_val, y_test=y_val, p_xo=0,
-                  dataset_name='ppb', pop_size=100, n_iter=100,
-                  reconstruct=True, ms_lower=0, ms_upper=1, n_elites=2)
+                  dataset_name='ppb', pop_size=200, n_iter=100,
+                  reconstruct=True, ms_lower=0, ms_upper=1, n_elites=2,
+                  tournament_type="pareto", tournament_size=2, multi_obj_attrs=["fitness", "nodes"])
 
 # Get the prediction of the best individual on the test set
 predictions = final_tree.predict(X_test)

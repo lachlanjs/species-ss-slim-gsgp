@@ -29,6 +29,8 @@ import numpy as np
 
 import pandas as pd
 
+from copy import deepcopy
+
 def tournament_selection_min(pool_size):
     """
     Returns a function that performs tournament selection to select an individual with the lowest fitness from a
@@ -204,48 +206,44 @@ def calculate_non_dominated(pop, attrs: list[str], minimization: bool):
 
     # construct a dataframe where each row contains:
     # - the idx of an individual
-    # - its place in the ranking of each attribute (lower is better)
+    # - its place in the ranking of each attribute (lower is better)    
 
     non_dom_df = pd.DataFrame({
-        "idx": range(len(pop)), # NOTE: maybe not necessary
+        "idx": list(range(len(pop))),
         **{attr: [ind.__dict__[attr] * (1 if minimization else -1) for ind in pop]
            for attr in attrs}
-    })    
+    })           
 
-    # print()
-    # print("----")
-    # print(non_dom_df)
+    # non_dom_df["size"] = non_dom_df["size"].map(lambda x: max(x, 10))
 
     # carve away anything that is dominated
-    for idx in range(len(pop)):
-        if idx not in non_dom_df.index:
-            continue
 
+    original_idxs = list(range(len(pop)))
+
+    for idx in original_idxs:
+        if idx not in non_dom_df["idx"]:
+            continue
+        
         # remove_idxs = non_dom_df.index
-        remove_idxs = pd.Series([True for i in range(len(non_dom_df))])
+        remove_idxs = pd.Series([True for i in range(len(non_dom_df))])        
         
         for attr in attrs:
-            # print(f"{idx}'s {attr}: {non_dom_df[attr][idx]}")
-            # print(f"remove_idxs: {remove_idxs}")
-            # print(f"{non_dom_df[attr] < non_dom_df[attr][idx]}")
-            # print()
-            # remove_idxs = remove_idxs.intersection(non_dom_df[attr] < non_dom_df[attr][idx])
-            remove_idxs = remove_idxs & (non_dom_df[attr] < non_dom_df[attr][idx])
-
-        # print(f"remove_idxs: {remove_idxs}")
-
-        # NOTE: we should never have idx in remove_idxs... could check this
-
-        # non_dom_df = non_dom_df.iloc[non_dom_df.index.difference(remove_idxs)]
+            remove_idxs = remove_idxs & (non_dom_df[attr] < non_dom_df[attr][idx])                    
         
         non_dom_df = non_dom_df[~remove_idxs]
+        non_dom_df = non_dom_df.reset_index(drop=True)
 
-    # the remaining df contains the non-dominated set        
-    non_dom_idxs = list(non_dom_df.index)    
+    # the remaining df contains the non-dominated set
+    non_dom_idxs = np.array(non_dom_df["idx"], dtype=np.int32)
 
-    # print(f"non_dom_idxs: {non_dom_idxs}")
+    # determine degeneracy
+    degenerate_attrs = []
+    for attr in attrs:
+        # if they are all equal to the first ones, then they are all equal to each-other
+        if (non_dom_df[attr] == non_dom_df[attr].iloc[0]).all(): 
+            degenerate_attrs.append(attr)            
 
-    return non_dom_idxs
+    return non_dom_idxs, degenerate_attrs
 
 def tournament_selection_pareto(pool_size, attrs: list[str], minimization: bool=True):
 
@@ -287,17 +285,31 @@ def tournament_selection_pareto(pool_size, attrs: list[str], minimization: bool=
     candidate on the frontier, thus this reduces to tournament selection
     """
 
+    # attrs = deepcopy(attrs)
+
     def pts(pop):
+
+        attrs_ = deepcopy(attrs)        
 
         # get a random sample without replacement from the population
         rand_pop_sample = random.sample(pop.population, pool_size)
 
-        # calculate the non-dominated set
-        non_dom_idxs = calculate_non_dominated(rand_pop_sample, attrs, minimization)
-        
-        # take one individual from this set
-        selected_idx = random.choice(non_dom_idxs)
+        degenerate_attrs = ["_"]        
+        while len(rand_pop_sample) > 1 and len(degenerate_attrs) > 0 and len(attrs_) > 0:
+            # calculate the non-dominated set
+            non_dom_idxs, degenerate_attrs = calculate_non_dominated(rand_pop_sample, attrs_, minimization)            
+            rand_pop_sample = [rand_pop_sample[idx] for idx in non_dom_idxs]
 
-        return pop.population[selected_idx]    
+            attrs_ = list(set.difference(set(attrs_), set(degenerate_attrs)))    
+            # if degenerate_attrs != ["_"] and degenerate_attrs != []:
+                # if len(rand_pop_sample) <= 1:
+                #     print(f"len was {len(rand_pop_sample)}")
+                # else:
+                #     print(f"degenerate_attrs: {degenerate_attrs}, new attrs_: {attrs_}")
+        
+        # print(f"len(rand_pop_sample): {len(rand_pop_sample)}")
+
+        # take one individual from this set        
+        return random.choice(rand_pop_sample)
 
     return pts
