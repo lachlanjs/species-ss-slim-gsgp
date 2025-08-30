@@ -6,15 +6,19 @@ slim_gsgp/__init__.py
 slim_gsgp/example_gp.py
 slim_gsgp/example_gsgp.py
 slim_gsgp/example_slim.py
+slim_gsgp/example_slim_linear_scaling_complete.py
+slim_gsgp/individual_linear_scaling.py
 slim_gsgp/main_gp.py
 slim_gsgp/main_gsgp.py
 slim_gsgp/main_slim.py
+slim_gsgp/main_slim_linear_scaling.py
 slim_gsgp.egg-info/PKG-INFO
 slim_gsgp.egg-info/SOURCES.txt
 slim_gsgp.egg-info/dependency_links.txt
 slim_gsgp.egg-info/requires.txt
 slim_gsgp.egg-info/top_level.txt
 slim_gsgp/algorithms/__init__.py
+slim_gsgp/algorithms/slim_gsgp_linear_scaling.py
 slim_gsgp/algorithms/GP/__init__.py
 slim_gsgp/algorithms/GP/gp.py
 slim_gsgp/algorithms/GP/operators/__init__.py
@@ -44,6 +48,7 @@ slim_gsgp/config/__init__.py
 slim_gsgp/config/gp_config.py
 slim_gsgp/config/gsgp_config.py
 slim_gsgp/config/slim_config.py
+slim_gsgp/config/slim_config_linear_scaling.py
 slim_gsgp/datasets/__init__.py
 slim_gsgp/datasets/data_loader.py
 slim_gsgp/datasets/data/airfoil.txt

@@ -333,7 +333,7 @@ class SLIM_GSGP:
                 end - start,
                 self.elite.nodes_count,
             )
-
+        
         # begining the evolution process
         for it in range(1, n_iter + 1, 1):
             # starting an empty offspring population
