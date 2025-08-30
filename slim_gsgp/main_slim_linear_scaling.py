@@ -67,7 +67,8 @@ def slim_linear_scaling(X_train: torch.Tensor, y_train: torch.Tensor, X_test: to
          tournament_size: int = 2,
          tournament_type: str = "standard",
          multi_obj_attrs: list[str] = ["fitness"],
-         test_elite: bool = slim_gsgp_solve_parameters_linear_scaling["test_elite"]):
+         test_elite: bool = slim_gsgp_solve_parameters_linear_scaling["test_elite"],
+         oms: bool = False):
 
     """
     Main function to execute the SLIM GSGP algorithm with Linear Scaling on specified datasets.
@@ -136,6 +137,8 @@ def slim_linear_scaling(X_train: torch.Tensor, y_train: torch.Tensor, X_test: to
         List of attributes to use in pareto tournament selection. Only applicable if tournament_type is "pareto".
     test_elite : bool, optional
         Whether to test the elite individual on the test set after each generation.
+    oms : bool, optional
+        Whether to use the optimal mutation step size. (Default is False)
 
 
     Returns
@@ -245,7 +248,8 @@ def slim_linear_scaling(X_train: torch.Tensor, y_train: torch.Tensor, X_test: to
         CONSTANTS= slim_gsgp_pi_init_linear_scaling["CONSTANTS"],
         two_trees=slim_gsgp_parameters_linear_scaling['two_trees'],
         operator=slim_gsgp_parameters_linear_scaling['operator'],
-        sig=sig
+        sig=sig,
+        oms=oms
     )
     slim_gsgp_parameters_linear_scaling["initializer"] = initializer_options[initializer]
     slim_gsgp_parameters_linear_scaling["ms"] = ms
@@ -275,7 +279,8 @@ def slim_linear_scaling(X_train: torch.Tensor, y_train: torch.Tensor, X_test: to
         "tournament_type": tournament_type,
         "multi_obj_attrs": multi_obj_attrs,
         "test_elite": test_elite,
-        "linear_scaling": True
+        "linear_scaling": True,
+        "oms": oms
     }
 
     # Configure selector based on tournament type

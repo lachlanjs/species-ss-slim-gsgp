@@ -430,7 +430,9 @@ class SLIM_GSGP_LinearScaling(SLIM_GSGP):
                                 max_depth=self.pi_init["init_depth"],
                                 p_c=self.pi_init["p_c"],
                                 X_test=X_test,
-                                reconstruct=reconstruct
+                                reconstruct=reconstruct,
+                                y_train=y_train,
+                                y_test=y_test
                             )
                             
                             # if offspring resulting from inflation exceedes the max depth
@@ -532,7 +534,9 @@ class SLIM_GSGP_LinearScaling(SLIM_GSGP):
                                         max_depth=self.pi_init["init_depth"],
                                         p_c=self.pi_init["p_c"],
                                         X_test=X_test,
-                                        reconstruct=reconstruct
+                                        reconstruct=reconstruct,
+                                        y_train=y_train,
+                                        y_test=y_test
                                     )
                                     
                                     # if offspring resulting from inflation exceedes the max depth
