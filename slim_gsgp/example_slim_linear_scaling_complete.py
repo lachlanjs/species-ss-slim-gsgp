@@ -33,11 +33,13 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, p_test=0.4)
 # Split the test set into validation and test sets
 X_val, X_test, y_val, y_test = train_test_split(X_test, y_test, p_test=0.5)
 
-# Apply the SLIM GSGP algorithm with Linear Scaling
+# Apply the SLIM GSGP algorithm with Linear Scaling using Pareto Tournament
 final_tree = slim_linear_scaling(X_train=X_train, y_train=y_train,
                                 X_test=X_val, y_test=y_val,
-                                dataset_name='ppb', slim_version='SLIM+SIG2', pop_size=100, n_iter=100,
-                                ms_lower=0, ms_upper=1, p_inflate=0.5, reconstruct=True)
+                                dataset_name='ppb', slim_version='SLIM+SIG2', pop_size=1000, n_iter=100,
+                                ms_lower=0, ms_upper=1, p_inflate=0.99, reconstruct=True,
+                                tournament_type="pareto", 
+                                multi_obj_attrs=["fitness", "nodes_count"])
 
 # Show the best individual structure at the last generation
 final_tree.print_tree_representation()
@@ -45,8 +47,23 @@ final_tree.print_tree_representation()
 # Show the linear scaling parameters
 final_tree.print_scaling_info()
 
+# Evaluate the final tree on validation data to get the fitness
+final_tree.calculate_semantics(X_val, testing=True)
+final_tree.evaluate(rmse, y_val, testing=True, operator="sum")
+
+# Show fitness information
+print(f"\n=== FITNESS INFORMATION ===")
+print(f"Training fitness (RMSE): {final_tree.fitness:.6f}")
+print(f"Validation fitness (RMSE): {final_tree.test_fitness:.6f}")
+
 # Get the prediction of the best individual on the test set
 predictions = final_tree.predict(X_test)
 
 # Compute and print the RMSE on the test set
-print(float(rmse(y_true=y_test, y_pred=predictions)))
+test_rmse = float(rmse(y_true=y_test, y_pred=predictions))
+print(f"Final test fitness (RMSE): {test_rmse:.6f}")
+
+print(f"\n=== SUMMARY ===")
+print(f"Number of nodes: {final_tree.nodes_count}")
+print(f"Tree depth: {final_tree.depth}")
+print(f"Train -> Validation -> Test RMSE: {final_tree.fitness:.6f} -> {final_tree.test_fitness:.6f} -> {test_rmse:.6f}")
