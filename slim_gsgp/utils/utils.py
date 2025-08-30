@@ -494,7 +494,7 @@ def gs_size(y_true, y_pred):
 
 def validate_inputs(X_train, y_train, X_test, y_test, pop_size, n_iter, elitism, n_elites, init_depth, log_path,
                     prob_const, tree_functions, tree_constants, log, verbose, minimization, n_jobs, test_elite,
-                    fitness_function, initializer, tournament_size):
+                    fitness_function, initializer, tournament_type, tournament_size):
     """
     Validates the inputs based on the specified conditions.
 
@@ -612,6 +612,9 @@ def validate_inputs(X_train, y_train, X_test, y_test, pop_size, n_iter, elitism,
 
     if not isinstance(initializer, str):
         raise TypeError("initializer must be a str")
+
+    if tournament_type not in ["standard", "pareto"]:
+        raise ValueError("tournament_type must be either \"standard\" or \"pareto\"")
 
     if tournament_size < 2:
         raise ValueError("tournament_size must be at least 2")
