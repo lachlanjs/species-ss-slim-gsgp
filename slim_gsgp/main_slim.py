@@ -68,7 +68,8 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
          tournament_type: str = "standard",
          multi_obj_attrs: list[str] = ["fitness", "size"],
          tournament_size: int = 2,
-         test_elite: bool = slim_gsgp_solve_parameters["test_elite"]):
+         test_elite: bool = slim_gsgp_solve_parameters["test_elite"],
+         oms: bool = False):
 
     """
     Main function to execute the SLIM GSGP algorithm on specified datasets.
@@ -137,6 +138,8 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
         Tournament size to utilize during selection. Only applicable if using tournament selection. (Default is 2)    
     test_elite : bool, optional
         Whether to test the elite individual on the test set after each generation.
+    oms : bool, optional
+        Whether to use the optimal mutation step size. (Default is False)
 
 
     Returns
@@ -245,7 +248,8 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
         CONSTANTS= slim_gsgp_pi_init["CONSTANTS"],
         two_trees=slim_gsgp_parameters['two_trees'],
         operator=slim_gsgp_parameters['operator'],
-        sig=sig
+        sig=sig,
+        oms=oms
     )
     slim_gsgp_parameters["initializer"] = initializer_options[initializer]
     slim_gsgp_parameters["ms"] = ms
@@ -275,7 +279,7 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
     slim_gsgp_solve_parameters["reconstruct"] = reconstruct
     slim_gsgp_solve_parameters["max_depth"] = max_depth
     slim_gsgp_solve_parameters["n_jobs"] = n_jobs
-    slim_gsgp_solve_parameters["test_elite"] = test_elite
+    slim_gsgp_solve_parameters["test_elite"] = test_elite    
 
     # ================================
     #       Running the Algorithm
