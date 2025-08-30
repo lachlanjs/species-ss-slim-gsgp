@@ -59,6 +59,7 @@ def gsgp(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
          tree_constants: list = [float(key.replace("constant_", "").replace("_", "-")) for key in CONSTANTS],
          n_jobs: int = gsgp_solve_parameters["n_jobs"],
          tournament_type: str = "standard",
+         multi_obj_attrs: list[str] = ["fitness", "size"],
          tournament_size: int = 2,
          test_elite: bool = gsgp_solve_parameters["test_elite"]):
     """
@@ -118,6 +119,8 @@ def gsgp(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
         List of constants allowed to appear in the trees.
     tournament_type : str, optional
         Type of tournament selection function to use. either "standard" or "pareto"
+    multi_obj_attrs : list[str], optional
+        List of attributes of an individual to use for multi-objective optimisation
     tournament_size : int, optional
         Tournament size to utilize during selection. Only applicable if using tournament selection. (Default is 2)        
     test_elite : bool, optional
@@ -234,7 +237,7 @@ def gsgp(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
         case "standard":
             gsgp_parameters["selector"] = tournament_selection(tournament_size, minimization)            
         case "pareto":
-            gsgp_parameters["selector"] = tournament_selection_pareto(tournament_size, minimization)
+            gsgp_parameters["selector"] = tournament_selection_pareto(tournament_size, multi_obj_attrs, minimization)
 
     gsgp_parameters["find_elit_func"] = get_best_min if minimization else get_best_max
 

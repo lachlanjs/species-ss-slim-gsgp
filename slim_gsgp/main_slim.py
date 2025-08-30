@@ -66,6 +66,7 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
          max_depth: int | None = slim_gsgp_solve_parameters["max_depth"],
          n_jobs: int = slim_gsgp_solve_parameters["n_jobs"],
          tournament_type: str = "standard",
+         multi_obj_attrs: list[str] = ["fitness", "size"],
          tournament_size: int = 2,
          test_elite: bool = slim_gsgp_solve_parameters["test_elite"]):
 
@@ -130,6 +131,8 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
         Number of parallel jobs to run (default is 1).
     tournament_type : str, optional
         Type of tournament selection function to use. either "standard" or "pareto"
+    multi_obj_attrs : list[str], optional
+        List of attributes of an individual to use for multi-objective optimisation
     tournament_size : int, optional
         Tournament size to utilize during selection. Only applicable if using tournament selection. (Default is 2)    
     test_elite : bool, optional
@@ -178,7 +181,6 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
 
     if max_depth is not None:
         assert init_depth + 6 <= max_depth, f"max_depth must be at least {init_depth + 6}"
-
 
     # creating a list with the valid available fitness functions
     valid_fitnesses = list(fitness_function_options)
@@ -253,10 +255,10 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
     slim_gsgp_parameters["seed"] = seed
 
     match tournament_type:
-        case "standard":
-            slim_gsgp_parameters["selector"] = tournament_selection(tournament_size, minimization)            
-        case "pareto":
-            slim_gsgp_parameters["selector"] = tournament_selection_pareto(tournament_size, minimization)
+        case "standard":            
+            slim_gsgp_parameters["selector"] = tournament_selection(tournament_size, minimization)
+        case "pareto":            
+            slim_gsgp_parameters["selector"] = tournament_selection_pareto(tournament_size, multi_obj_attrs, minimization)
 
     slim_gsgp_parameters["find_elit_func"] = get_best_min if minimization else get_best_max
 

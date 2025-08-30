@@ -29,6 +29,8 @@ from slim_gsgp.algorithms.GP.representations.tree_utils import (create_full_rand
 from slim_gsgp.algorithms.GSGP.representations.tree import Tree
 from sklearn.metrics import root_mean_squared_error
 
+# import matplotlib
+
 
 def protected_div(x1, x2):
     """Implements the division protected against zero denominator
@@ -147,7 +149,7 @@ def tensor_dimensioned_sum(dim):
 
 
 def verbose_reporter(
-        dataset, generation, pop_val_fitness, pop_test_fitness, timing, nodes
+        dataset, generation, pop_val_fitness, pop_test_fitness, timing, nodes, pop=None
 ):
     """
     Prints a formatted report of generation, fitness values, timing, and node count.
@@ -164,6 +166,8 @@ def verbose_reporter(
         Time taken for the process.
     nodes : int
         Count of nodes in the population.
+    pop : Population
+        The entire population
 
     Returns
     -------

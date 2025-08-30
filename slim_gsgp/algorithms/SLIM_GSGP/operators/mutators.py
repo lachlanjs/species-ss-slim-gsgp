@@ -87,7 +87,7 @@ def two_trees_delta(operator="sum"):
         -------
         torch.Tensor
             The mutated semantics.
-        """
+        """        
         if testing:
             return (
                 torch.mul(ms, torch.sub(tr1.test_semantics, tr2.test_semantics))
