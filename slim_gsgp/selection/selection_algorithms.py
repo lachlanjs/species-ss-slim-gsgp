@@ -228,7 +228,7 @@ def calculate_non_dominated(pop, attrs: list[str], minimization: bool):
         remove_idxs = pd.Series([True for i in range(len(non_dom_df))])        
         
         for attr in attrs:
-            remove_idxs = remove_idxs & (non_dom_df[attr] < non_dom_df[attr][idx])                    
+            remove_idxs = remove_idxs & (non_dom_df[attr] > non_dom_df[attr][idx]) # NOTE: Lachie left an absolute clanger on this line (<)
         
         non_dom_df = non_dom_df[~remove_idxs]
         non_dom_df = non_dom_df.reset_index(drop=True)
@@ -300,14 +300,7 @@ def tournament_selection_pareto(pool_size, attrs: list[str], minimization: bool=
             non_dom_idxs, degenerate_attrs = calculate_non_dominated(rand_pop_sample, attrs_, minimization)            
             rand_pop_sample = [rand_pop_sample[idx] for idx in non_dom_idxs]
 
-            attrs_ = list(set.difference(set(attrs_), set(degenerate_attrs)))    
-            # if degenerate_attrs != ["_"] and degenerate_attrs != []:
-                # if len(rand_pop_sample) <= 1:
-                #     print(f"len was {len(rand_pop_sample)}")
-                # else:
-                #     print(f"degenerate_attrs: {degenerate_attrs}, new attrs_: {attrs_}")
-        
-        # print(f"len(rand_pop_sample): {len(rand_pop_sample)}")
+            attrs_ = list(set.difference(set(attrs_), set(degenerate_attrs)))                    
 
         # take one individual from this set        
         return random.choice(rand_pop_sample)

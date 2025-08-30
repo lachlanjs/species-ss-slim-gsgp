@@ -30,7 +30,6 @@ from slim_gsgp.algorithms.GSGP.representations.tree import Tree
 from slim_gsgp.algorithms.SLIM_GSGP.representations.individual import Individual
 from slim_gsgp.utils.utils import get_random_tree
 
-
 # two tree function
 def two_trees_delta(operator="sum"):
     """
@@ -96,7 +95,6 @@ def two_trees_delta(operator="sum"):
                     1, torch.mul(ms, torch.sub(tr1.test_semantics, tr2.test_semantics))
                 )
             )
-
         else:
             return (
                 torch.mul(ms, torch.sub(tr1.train_semantics, tr2.train_semantics))
@@ -233,7 +231,7 @@ def one_tree_delta(operator="sum", sig=False):
     return ot_delta
 
 
-def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum",single_tree_sigmoid=False,sig=False):
+def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum",single_tree_sigmoid=False,sig=False, oms: bool=False):
     """
     Generate an inflate mutation function.
 
@@ -253,6 +251,8 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
         Boolean indicating if sigmoid should be applied to a single tree.
     sig : bool
         Boolean indicating if sigmoid should be applied.
+    oms : bool
+        Boolean indicating whether the optimal step mutation should be used
 
     Returns
     -------
@@ -297,6 +297,8 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
         X_test=None,
         grow_probability=1,
         reconstruct=True,
+        y_train=None, # TODO: add notes
+        y_test=None,
     ):
         """
         Perform inflate mutation on the given Individual.
@@ -319,6 +321,10 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
             Probability of growing trees during mutation (default: 1).
         reconstruct : bool, optional
             Whether to reconstruct the Individual's collection after mutation (default: True).
+        y_train : torch.Tensor, optional
+            Target training data for guiding the optimal mutation step
+        y_test : torch.Tensor, optional
+            Target testing data for guiding the optimal mutation step
 
         Returns
         -------
@@ -355,8 +361,7 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
                 [
                     rt.calculate_semantics(X_test, testing=True, logistic=True)
                     for rt in random_trees
-                ]
-
+                ]                        
         else:
             # getting one random tree
             random_tree1 = get_random_tree(
@@ -380,13 +385,30 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
                     )
                     for rt in random_trees
                 ]
-
+                    
         # getting the correct mutation operator, based on the number of random trees used
         variator = (
             two_trees_delta(operator=operator)
             if two_trees
             else one_tree_delta(operator=operator, sig=sig)
         )
+        
+        if operator == "sum":
+            operator_f = torch.sum
+        else:
+            operator_f = torch.prod
+
+        # calculate the optimal mutation step value here
+        if two_trees and oms:
+            tr1, tr2 = random_trees
+            s_r = torch.sub(tr1.train_semantics, tr2.train_semantics)                
+            # NOTE: 1e-5 added to prevent division by zero
+            s_r_inv = s_r / (1e-5 + torch.mul(y_train.shape[0]), s_r * s_r) if s_r.shape == torch.Size([1]) else s_r / (1e-5 + torch.sum(s_r * s_r))
+                        
+
+            ms = torch.vdot(s_r_inv.broadcast_to(y_train.shape), y_train - operator_f(individual.train_semantics, dim=0)) # .flatten()
+            ms = torch.clamp(ms, -100.0, 100.0)  
+
         # creating the new block for the individual, based on the random trees and operators
         new_block = Tree(
             structure=[variator, *random_trees, ms],
