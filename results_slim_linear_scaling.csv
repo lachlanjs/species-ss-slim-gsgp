@@ -1,0 +1,3 @@
+timestamp,dataset_name,training_rmse,validation_rmse,test_rmse,execution_type
+2025-08-31 09:43:48,ppb,27.2569637298584,tensor(32.4077),26.86713981628418,slim linear scaling
+2025-08-31 09:56:47,ppb,27.2569637298584,tensor(32.4077),26.86713981628418,slim linear scaling oms
