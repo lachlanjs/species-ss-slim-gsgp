@@ -73,7 +73,7 @@ def save_results_to_file(dataset_name, training_rmse, validation_rmse, test_rmse
             'execution_type': execution_type
         })
 
-def run_algorithm(algorithm_func, algorithm_name, dataset_name, X_train, y_train, X_val, y_val, X_test, y_test, oms_enabled, use_pareto_tournament=False):
+def run_algorithm(algorithm_func, algorithm_name, dataset_name, X_train, y_train, X_val, y_val, X_test, y_test, oms_enabled):
     """
     Run a specific algorithm with given parameters.
     
@@ -85,45 +85,30 @@ def run_algorithm(algorithm_func, algorithm_name, dataset_name, X_train, y_train
         X_val, y_val: Validation data
         X_test, y_test: Test data
         oms_enabled: Whether to use OMS
-        use_pareto_tournament: Whether to use Pareto tournament selection
     
     Returns:
         None
     """
     try:
         oms_suffix = " oms" if oms_enabled else ""
-        pareto_suffix = " pareto" if use_pareto_tournament else ""
-        execution_type = f"{algorithm_name}{oms_suffix}{pareto_suffix}"
+        execution_type = f"{algorithm_name}{oms_suffix}"
         
         print(f"  Running {execution_type}...")
         
-        # Prepare algorithm parameters
-        algorithm_params = {
-            'X_train': X_train,
-            'y_train': y_train,
-            'X_test': X_val,
-            'y_test': y_val,
-            'dataset_name': dataset_name,
-            'slim_version': 'SLIM+SIG2',
-            'pop_size': 100,
-            'n_iter': 100,
-            'ms_lower': 0,
-            'ms_upper': 1,
-            'p_inflate': 0.5,
-            'reconstruct': True,
-            'oms': oms_enabled
-        }
-        
-        # Add Pareto tournament parameters if enabled
-        if use_pareto_tournament:
-            algorithm_params.update({
-                'tournament_type': "pareto",
-                'tournament_size': 5,
-                'multi_obj_attrs': ["fitness", "size"]
-            })
-        
         # Run the algorithm
-        final_tree = algorithm_func(**algorithm_params)
+        final_tree = algorithm_func(
+            X_train=X_train, y_train=y_train,
+            X_test=X_val, y_test=y_val,
+            dataset_name=dataset_name, 
+            slim_version='SLIM+SIG2', 
+            pop_size=100, 
+            n_iter=100,
+            ms_lower=0, 
+            ms_upper=1, 
+            p_inflate=0.5, 
+            reconstruct=True,
+            oms=oms_enabled
+        )
         
         # Evaluate the final tree on validation data
         final_tree.calculate_semantics(X_val, testing=True)
@@ -178,26 +163,20 @@ def run_all_datasets():
         (slim_linear_scaling, "slim linear scaling")
     ]
     
-    # Configuration combinations: (oms_enabled, use_pareto_tournament)
-    execution_configs = [
-        (False, False),  # Standard
-        (True, False),   # OMS only
-        (True, True)     # OMS + Pareto tournament
-    ]
+    oms_configs = [False, True]  # Without OMS first, then with OMS
     
     print("=" * 80)
     print("RUNNING ALL DATASETS WITH ALL ALGORITHM COMBINATIONS")
     print("=" * 80)
     print(f"Total datasets: {len(datasets)}")
     print(f"Total algorithms: {len(algorithms)}")
-    print(f"Total execution configurations: {len(execution_configs)}")
-    print(f"Total executions: {len(datasets) * len(algorithms) * len(execution_configs)}")
-    print("Execution types: Standard, OMS, OMS + Pareto Tournament")
+    print(f"Total OMS configurations: {len(oms_configs)}")
+    print(f"Total executions: {len(datasets) * len(algorithms) * len(oms_configs)}")
     print("=" * 80)
     
     successful_runs = 0
     failed_runs = 0
-    total_runs = len(datasets) * len(algorithms) * len(execution_configs)
+    total_runs = len(datasets) * len(algorithms) * len(oms_configs)
     
     for dataset_idx, (dataset_name, load_function) in enumerate(datasets, 1):
         print(f"\n[{dataset_idx}/{len(datasets)}] Processing dataset: {dataset_name}")
@@ -214,18 +193,18 @@ def run_all_datasets():
             
             # Run all algorithm combinations
             for algorithm_func, algorithm_name in algorithms:
-                for oms_enabled, use_pareto_tournament in execution_configs:
+                for oms_enabled in oms_configs:
                     run_algorithm(
                         algorithm_func, algorithm_name, dataset_name,
                         X_train, y_train, X_val, y_val, X_test, y_test,
-                        oms_enabled, use_pareto_tournament
+                        oms_enabled
                     )
                     successful_runs += 1
                     
         except Exception as e:
             print(f"  ✗ Error loading dataset {dataset_name}: {str(e)}")
             print(f"  Traceback: {traceback.format_exc()}")
-            failed_runs += len(algorithms) * len(execution_configs)
+            failed_runs += len(algorithms) * len(oms_configs)
             continue
     
     # Final summary

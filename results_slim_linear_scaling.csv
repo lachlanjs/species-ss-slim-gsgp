@@ -1,3 +1,6 @@
 timestamp,dataset_name,training_rmse,validation_rmse,test_rmse,execution_type
 2025-08-31 09:43:48,ppb,27.2569637298584,tensor(32.4077),26.86713981628418,slim linear scaling
 2025-08-31 09:56:47,ppb,27.2569637298584,tensor(32.4077),26.86713981628418,slim linear scaling oms
+2025-08-31 11:09:47,bike_sharing,0.21462507545948029,tensor(0.2451),1.9536021947860718,slim linear scaling oms
+2025-08-31 11:11:05,bike_sharing,0.1416216939687729,tensor(0.1439),0.17965684831142426,slim linear scaling oms
+2025-08-31 11:15:23,bike_sharing,0.1416216939687729,tensor(0.1439),0.17965684831142426,slim linear scaling oms

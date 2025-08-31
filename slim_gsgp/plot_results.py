@@ -38,8 +38,22 @@ def load_results_data(csv_file="results_all_datasets.csv"):
     if not os.path.exists(csv_file):
         raise FileNotFoundError(f"Results file '{csv_file}' not found. Please run the experiments first.")
     
-    df = pd.read_csv(csv_file)
-    return df
+    try:
+        # Try to load the CSV normally first
+        df = pd.read_csv(csv_file)
+        return df
+    except pd.errors.ParserError as e:
+        print(f"Warning: CSV parsing error: {e}")
+        print("Attempting to fix CSV format issues...")
+        
+        # Try to load with error handling for inconsistent columns
+        try:
+            df = pd.read_csv(csv_file, on_bad_lines='skip')
+            print(f"Loaded {len(df)} valid rows, skipped problematic lines.")
+            return df
+        except Exception as e2:
+            print(f"Failed to load CSV even with error handling: {e2}")
+            raise e2
 
 def calculate_improvement_percentage(df, baseline_execution="slim"):
     """
@@ -98,26 +112,36 @@ def create_improvement_plot(improvement_data, baseline_execution="slim"):
         improvement_data: Dictionary with improvement data
         baseline_execution: Baseline execution type
     """
+    # Filter out bike_sharing dataset
+    filtered_improvement_data = {k: v for k, v in improvement_data.items() if k != 'bike_sharing'}
+    
     # Prepare data for plotting
-    datasets = list(improvement_data.keys())
-    execution_types = ['slim', 'slim oms', 'slim linear scaling', 'slim linear scaling oms']
+    datasets = list(filtered_improvement_data.keys())
+    execution_types = [
+        'slim', 'slim oms', 'slim oms pareto',
+        'slim linear scaling', 'slim linear scaling oms', 'slim linear scaling oms pareto'
+    ]
     
     # Create figure and axis
-    plt.figure(figsize=(15, 8))
+    plt.figure(figsize=(15, 10))
     
     # Colors and markers for each execution type
     colors = {
         'slim': '#1f77b4',
         'slim oms': '#ff7f0e', 
-        'slim linear scaling': '#2ca02c',
-        'slim linear scaling oms': '#d62728'
+        'slim oms pareto': '#2ca02c',
+        'slim linear scaling': '#d62728',
+        'slim linear scaling oms': '#9467bd',
+        'slim linear scaling oms pareto': '#8c564b'
     }
     
     markers = {
         'slim': 'o',
         'slim oms': 's',
-        'slim linear scaling': '^', 
-        'slim linear scaling oms': 'D'
+        'slim oms pareto': '^',
+        'slim linear scaling': 'D', 
+        'slim linear scaling oms': 'v',
+        'slim linear scaling oms pareto': 'p'
     }
     
     # Plot lines for each execution type
@@ -126,8 +150,8 @@ def create_improvement_plot(improvement_data, baseline_execution="slim"):
         x_positions = []
         
         for i, dataset in enumerate(datasets):
-            if dataset in improvement_data and exec_type in improvement_data[dataset]:
-                value = improvement_data[dataset][exec_type]
+            if dataset in filtered_improvement_data and exec_type in filtered_improvement_data[dataset]:
+                value = filtered_improvement_data[dataset][exec_type]
                 if value is not None:
                     y_values.append(value)
                     x_positions.append(i)
@@ -158,9 +182,6 @@ def create_improvement_plot(improvement_data, baseline_execution="slim"):
     # Add legend
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     
-    # Add horizontal line at 0 for reference
-    plt.axhline(y=0, color='red', linestyle='-', alpha=0.7, linewidth=1)
-    
     # Adjust layout to prevent label cutoff
     plt.tight_layout()
     
@@ -171,6 +192,35 @@ def create_improvement_plot(improvement_data, baseline_execution="slim"):
     
     return plt
 
+def print_dataset_improvements(improvement_data, baseline_execution="slim"):
+    """
+    Print improvement percentages for each dataset and execution type.
+    
+    Args:
+        improvement_data: Dictionary with improvement data
+        baseline_execution: Baseline execution type
+    """
+    execution_types = [
+        'slim', 'slim oms', 'slim oms pareto',
+        'slim linear scaling', 'slim linear scaling oms', 'slim linear scaling oms pareto'
+    ]
+    
+    print("\n" + "="*80)
+    print(f"IMPROVEMENT PERCENTAGES BY DATASET (Baseline: {baseline_execution.upper()})")
+    print("="*80)
+    
+    for dataset in improvement_data:
+        print(f"\nDataset: {dataset.upper()}")
+        print("-" * (len(dataset) + 10))
+        
+        for exec_type in execution_types:
+            if exec_type in improvement_data[dataset] and improvement_data[dataset][exec_type] is not None:
+                improvement = improvement_data[dataset][exec_type]
+                status = "✓ IMPROVEMENT" if improvement > 0 else "✗ DEGRADATION" if improvement < 0 else "= NO CHANGE"
+                print(f"  {exec_type:<25}: {improvement:>8.2f}% {status}")
+            else:
+                print(f"  {exec_type:<25}: {'N/A':>8} (No data)")
+
 def create_summary_statistics(improvement_data):
     """
     Create summary statistics for the improvement data.
@@ -178,7 +228,10 @@ def create_summary_statistics(improvement_data):
     Args:
         improvement_data: Dictionary with improvement data
     """
-    execution_types = ['slim', 'slim oms', 'slim linear scaling', 'slim linear scaling oms']
+    execution_types = [
+        'slim', 'slim oms', 'slim oms pareto',
+        'slim linear scaling', 'slim linear scaling oms', 'slim linear scaling oms pareto'
+    ]
     
     print("\n" + "="*80)
     print("IMPROVEMENT SUMMARY STATISTICS")
@@ -219,6 +272,9 @@ def main():
         print("\nCalculating improvement percentages...")
         baseline = "slim"  # You can change this if you want a different baseline
         improvement_data = calculate_improvement_percentage(df, baseline_execution=baseline)
+        
+        # Print improvement percentages for each dataset
+        print_dataset_improvements(improvement_data, baseline_execution=baseline)
         
         # Create summary statistics
         create_summary_statistics(improvement_data)
