@@ -41,6 +41,19 @@ def load_results_data(csv_file="results_all_datasets.csv"):
     try:
         # Try to load the CSV normally first
         df = pd.read_csv(csv_file)
+        
+        # Check if there are 7 columns (the CSV has an extra unnamed column with the actual execution names)
+        if len(df.columns) == 7:
+            # The 7th column contains the actual execution type names
+            df.columns = ['timestamp', 'dataset_name', 'training_rmse', 'validation_rmse', 'test_rmse', 'execution_id', 'execution_type']
+            print("Fixed CSV column naming - found execution names in 7th column")
+        elif len(df.columns) == 6:
+            # Standard format
+            pass
+        else:
+            print(f"Warning: Unexpected number of columns: {len(df.columns)}")
+            print(f"Columns: {list(df.columns)}")
+        
         return df
     except pd.errors.ParserError as e:
         print(f"Warning: CSV parsing error: {e}")
@@ -50,6 +63,12 @@ def load_results_data(csv_file="results_all_datasets.csv"):
         try:
             df = pd.read_csv(csv_file, on_bad_lines='skip')
             print(f"Loaded {len(df)} valid rows, skipped problematic lines.")
+            
+            # Apply the same column fix if needed
+            if len(df.columns) == 7:
+                df.columns = ['timestamp', 'dataset_name', 'training_rmse', 'validation_rmse', 'test_rmse', 'execution_id', 'execution_type']
+                print("Fixed CSV column naming - found execution names in 7th column")
+            
             return df
         except Exception as e2:
             print(f"Failed to load CSV even with error handling: {e2}")
@@ -118,8 +137,7 @@ def create_improvement_plot(improvement_data, baseline_execution="slim"):
     # Prepare data for plotting
     datasets = list(filtered_improvement_data.keys())
     execution_types = [
-        'slim', 'slim oms', 'slim oms pareto',
-        'slim linear scaling', 'slim linear scaling oms', 'slim linear scaling oms pareto'
+        'slim', 'slim oms', 'slim linear scaling', 'slim linear scaling oms'
     ]
     
     # Create figure and axis
@@ -129,19 +147,15 @@ def create_improvement_plot(improvement_data, baseline_execution="slim"):
     colors = {
         'slim': '#1f77b4',
         'slim oms': '#ff7f0e', 
-        'slim oms pareto': '#2ca02c',
         'slim linear scaling': '#d62728',
-        'slim linear scaling oms': '#9467bd',
-        'slim linear scaling oms pareto': '#8c564b'
+        'slim linear scaling oms': '#9467bd'
     }
     
     markers = {
         'slim': 'o',
         'slim oms': 's',
-        'slim oms pareto': '^',
         'slim linear scaling': 'D', 
-        'slim linear scaling oms': 'v',
-        'slim linear scaling oms pareto': 'p'
+        'slim linear scaling oms': 'v'
     }
     
     # Plot lines for each execution type
@@ -266,11 +280,16 @@ def main():
         df = load_results_data()
         
         print(f"Loaded {len(df)} results from {len(df['dataset_name'].unique())} datasets")
+        print(f"Columns in DataFrame: {list(df.columns)}")
         print(f"Execution types found: {list(df['execution_type'].unique())}")
+        
+        # Show a sample of the data for debugging
+        print("\nSample of loaded data:")
+        print(df[['dataset_name', 'test_rmse', 'execution_type']].head(10))
         
         # Calculate improvements
         print("\nCalculating improvement percentages...")
-        baseline = "slim"  # You can change this if you want a different baseline
+        baseline = "slim"  # Using slim as baseline to compare linear scaling variants
         improvement_data = calculate_improvement_percentage(df, baseline_execution=baseline)
         
         # Print improvement percentages for each dataset
