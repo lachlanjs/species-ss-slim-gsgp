@@ -1,2 +1,0 @@
-timestamp,dataset_name,training_rmse,validation_rmse,test_rmse,execution_type
-2025-08-31 14:19:04,bike_sharing,1078.8721923828125,tensor(1139.6781),1071.3624267578125,slim linear scaling
