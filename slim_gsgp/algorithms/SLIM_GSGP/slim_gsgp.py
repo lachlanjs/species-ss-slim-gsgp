@@ -49,6 +49,7 @@ class SLIM_GSGP:
         ms,
         crossover,
         find_elit_func,
+        early_stopping=False,
         p_m=1,
         p_xo=0,
         p_inflate=0.3,
@@ -81,6 +82,8 @@ class SLIM_GSGP:
             Crossover function.
         find_elit_func : Callable
             Function to find elite individuals.
+        early_stopping: boolean. Default is False
+            Whether or not to apply early stopping
         p_m : float
             Probability of mutation. Default is 1.
         p_xo : float
@@ -105,6 +108,7 @@ class SLIM_GSGP:
         """
         self.pi_init = pi_init
         self.selector = selector
+        self.early_stopping = early_stopping
         self.p_m = p_m
         self.p_inflate = p_inflate
         self.p_deflate = p_deflate
@@ -140,6 +144,8 @@ class SLIM_GSGP:
         run_info,
         n_iter=20,
         elitism=True,
+        es_coef=0.01,
+        es_it=5,
         log=0,
         verbose=0,
         test_elite=False,
@@ -170,6 +176,10 @@ class SLIM_GSGP:
             Number of iterations. Default is 20.
         elitism : bool
             Whether elitism is used during evolution. Default is True.
+        es_thresh : float
+            If the relative increase in performance in the last es_it iterations is less, stop
+        es_it: int
+            If not improvement past es_thresh in this number of iterations, will stop early
         log : int or str
             Logging level (e.g., 0 for no logging, 1 for basic, etc.). Default is 0.
         verbose : int
@@ -333,6 +343,10 @@ class SLIM_GSGP:
                 end - start,
                 self.elite.nodes_count,
             )
+
+        # used for early stopping
+        best_fitness = 0.0
+        best_it = 0
         
         # begining the evolution process
         for it in range(1, n_iter + 1, 1):
@@ -506,11 +520,28 @@ class SLIM_GSGP:
             self.elites, self.elite = self.find_elit_func(population, n_elites)
 
             # calculating the testing semantics and the elite's testing fitness if test_elite is true
-            if test_elite:
+            if test_elite or self.early_stopping:
                 self.elite.calculate_semantics(X_test, testing=True)
                 self.elite.evaluate(
                     ffunction, y=y_test, testing=True, operator=self.operator
                 )
+
+            # early stopping logic
+            if self.early_stopping:
+                if it == 1:
+                    best_fitness = self.elite.test_fitness
+                    best_it = it
+                else:
+                    imp_req = (1.0 + es_coef) * best_fitness # fitness required to prevent early stop
+                    if self.elite.test_fitness > imp_req:
+                        best_it = it
+                        best_fitness = self.elite.test_fitness
+                    else:
+                        # early stopping?
+                        if it - best_it >= es_it:
+                            # NOTE this isn't the best
+                            break
+
 
             # logging the results based on the log level
             if log != 0:
@@ -599,6 +630,9 @@ class SLIM_GSGP:
                     run_info=run_info,
                     seed=self.seed,
                 )
+
+            # TODO: put a check for whether early stopping was enforced here?
+            
 
             # displaying the results on console if verbose level is more than 0
             if verbose != 0:
