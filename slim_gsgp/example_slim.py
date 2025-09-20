@@ -20,12 +20,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 from slim_gsgp.main_slim import slim  # import the slim_gsgp library
-from slim_gsgp.datasets.data_loader import load_ppb  # import the loader for the dataset PPB
+from slim_gsgp.datasets.data_loader import load_parkinson_updrs  # import the loader for the Parkinson's dataset
 from slim_gsgp.evaluators.fitness_functions import rmse  # import the rmse fitness metric
 from slim_gsgp.utils.utils import train_test_split  # import the train-test split function
 
-# Load the PPB dataset
-X, y = load_ppb(X_y=True)
+# Load the Parkinson's Total UPDRS dataset
+X, y = load_parkinson_updrs(X_y=True)
 
 # Split into train and test sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, p_test=0.4)
@@ -34,10 +34,18 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, p_test=0.4)
 X_val, X_test, y_val, y_test = train_test_split(X_test, y_test, p_test=0.5)
 
 # Apply the SLIM GSGP algorithm
+# final_tree = slim(X_train=X_train, y_train=y_train,
+#                   X_test=X_val, y_test=y_val,
+#                   dataset_name='parkinson_total_UPDRS', slim_version='SLIM+SIG2', pop_size=100, n_iter=100,
+#                   ms_lower=0, ms_upper=1, p_inflate=0.5, reconstruct=True, tournament_type="pareto", tournament_size=5, multi_obj_attrs=["fitness", "size"], oms=True)
+
 final_tree = slim(X_train=X_train, y_train=y_train,
                   X_test=X_val, y_test=y_val,
-                  dataset_name='ppb', slim_version='SLIM+SIG2', pop_size=100, n_iter=100,
-                  ms_lower=0, ms_upper=1, p_inflate=0.5, reconstruct=True, tournament_type="pareto", tournament_size=5, multi_obj_attrs=["fitness", "size"], oms=True)
+                  dataset_name='parkinson_total_UPDRS', slim_version='SLIM+SIG2', pop_size=100, n_iter=100,
+                  ms_lower=0, ms_upper=1, p_inflate=0.5, reconstruct=True,
+                  #tournament_type="pareto", 
+                  #multi_obj_attrs=["fitness", "nodes_count"],
+                  oms=False)
 
 # Show the best individual structure at the last generation
 final_tree.print_tree_representation()
