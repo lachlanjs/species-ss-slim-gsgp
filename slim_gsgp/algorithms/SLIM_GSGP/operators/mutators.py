@@ -413,7 +413,7 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
             s_r_inv = s_r / (1e-7 + torch.mul(y_train.shape[0]), s_r * s_r) if s_r.shape == torch.Size([1]) else s_r / (1e-5 + torch.sum(s_r * s_r))                        
             ms = torch.vdot(s_r_inv.broadcast_to(y_train.shape), y_train - operator_f(individual.train_semantics, dim=0)) # .flatten()
             ms = torch.clamp(ms, -100.0, 100.0)  
-            # NOTE: this is where we could be detecing for whenm ms is 0.0 (to prevent overfitting and bloat)
+            # NOTE: this is where we could be detecting for whenm ms is 0.0 (to prevent overfitting and bloat)
             
 
         # creating the new block for the individual, based on the random trees and operators
