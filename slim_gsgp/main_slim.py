@@ -26,9 +26,12 @@ logging the results for further analysis.
 import uuid
 import os
 import warnings
+import torch
 
 from slim_gsgp.algorithms.SLIM_GSGP.slim_gsgp import SLIM_GSGP
+from slim_gsgp.algorithms.SLIM_GSGP.slim_gsgp_linear_scaling import SLIM_GSGP_LinearScaling
 from slim_gsgp.config.slim_config import *
+from slim_gsgp.config.slim_config_linear_scaling import *
 from slim_gsgp.selection.selection_algorithms import tournament_selection_max, tournament_selection_min
 from slim_gsgp.selection.selection_algorithms import tournament_selection, tournament_selection_pareto 
 from slim_gsgp.utils.logger import log_settings
@@ -69,7 +72,8 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
          multi_obj_attrs: list[str] = ["fitness", "size"],
          tournament_size: int = 2,
          test_elite: bool = slim_gsgp_solve_parameters["test_elite"],
-         oms: bool = False):
+         oms: bool = False,
+         linear_scaling: bool = False):
 
     """
     Main function to execute the SLIM GSGP algorithm on specified datasets.
@@ -140,6 +144,9 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
         Whether to test the elite individual on the test set after each generation.
     oms : bool, optional
         Whether to use the optimal mutation step size. (Default is False)
+    linear_scaling : bool, optional
+        Whether to use linear scaling for fitness evaluation. When enabled, applies optimal linear 
+        transformation y_scaled = a + y_raw * b to improve fitness. (Default is False)
 
 
     Returns
@@ -163,6 +170,20 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
                     tree_functions=tree_functions, tree_constants=tree_constants, log=log_level, verbose=verbose,
                     minimization=minimization, n_jobs=n_jobs, test_elite=test_elite, fitness_function=fitness_function,
                     initializer=initializer, tournament_type=tournament_type, tournament_size=tournament_size)
+
+    # Select appropriate configuration based on linear_scaling parameter
+    if linear_scaling:
+        # Use linear scaling configurations
+        current_slim_gsgp_parameters = slim_gsgp_parameters_linear_scaling.copy()
+        current_slim_gsgp_solve_parameters = slim_gsgp_solve_parameters_linear_scaling.copy()
+        current_slim_gsgp_pi_init = slim_gsgp_pi_init_linear_scaling.copy()
+        optimizer_class = SLIM_GSGP_LinearScaling
+    else:
+        # Use standard configurations
+        current_slim_gsgp_parameters = slim_gsgp_parameters.copy()
+        current_slim_gsgp_solve_parameters = slim_gsgp_solve_parameters.copy()
+        current_slim_gsgp_pi_init = slim_gsgp_pi_init.copy()
+        optimizer_class = SLIM_GSGP
 
     # Checking that both ms bounds are numerical
     assert isinstance(ms_lower, (int, float)) and isinstance(ms_upper, (int, float)), \
@@ -213,9 +234,9 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
     #   *************** SLIM_GSGP_PI_INIT ***************
     TERMINALS = get_terminals(X_train)
 
-    slim_gsgp_pi_init["TERMINALS"] = TERMINALS
+    current_slim_gsgp_pi_init["TERMINALS"] = TERMINALS
     try:
-        slim_gsgp_pi_init["FUNCTIONS"] = {key: FUNCTIONS[key] for key in tree_functions}
+        current_slim_gsgp_pi_init["FUNCTIONS"] = {key: FUNCTIONS[key] for key in tree_functions}
     except KeyError as e:
         valid_functions = list(FUNCTIONS)
         raise KeyError(
@@ -223,7 +244,7 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
             if len(valid_functions) > 1 else valid_functions[0])
 
     try:
-        slim_gsgp_pi_init['CONSTANTS'] = {f"constant_{str(n).replace('-', '_')}": lambda _, num=n: torch.tensor(num)
+        current_slim_gsgp_pi_init['CONSTANTS'] = {f"constant_{str(n).replace('-', '_')}": lambda _, num=n: torch.tensor(num)
                                           for n in tree_constants}
     except KeyError as e:
         valid_constants = list(CONSTANTS)
@@ -231,63 +252,63 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
             "The available tree constants are: " + f"{', '.join(valid_constants[:-1])} or "f"{valid_constants[-1]}"
             if len(valid_constants) > 1 else valid_constants[0])
 
-    slim_gsgp_pi_init["init_pop_size"] = pop_size
-    slim_gsgp_pi_init["init_depth"] = init_depth
-    slim_gsgp_pi_init["p_c"] = prob_const
+    current_slim_gsgp_pi_init["init_pop_size"] = pop_size
+    current_slim_gsgp_pi_init["init_depth"] = init_depth
+    current_slim_gsgp_pi_init["p_c"] = prob_const
 
     #   *************** SLIM_GSGP_PARAMETERS ***************
 
-    slim_gsgp_parameters["two_trees"] = trees
-    slim_gsgp_parameters["operator"] = op
+    current_slim_gsgp_parameters["two_trees"] = trees
+    current_slim_gsgp_parameters["operator"] = op
 
-    slim_gsgp_parameters["p_m"] = 1 - slim_gsgp_parameters["p_xo"]
-    slim_gsgp_parameters["pop_size"] = pop_size
-    slim_gsgp_parameters["inflate_mutator"] = inflate_mutation(
-        FUNCTIONS= slim_gsgp_pi_init["FUNCTIONS"],
-        TERMINALS= slim_gsgp_pi_init["TERMINALS"],
-        CONSTANTS= slim_gsgp_pi_init["CONSTANTS"],
-        two_trees=slim_gsgp_parameters['two_trees'],
-        operator=slim_gsgp_parameters['operator'],
+    current_slim_gsgp_parameters["p_m"] = 1 - current_slim_gsgp_parameters["p_xo"]
+    current_slim_gsgp_parameters["pop_size"] = pop_size
+    current_slim_gsgp_parameters["inflate_mutator"] = inflate_mutation(
+        FUNCTIONS= current_slim_gsgp_pi_init["FUNCTIONS"],
+        TERMINALS= current_slim_gsgp_pi_init["TERMINALS"],
+        CONSTANTS= current_slim_gsgp_pi_init["CONSTANTS"],
+        two_trees=current_slim_gsgp_parameters['two_trees'],
+        operator=current_slim_gsgp_parameters['operator'],
         sig=sig,
         oms=oms
     )
-    slim_gsgp_parameters["initializer"] = initializer_options[initializer]
-    slim_gsgp_parameters["ms"] = ms
-    slim_gsgp_parameters['p_inflate'] = p_inflate
-    slim_gsgp_parameters['p_deflate'] = 1 - slim_gsgp_parameters['p_inflate']
-    slim_gsgp_parameters["copy_parent"] = copy_parent
-    slim_gsgp_parameters["seed"] = seed
+    current_slim_gsgp_parameters["initializer"] = initializer_options[initializer]
+    current_slim_gsgp_parameters["ms"] = ms
+    current_slim_gsgp_parameters['p_inflate'] = p_inflate
+    current_slim_gsgp_parameters['p_deflate'] = 1 - current_slim_gsgp_parameters['p_inflate']
+    current_slim_gsgp_parameters["copy_parent"] = copy_parent
+    current_slim_gsgp_parameters["seed"] = seed
 
     match tournament_type:
         case "standard":            
-            slim_gsgp_parameters["selector"] = tournament_selection(tournament_size, minimization)
+            current_slim_gsgp_parameters["selector"] = tournament_selection(tournament_size, minimization)
         case "pareto":            
-            slim_gsgp_parameters["selector"] = tournament_selection_pareto(tournament_size, multi_obj_attrs, minimization)
+            current_slim_gsgp_parameters["selector"] = tournament_selection_pareto(tournament_size, multi_obj_attrs, minimization)
 
-    slim_gsgp_parameters["find_elit_func"] = get_best_min if minimization else get_best_max
+    current_slim_gsgp_parameters["find_elit_func"] = get_best_min if minimization else get_best_max
 
     #   *************** SLIM_GSGP_SOLVE_PARAMETERS ***************
 
-    slim_gsgp_solve_parameters["log"] = log_level
-    slim_gsgp_solve_parameters["verbose"] = verbose
-    slim_gsgp_solve_parameters["log_path"] = log_path
-    slim_gsgp_solve_parameters["elitism"] = elitism
-    slim_gsgp_solve_parameters["n_elites"] = n_elites
-    slim_gsgp_solve_parameters["n_iter"] = n_iter
-    slim_gsgp_solve_parameters['run_info'] = [slim_version, UNIQUE_RUN_ID, dataset_name]
-    slim_gsgp_solve_parameters["ffunction"] = fitness_function_options[fitness_function]
-    slim_gsgp_solve_parameters["reconstruct"] = reconstruct
-    slim_gsgp_solve_parameters["max_depth"] = max_depth
-    slim_gsgp_solve_parameters["n_jobs"] = n_jobs
-    slim_gsgp_solve_parameters["test_elite"] = test_elite    
+    current_slim_gsgp_solve_parameters["log"] = log_level
+    current_slim_gsgp_solve_parameters["verbose"] = verbose
+    current_slim_gsgp_solve_parameters["log_path"] = log_path
+    current_slim_gsgp_solve_parameters["elitism"] = elitism
+    current_slim_gsgp_solve_parameters["n_elites"] = n_elites
+    current_slim_gsgp_solve_parameters["n_iter"] = n_iter
+    current_slim_gsgp_solve_parameters['run_info'] = [slim_version, UNIQUE_RUN_ID, dataset_name]
+    current_slim_gsgp_solve_parameters["ffunction"] = fitness_function_options[fitness_function]
+    current_slim_gsgp_solve_parameters["reconstruct"] = reconstruct
+    current_slim_gsgp_solve_parameters["max_depth"] = max_depth
+    current_slim_gsgp_solve_parameters["n_jobs"] = n_jobs
+    current_slim_gsgp_solve_parameters["test_elite"] = test_elite    
 
     # ================================
     #       Running the Algorithm
     # ================================
 
-    optimizer = SLIM_GSGP(
-        pi_init=slim_gsgp_pi_init,
-        **slim_gsgp_parameters
+    optimizer = optimizer_class(
+        pi_init=current_slim_gsgp_pi_init,
+        **current_slim_gsgp_parameters
     )
 
     optimizer.solve(
@@ -296,14 +317,14 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
         y_train=y_train,
         y_test=y_test,
         curr_dataset=dataset_name,
-        **slim_gsgp_solve_parameters
+        **current_slim_gsgp_solve_parameters
     )
 
     log_settings(
         path=os.path.join(os.getcwd(), "log", "slim_settings.csv"),
-        settings_dict=[slim_gsgp_solve_parameters,
-                       slim_gsgp_parameters,
-                       slim_gsgp_pi_init,
+        settings_dict=[current_slim_gsgp_solve_parameters,
+                       current_slim_gsgp_parameters,
+                       current_slim_gsgp_pi_init,
                        settings_dict],
         unique_run_id=UNIQUE_RUN_ID
     )

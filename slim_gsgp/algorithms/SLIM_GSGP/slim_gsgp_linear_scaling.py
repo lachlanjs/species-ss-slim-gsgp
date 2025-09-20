@@ -159,6 +159,9 @@ class SLIM_GSGP_LinearScaling(SLIM_GSGP):
         # evaluating the initial population (with raw outputs)
         population.evaluate(ffunction, y=y_train, operator=self.operator, n_jobs=n_jobs)
 
+        
+        
+
         # Calculate linear scaling for the initial population
         for individual in population.population:
             individual.calculate_linear_scaling(y_train)
