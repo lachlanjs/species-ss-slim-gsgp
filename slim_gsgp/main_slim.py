@@ -261,6 +261,7 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
     current_slim_gsgp_parameters["two_trees"] = trees
     current_slim_gsgp_parameters["operator"] = op
 
+    current_slim_gsgp_parameters["minimization"] = minimization
     current_slim_gsgp_parameters["p_m"] = 1 - current_slim_gsgp_parameters["p_xo"]
     current_slim_gsgp_parameters["pop_size"] = pop_size
     current_slim_gsgp_parameters["inflate_mutator"] = inflate_mutation(

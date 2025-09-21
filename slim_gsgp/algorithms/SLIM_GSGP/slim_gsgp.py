@@ -49,6 +49,7 @@ class SLIM_GSGP:
         ms,
         crossover,
         find_elit_func,
+        minimization=True, 
         early_stopping=False,
         p_m=1,
         p_xo=0,
@@ -82,6 +83,8 @@ class SLIM_GSGP:
             Crossover function.
         find_elit_func : Callable
             Function to find elite individuals.
+        minimization : bool
+            whether or not the objective is to minimize the fitness function
         early_stopping: boolean. Default is False
             Whether or not to apply early stopping
         p_m : float
@@ -108,6 +111,7 @@ class SLIM_GSGP:
         """
         self.pi_init = pi_init
         self.selector = selector
+        self.minimization = minimization
         self.early_stopping = early_stopping
         self.p_m = p_m
         self.p_inflate = p_inflate
