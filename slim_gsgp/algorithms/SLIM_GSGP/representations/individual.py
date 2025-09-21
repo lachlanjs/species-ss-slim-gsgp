@@ -212,10 +212,11 @@ class Individual:
             # Apply linear scaling if enabled
             if self.use_linear_scaling and self.scaling_a is not None:
                 scaled_semantics = self.scaling_a + raw_semantics * self.scaling_b
+                # Convert to float explicitly when linear scaling is applied (like backup version)
+                self.test_fitness = float(ffunction(y, scaled_semantics))
             else:
                 scaled_semantics = raw_semantics
-                
-            self.test_fitness = ffunction(y, scaled_semantics)
+                self.test_fitness = ffunction(y, scaled_semantics)
         # computing the training fitness
         else:
             raw_semantics = torch.clamp(
@@ -227,10 +228,11 @@ class Individual:
             # Apply linear scaling if enabled
             if self.use_linear_scaling and self.scaling_a is not None:
                 scaled_semantics = self.scaling_a + raw_semantics * self.scaling_b
+                # Convert to float explicitly when linear scaling is applied (like backup version)
+                self.fitness = float(ffunction(y, scaled_semantics))
             else:
                 scaled_semantics = raw_semantics
-                
-            self.fitness = ffunction(y, scaled_semantics)
+                self.fitness = ffunction(y, scaled_semantics)
 
     def predict(self, data, apply_scaling=True):
         """

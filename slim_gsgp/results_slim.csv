@@ -2,3 +2,6 @@ timestamp,dataset_name,training_rmse,validation_rmse,test_rmse,execution_type
 2025-09-11 09:44:49,bike_sharing,0.13523824512958527,tensor(0.1409),0.16346846520900726,slim
 2025-09-21 12:00:04,bike_sharing,0.13523824512958527,tensor(0.1409),0.16346846520900726,slim linear scaling
 2025-09-21 12:02:46,bike_sharing,0.13523824512958527,tensor(0.1409),0.16346846520900726,slim linear scaling
+2025-09-21 12:59:41,bike_sharing,tensor(0.1276),tensor(0.1311),0.13859856128692627,slim linear scaling
+2025-09-21 13:40:52,bike_sharing,tensor(0.1276),tensor(0.1311),0.13866163790225983,slim linear scaling
+2025-09-21 14:57:18,bike_sharing,tensor(0.1276),0.13114137947559357,0.13866163790225983,slim linear scaling
