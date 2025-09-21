@@ -241,8 +241,17 @@ class SLIM_GSGP:
         if self.use_linear_scaling:
             for individual in population.population:
                 individual.calculate_linear_scaling(y_train)
-            # Re-evaluate population with linear scaling applied
-            population.evaluate(ffunction, y=y_train, operator=self.operator, n_jobs=n_jobs)
+            
+            # Re-evaluate population with linear scaling applied (manually like backup)
+            for individual in population.population:
+                # Apply linear scaling to predictions
+                raw_prediction = torch.sum(individual.train_semantics, dim=0) if len(individual.train_semantics.shape) > 1 else individual.train_semantics
+                scaled_prediction = individual.scaling_a + raw_prediction * individual.scaling_b
+                # Recalculate fitness with scaled predictions
+                individual.fitness = float(ffunction(y_train, scaled_prediction))
+            
+            # Update population fitness array after re-evaluation
+            population.fit = [individual.fitness for individual in population.population]
 
         end = time.time()
 
@@ -532,8 +541,18 @@ class SLIM_GSGP:
                 for individual in offs_pop.population:
                     if individual.scaling_a is None:  # Only calculate for new offspring without inherited scaling
                         individual.calculate_linear_scaling(y_train)
-                # Re-evaluate offspring population with linear scaling applied
-                offs_pop.evaluate(ffunction, y=y_train, operator=self.operator, n_jobs=n_jobs)
+                
+                # Re-evaluate offspring population with linear scaling applied (manually like backup)
+                for individual in offs_pop.population:
+                    if individual.use_linear_scaling and individual.scaling_a is not None:
+                        # Apply linear scaling to predictions
+                        raw_prediction = torch.sum(individual.train_semantics, dim=0) if len(individual.train_semantics.shape) > 1 else individual.train_semantics
+                        scaled_prediction = individual.scaling_a + raw_prediction * individual.scaling_b
+                        # Recalculate fitness with scaled predictions
+                        individual.fitness = float(ffunction(y_train, scaled_prediction))
+                
+                # Update offspring population fitness array after re-evaluation
+                offs_pop.fit = [individual.fitness for individual in offs_pop.population]
 
             # replacing the current population with the offspring population P = P'
             population = offs_pop

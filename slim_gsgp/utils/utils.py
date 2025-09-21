@@ -671,31 +671,26 @@ def _evaluate_slim_individual(individual, ffunction, y, testing=False, operator=
         operator = torch.prod
 
     if testing:
-        individual.test_fitness = ffunction(
-            y,
-            torch.clamp(
-                operator(individual.test_semantics, dim=0),
-                -1000000000000.0,
-                1000000000000.0,
-            ),
+        raw_semantics = torch.clamp(
+            operator(individual.test_semantics, dim=0),
+            -1000000000000.0,
+            1000000000000.0,
         )
+        
+        # Apply linear scaling if enabled and parameters are available
+        if hasattr(individual, 'use_linear_scaling') and individual.use_linear_scaling and individual.scaling_a is not None:
+            scaled_semantics = individual.scaling_a + raw_semantics * individual.scaling_b
+            individual.test_fitness = float(ffunction(y, scaled_semantics))
+        else:
+            individual.test_fitness = ffunction(y, raw_semantics)
 
     else:
-        individual.fitness = ffunction(
-            y,
-            torch.clamp(
-                operator(individual.train_semantics, dim=0),
-                -1000000000000.0,
-                1000000000000.0,
-            ),
+        raw_semantics = torch.clamp(
+            operator(individual.train_semantics, dim=0),
+            -1000000000000.0,
+            1000000000000.0,
         )
-
-        # if testing is false, return the value so that training parallelization has effect
-        return ffunction(
-                y,
-                torch.clamp(
-                    operator(individual.train_semantics, dim=0),
-                    -1000000000000.0,
-                    1000000000000.0,
-                ),
-            )
+        
+        individual.fitness = ffunction(y, raw_semantics)
+        # Return raw fitness for parallelization (linear scaling applied separately)
+        return ffunction(y, raw_semantics)
