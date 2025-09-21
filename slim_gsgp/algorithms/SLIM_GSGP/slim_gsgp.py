@@ -58,6 +58,7 @@ class SLIM_GSGP:
         operator="sum",
         copy_parent=True,
         two_trees=True,
+        use_linear_scaling=False,
         settings_dict=None,
     ):
         """
@@ -99,6 +100,8 @@ class SLIM_GSGP:
             Whether to copy the parent when mutation is not possible. Default is True.
         two_trees : bool
             Indicates if two trees are used. Default is True.
+        use_linear_scaling : bool
+            Whether to use linear scaling for all individuals. Default is False.
         settings_dict : dict
             Additional settings passed as a dictionary.
 
@@ -119,6 +122,7 @@ class SLIM_GSGP:
         self.operator = operator
         self.copy_parent = copy_parent
         self.two_trees = two_trees
+        self.use_linear_scaling = use_linear_scaling
         self.settings_dict = settings_dict
         self.find_elit_func = find_elit_func
 
@@ -148,7 +152,8 @@ class SLIM_GSGP:
         max_depth=17,
         n_elites=1,
         reconstruct=True,
-        n_jobs=1):
+        n_jobs=1,
+        **kwargs):
         """
         Solve the optimization problem using SLIM_GSGP.
 
@@ -216,6 +221,7 @@ class SLIM_GSGP:
                     train_semantics=None,
                     test_semantics=None,
                     reconstruct=True,
+                    use_linear_scaling=self.use_linear_scaling,
                 )
                 for tree in self.initializer(**self.pi_init)
             ]
@@ -226,6 +232,13 @@ class SLIM_GSGP:
 
         # evaluating the initial population
         population.evaluate(ffunction, y=y_train, operator=self.operator, n_jobs=n_jobs)
+
+        # Calculate linear scaling for the initial population if enabled
+        if self.use_linear_scaling:
+            for individual in population.population:
+                individual.calculate_linear_scaling(y_train)
+            # Re-evaluate population with linear scaling applied
+            population.evaluate(ffunction, y=y_train, operator=self.operator, n_jobs=n_jobs)
 
         end = time.time()
 
@@ -371,6 +384,7 @@ class SLIM_GSGP:
                                     train_semantics=p1.train_semantics,
                                     test_semantics=p1.test_semantics,
                                     reconstruct=reconstruct,
+                                    use_linear_scaling=self.use_linear_scaling,
                                 )
                                 (
                                     off1.nodes_collection,
@@ -385,6 +399,10 @@ class SLIM_GSGP:
                                     p1.depth,
                                     p1.size,
                                 )
+                                # Inherit linear scaling parameters if enabled
+                                if self.use_linear_scaling and hasattr(p1, 'scaling_a'):
+                                    off1.scaling_a = p1.scaling_a
+                                    off1.scaling_b = p1.scaling_b
                             else:
                                 # if we choose to not copy the parent, we inflate it instead
                                 ms_ = self.ms()
@@ -420,6 +438,7 @@ class SLIM_GSGP:
                                     train_semantics=p1.train_semantics,
                                     test_semantics=p1.test_semantics,
                                     reconstruct=reconstruct,
+                                    use_linear_scaling=self.use_linear_scaling,
                                 )
                                 (
                                     off1.nodes_collection,
@@ -434,6 +453,10 @@ class SLIM_GSGP:
                                     p1.depth,
                                     p1.size,
                                 )
+                                # Inherit linear scaling parameters if enabled
+                                if self.use_linear_scaling and hasattr(p1, 'scaling_a'):
+                                    off1.scaling_a = p1.scaling_a
+                                    off1.scaling_b = p1.scaling_b
 
                             # if copy parent is false, the parent is deflated instead of inflated
                             else:
@@ -462,6 +485,7 @@ class SLIM_GSGP:
                                     train_semantics=p1.train_semantics,
                                     test_semantics=p1.test_semantics,
                                     reconstruct=reconstruct,
+                                    use_linear_scaling=self.use_linear_scaling,
                                 )
                                 (
                                     off1.nodes_collection,
@@ -476,6 +500,10 @@ class SLIM_GSGP:
                                     p1.depth,
                                     p1.size,
                                 )
+                                # Inherit linear scaling parameters if enabled
+                                if self.use_linear_scaling and hasattr(p1, 'scaling_a'):
+                                    off1.scaling_a = p1.scaling_a
+                                    off1.scaling_b = p1.scaling_b
                             else:
                                 # otherwise, deflate the parent
                                 off1 = self.deflate_mutator(p1, reconstruct=reconstruct)
@@ -485,7 +513,6 @@ class SLIM_GSGP:
 
             # removing any excess individuals from the offspring population
             if len(offs_pop) > population.size:
-
                 offs_pop = offs_pop[: population.size]
 
             # turning the offspring population into a Population
@@ -495,6 +522,14 @@ class SLIM_GSGP:
 
             # evaluating the offspring population
             offs_pop.evaluate(ffunction, y=y_train, operator=self.operator, n_jobs=n_jobs)
+            
+            # Calculate linear scaling for new offspring if enabled
+            if self.use_linear_scaling:
+                for individual in offs_pop.population:
+                    if individual.scaling_a is None:  # Only calculate for new offspring without inherited scaling
+                        individual.calculate_linear_scaling(y_train)
+                # Re-evaluate offspring population with linear scaling applied
+                offs_pop.evaluate(ffunction, y=y_train, operator=self.operator, n_jobs=n_jobs)
 
             # replacing the current population with the offspring population P = P'
             population = offs_pop

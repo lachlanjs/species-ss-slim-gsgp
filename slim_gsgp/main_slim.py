@@ -29,9 +29,7 @@ import warnings
 import torch
 
 from slim_gsgp.algorithms.SLIM_GSGP.slim_gsgp import SLIM_GSGP
-from slim_gsgp.algorithms.SLIM_GSGP.slim_gsgp_linear_scaling import SLIM_GSGP_LinearScaling
 from slim_gsgp.config.slim_config import *
-from slim_gsgp.config.slim_config_linear_scaling import *
 from slim_gsgp.selection.selection_algorithms import tournament_selection_max, tournament_selection_min
 from slim_gsgp.selection.selection_algorithms import tournament_selection, tournament_selection_pareto 
 from slim_gsgp.utils.logger import log_settings
@@ -73,7 +71,8 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
          tournament_size: int = 2,
          test_elite: bool = slim_gsgp_solve_parameters["test_elite"],
          oms: bool = False,
-         linear_scaling: bool = False):
+         linear_scaling: bool = False,
+         **kwargs):
 
     """
     Main function to execute the SLIM GSGP algorithm on specified datasets.
@@ -174,10 +173,11 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
     # Select appropriate configuration based on linear_scaling parameter
     if linear_scaling:
         # Use linear scaling configurations
-        current_slim_gsgp_parameters = slim_gsgp_parameters_linear_scaling.copy()
-        current_slim_gsgp_solve_parameters = slim_gsgp_solve_parameters_linear_scaling.copy()
-        current_slim_gsgp_pi_init = slim_gsgp_pi_init_linear_scaling.copy()
-        optimizer_class = SLIM_GSGP_LinearScaling
+        current_slim_gsgp_parameters = slim_gsgp_parameters.copy()
+        current_slim_gsgp_parameters["use_linear_scaling"] = True
+        current_slim_gsgp_solve_parameters = slim_gsgp_solve_parameters.copy()
+        current_slim_gsgp_pi_init = slim_gsgp_pi_init.copy()
+        optimizer_class = SLIM_GSGP
     else:
         # Use standard configurations
         current_slim_gsgp_parameters = slim_gsgp_parameters.copy()

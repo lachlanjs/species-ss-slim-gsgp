@@ -78,7 +78,7 @@ final_tree = slim(X_train=X_train, y_train=y_train,
                   dataset_name='bike_sharing', slim_version='SLIM+SIG2', pop_size=100, n_iter=100,
                   ms_lower=0, ms_upper=1, p_inflate=0.5, reconstruct=True, 
                   # tournament_type="pareto", tournament_size=5, multi_obj_attrs=["fitness", "size"], 
-                  oms=False, linear_scaling=True)  
+                  oms=False, linear_scaling=True)
 
 # Show the best individual structure at the last generation
 final_tree.print_tree_representation()
@@ -112,7 +112,7 @@ print(f"Train -> Validation -> Test RMSE: {final_tree.fitness:.6f} -> {final_tre
 dataset_name = 'bike_sharing'
 # Determine execution type based on OMS and linear scaling usage
 oms_used = False  # Change this to match the oms parameter above
-linear_scaling_used = False  # Change this to match the linear_scaling parameter above
+linear_scaling_used = True  # Change this to match the linear_scaling parameter above
 
 if linear_scaling_used and oms_used:
     execution_type = 'slim linear scaling oms'
