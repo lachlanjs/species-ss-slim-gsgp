@@ -180,7 +180,7 @@ def one_tree_delta(operator="sum", sig=False):
                         torch.mul(ms, torch.sub(torch.mul(2, tr1.train_semantics), 1)),
                     )
                 )
-        else:
+        else: # abs
             if testing:
                 return (
                     torch.mul(
@@ -203,7 +203,7 @@ def one_tree_delta(operator="sum", sig=False):
                         ),
                     )
                 )
-            else:
+            else: 
                 return (
                     torch.mul(
                         ms,
@@ -399,15 +399,22 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
             operator_f = torch.prod
 
         # calculate the optimal mutation step value here
-        if two_trees and oms:
-            tr1, tr2 = random_trees
-            s_r = torch.sub(tr1.train_semantics, tr2.train_semantics)                
-            # NOTE: 1e-5 added to prevent division by zero
-            s_r_inv = s_r / (1e-5 + torch.mul(y_train.shape[0]), s_r * s_r) if s_r.shape == torch.Size([1]) else s_r / (1e-5 + torch.sum(s_r * s_r))
-                        
-
+        if oms:
+            if two_trees:
+                tr1, tr2 = random_trees
+                s_r = torch.sub(tr1.train_semantics, tr2.train_semantics)                
+            else: # one tree
+                tr1, = random_trees
+                if sig:
+                    s_r = torch.sub(torch.mul(2, tr1.train_semantics), 1)
+                else:
+                    s_r = torch.sub(1, torch.div(2, torch.add(1, torch.abs(tr1.train_semantics))))
+            
+            s_r_inv = s_r / (1e-7 + torch.mul(y_train.shape[0]), s_r * s_r) if s_r.shape == torch.Size([1]) else s_r / (1e-5 + torch.sum(s_r * s_r))                        
             ms = torch.vdot(s_r_inv.broadcast_to(y_train.shape), y_train - operator_f(individual.train_semantics, dim=0)) # .flatten()
             ms = torch.clamp(ms, -100.0, 100.0)  
+            # NOTE: this is where we could be detecing for whenm ms is 0.0 (to prevent overfitting and bloat)
+            
 
         # creating the new block for the individual, based on the random trees and operators
         new_block = Tree(

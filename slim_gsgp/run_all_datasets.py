@@ -20,7 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from main_slim import slim
+from main_slim import slim  # import the slim_gsgp library
 from datasets.data_loader import (
     load_airfoil, load_bike_sharing, load_bioav, load_boston, load_breast_cancer,
     load_concrete_slump, load_concrete_strength, load_diabetes, load_efficiency_cooling,
@@ -72,7 +72,7 @@ def save_results_to_file(dataset_name, training_rmse, validation_rmse, test_rmse
             'execution_type': execution_type
         })
 
-def run_algorithm(algorithm_name, dataset_name, X_train, y_train, X_val, y_val, X_test, y_test, oms_enabled, linear_scaling_enabled, use_pareto_tournament=False):
+def run_algorithm(algorithm_name, dataset_name, X_train, y_train, X_val, y_val, X_test, y_test, oms_enabled, linear_scaling_enabled, use_pareto_tournament=False, slim_version='SLIM+SIG2', output_filename="results_all_datasets.csv"):
     """
     Run a specific algorithm with given parameters.
     
@@ -85,6 +85,8 @@ def run_algorithm(algorithm_name, dataset_name, X_train, y_train, X_val, y_val, 
         oms_enabled: Whether to use OMS
         linear_scaling_enabled: Whether to use linear scaling
         use_pareto_tournament: Whether to use Pareto tournament selection
+        slim_version: Version of SLIM to use (e.g., 'SLIM+SIG2', 'SLIM+ABS', 'SLIM*ABS')
+        output_filename: Name of the output CSV file
     
     Returns:
         None
@@ -104,7 +106,7 @@ def run_algorithm(algorithm_name, dataset_name, X_train, y_train, X_val, y_val, 
             'X_test': X_val,
             'y_test': y_val,
             'dataset_name': dataset_name,
-            'slim_version': 'SLIM+SIG2',
+            'slim_version': slim_version,
             'pop_size': 100,
             'n_iter': 100,
             'ms_lower': 0,
@@ -141,7 +143,8 @@ def run_algorithm(algorithm_name, dataset_name, X_train, y_train, X_val, y_val, 
             validation_rmse=final_tree.test_fitness,
             test_rmse=test_rmse,
             nodes_count=final_tree.nodes_count,
-            execution_type=execution_type
+            execution_type=execution_type,
+            filename=output_filename
         )
         
         print(f"    ✓ {execution_type} completed - Train: {final_tree.fitness:.6f}, Val: {final_tree.test_fitness:.6f}, Test: {test_rmse:.6f}, Nodes: {final_tree.nodes_count}")
@@ -150,10 +153,49 @@ def run_algorithm(algorithm_name, dataset_name, X_train, y_train, X_val, y_val, 
         print(f"    ✗ Error in {execution_type}: {str(e)}")
         print(f"    Traceback: {traceback.format_exc()}")
 
-def run_all_datasets():
+def get_valid_execution_configs(slim_version):
+    """
+    Get valid execution configurations based on SLIM version.
+    OMS only works with two_trees=True versions (SLIM+SIG2, SLIM*SIG2)
+    
+    Args:
+        slim_version: Version of SLIM being used
+        
+    Returns:
+        list: Valid execution configurations for this SLIM version
+    """
+    # Check if this SLIM version supports OMS (requires two_trees=True)
+    two_trees_versions = ["SLIM+SIG2", "SLIM*SIG2"]
+    supports_oms = slim_version in two_trees_versions
+    
+    if supports_oms:
+        # Full configurations for versions that support OMS
+        return [
+            (False, False),  # Standard
+            (True, False),   # OMS only
+            (True, True)     # OMS + Pareto tournament
+        ]
+    else:
+        # Limited configurations for versions that don't support OMS
+        return [
+            (False, False),  # Standard only
+            (False, True)    # Pareto tournament only (without OMS)
+        ]
+
+def run_all_datasets(slim_version='SLIM+SIG2', output_filename=None):
     """
     Run all datasets with all algorithm combinations.
+    
+    Args:
+        slim_version: Version of SLIM to use (e.g., 'SLIM+SIG2', 'SLIM+ABS', 'SLIM*ABS')
+        output_filename: Custom filename for results CSV. If None, generates based on slim_version
     """
+    # Generate filename if not provided
+    if output_filename is None:
+        # Convert version name to valid filename
+        version_suffix = slim_version.replace('+', '_').replace('*', '_').replace(' ', '_').lower()
+        output_filename = f"results_all_datasets_{version_suffix}.csv"
+    
     # Define all available datasets
     datasets = [
         ('airfoil', load_airfoil),
@@ -180,20 +222,34 @@ def run_all_datasets():
     ]
     
     # Configuration combinations: (oms_enabled, use_pareto_tournament)
-    execution_configs = [
-        (False, False),  # Standard
-        (True, False),   # OMS only
-        (True, True)     # OMS + Pareto tournament
-    ]
+    execution_configs = get_valid_execution_configs(slim_version)
+    
+    # Get readable names for execution types
+    def get_execution_type_name(oms_enabled, use_pareto_tournament, supports_oms):
+        if oms_enabled and use_pareto_tournament:
+            return "OMS + Pareto Tournament"
+        elif oms_enabled:
+            return "OMS only"
+        elif use_pareto_tournament:
+            return "Pareto Tournament only"
+        else:
+            return "Standard"
+    
+    supports_oms = slim_version in ["SLIM+SIG2", "SLIM*SIG2"]
+    execution_type_names = [get_execution_type_name(oms, pareto, supports_oms) 
+                           for oms, pareto in execution_configs]
     
     print("=" * 80)
     print("RUNNING ALL DATASETS WITH ALL ALGORITHM COMBINATIONS")
     print("=" * 80)
+    print(f"SLIM Version: {slim_version}")
+    print(f"Output file: {output_filename}")
+    print(f"OMS Support: {'Yes' if supports_oms else 'No (requires two_trees=True)'}")
     print(f"Total datasets: {len(datasets)}")
     print(f"Total linear scaling configs: {len(linear_scaling_configs)}")
     print(f"Total execution configurations: {len(execution_configs)}")
     print(f"Total executions: {len(datasets) * len(linear_scaling_configs) * len(execution_configs)}")
-    print("Execution types: Standard, Linear Scaling, OMS, OMS + Pareto Tournament")
+    print(f"Execution types: {', '.join(execution_type_names)}")
     print("=" * 80)
     
     successful_runs = 0
@@ -219,7 +275,8 @@ def run_all_datasets():
                     run_algorithm(
                         algorithm_name, dataset_name,
                         X_train, y_train, X_val, y_val, X_test, y_test,
-                        oms_enabled, linear_scaling_enabled, use_pareto_tournament
+                        oms_enabled, linear_scaling_enabled, use_pareto_tournament,
+                        slim_version, output_filename
                     )
                     successful_runs += 1
                     
@@ -237,14 +294,30 @@ def run_all_datasets():
     print(f"Successful executions: {successful_runs}")
     print(f"Failed executions: {failed_runs}")
     print(f"Success rate: {(successful_runs/total_runs)*100:.1f}%")
-    print(f"Results saved to: results_all_datasets.csv")
+    print(f"Results saved to: {output_filename}")
     print("=" * 80)
 
 if __name__ == "__main__":
+    import sys
+    
+    # Parse command line arguments
+    slim_version = 'SLIM+SIG2'  # Default
+    output_filename = None
+    
+    if len(sys.argv) > 1:
+        slim_version = sys.argv[1]
+    if len(sys.argv) > 2:
+        output_filename = sys.argv[2]
+    
+    print(f"Configuration:")
+    print(f"  SLIM Version: {slim_version}")
+    print(f"  Output filename: {output_filename if output_filename else 'Auto-generated'}")
+    print()
+    
     start_time = datetime.now()
     print(f"Starting execution at: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
     
-    run_all_datasets()
+    run_all_datasets(slim_version=slim_version, output_filename=output_filename)
     
     end_time = datetime.now()
     execution_time = end_time - start_time

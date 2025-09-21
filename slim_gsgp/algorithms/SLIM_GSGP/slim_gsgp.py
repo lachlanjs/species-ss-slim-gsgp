@@ -49,6 +49,7 @@ class SLIM_GSGP:
         ms,
         crossover,
         find_elit_func,
+        minimization=True, 
         p_m=1,
         p_xo=0,
         p_inflate=0.3,
@@ -82,6 +83,8 @@ class SLIM_GSGP:
             Crossover function.
         find_elit_func : Callable
             Function to find elite individuals.
+        minimization : bool
+            whether or not the objective is to minimize the fitness function
         p_m : float
             Probability of mutation. Default is 1.
         p_xo : float
@@ -108,6 +111,7 @@ class SLIM_GSGP:
         """
         self.pi_init = pi_init
         self.selector = selector
+        self.minimization = minimization
         self.p_m = p_m
         self.p_inflate = p_inflate
         self.p_deflate = p_deflate

@@ -270,14 +270,19 @@ def create_summary_statistics(improvement_data):
             print(f"  Max improvement: {max_improvement:.2f}%")
             print(f"  Datasets with improvement (>0%): {sum(1 for x in improvements if x > 0)}/{len(improvements)}")
 
-def main():
+def main(csv_file="results_all_datasets.csv", baseline="slim", output_plot=None):
     """
     Main function to generate the improvement plot.
+    
+    Args:
+        csv_file: Path to the CSV file with results
+        baseline: Baseline execution type for comparison
+        output_plot: Custom output filename for the plot. If None, auto-generates based on csv_file
     """
     try:
         # Load data
-        print("Loading results data...")
-        df = load_results_data()
+        print(f"Loading results data from: {csv_file}")
+        df = load_results_data(csv_file)
         
         print(f"Loaded {len(df)} results from {len(df['dataset_name'].unique())} datasets")
         print(f"Columns in DataFrame: {list(df.columns)}")
@@ -288,8 +293,7 @@ def main():
         print(df[['dataset_name', 'test_rmse', 'execution_type']].head(10))
         
         # Calculate improvements
-        print("\nCalculating improvement percentages...")
-        baseline = "slim"  # Using slim as baseline to compare linear scaling variants
+        print(f"\nCalculating improvement percentages (baseline: {baseline})...")
         improvement_data = calculate_improvement_percentage(df, baseline_execution=baseline)
         
         # Print improvement percentages for each dataset
@@ -302,10 +306,14 @@ def main():
         print(f"\nCreating improvement plot (baseline: {baseline})...")
         plt = create_improvement_plot(improvement_data, baseline_execution=baseline)
         
+        # Generate output filename if not provided
+        if output_plot is None:
+            base_name = csv_file.replace('.csv', '').replace('results_all_datasets', 'test_rmse_improvement_plot')
+            output_plot = f"{base_name}.png"
+        
         # Save the plot
-        output_file = "test_rmse_improvement_plot.png"
-        plt.savefig(output_file, dpi=300, bbox_inches='tight')
-        print(f"Plot saved as: {output_file}")
+        plt.savefig(output_plot, dpi=300, bbox_inches='tight')
+        print(f"Plot saved as: {output_plot}")
         
         # Show the plot
         plt.show()
@@ -319,4 +327,24 @@ def main():
         traceback.print_exc()
 
 if __name__ == "__main__":
-    main()
+    import sys
+    
+    # Parse command line arguments
+    csv_file = "results_all_datasets.csv"  # Default
+    baseline = "slim"  # Default
+    output_plot = None
+    
+    if len(sys.argv) > 1:
+        csv_file = sys.argv[1]
+    if len(sys.argv) > 2:
+        baseline = sys.argv[2]
+    if len(sys.argv) > 3:
+        output_plot = sys.argv[3]
+    
+    print(f"Configuration:")
+    print(f"  CSV file: {csv_file}")
+    print(f"  Baseline: {baseline}")
+    print(f"  Output plot: {output_plot if output_plot else 'Auto-generated'}")
+    print()
+    
+    main(csv_file=csv_file, baseline=baseline, output_plot=output_plot)

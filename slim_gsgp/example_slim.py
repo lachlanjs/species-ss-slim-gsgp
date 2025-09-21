@@ -73,6 +73,11 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, p_test=0.4)
 X_val, X_test, y_val, y_test = train_test_split(X_test, y_test, p_test=0.5)
 
 # Apply the SLIM GSGP algorithm
+# final_tree = slim(X_train=X_train, y_train=y_train,
+#                   X_test=X_val, y_test=y_val,
+#                   dataset_name='parkinson_total_UPDRS', slim_version='SLIM+SIG2', pop_size=100, n_iter=100,
+#                   ms_lower=0, ms_upper=1, p_inflate=0.5, reconstruct=True, tournament_type="pareto", tournament_size=5, multi_obj_attrs=["fitness", "size"], oms=True)
+
 final_tree = slim(X_train=X_train, y_train=y_train,
                   X_test=X_val, y_test=y_val,
                   dataset_name='bike_sharing', slim_version='SLIM+SIG2', pop_size=100, n_iter=100,
