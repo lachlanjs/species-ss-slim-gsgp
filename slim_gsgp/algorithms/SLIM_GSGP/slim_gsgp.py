@@ -181,7 +181,7 @@ class SLIM_GSGP:
         elitism : bool
             Whether elitism is used during evolution. Default is True.
         es_thresh : float
-            If the relative increase in performance in the last es_it iterations is less, stop
+            If the relative improvement in performance in the last es_it iterations is less, stop. Must be in (0,1)
         es_it: int
             If not improvement past es_thresh in this number of iterations, will stop early
         log : int or str
@@ -535,15 +535,16 @@ class SLIM_GSGP:
                 if it == 1:
                     best_fitness = self.elite.test_fitness
                     best_it = it
-                else:
-                    imp_req = (1.0 + es_coef) * best_fitness # fitness required to prevent early stop
-                    if self.elite.test_fitness > imp_req:
+                else:               
+                    # criterion changes depending on whether the objective is maximization or minimization                
+                    if self.elite_test_fitness < (1.0 - es_coef) * best_fitness if self.minimization else self.elite.test_fitness > (1.0 + es_coef) * best_fitness:
                         best_it = it
                         best_fitness = self.elite.test_fitness
                     else:
                         # early stopping?
                         if it - best_it >= es_it:
-                            # NOTE this isn't the best
+                            # NOTE is this the right place to break?
+                            # TODO: maybe set a flag and check it later after the logging
                             break
 
 
