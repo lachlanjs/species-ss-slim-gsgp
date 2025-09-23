@@ -694,3 +694,87 @@ def _evaluate_slim_individual(individual, ffunction, y, testing=False, operator=
         individual.fitness = ffunction(y, raw_semantics)
         # Return raw fitness for parallelization (linear scaling applied separately)
         return ffunction(y, raw_semantics)
+
+
+def normalize_population_attributes(population, attrs):
+    """
+    Normalize specified attributes of a population to range [0, 1].
+    
+    Parameters
+    ----------
+    population : list
+        List of individuals with attributes to normalize.
+    attrs : list[str]
+        List of attribute names to normalize.
+        
+    Returns
+    -------
+    dict
+        Dictionary containing min and max values for each attribute for denormalization.
+    """
+    normalization_params = {}
+    
+    for attr in attrs:
+        values = [getattr(ind, attr) for ind in population]
+        min_val = min(values)
+        max_val = max(values)
+        
+        # Store normalization parameters
+        normalization_params[attr] = {'min': min_val, 'max': max_val}
+        
+        # Normalize values to [0, 1]
+        if max_val == min_val:
+            # If all values are the same, set all to 0
+            for ind in population:
+                setattr(ind, f'normalized_{attr}', 0.0)
+        else:
+            for ind in population:
+                original_val = getattr(ind, attr)
+                normalized_val = (original_val - min_val) / (max_val - min_val)
+                setattr(ind, f'normalized_{attr}', normalized_val)
+    
+    return normalization_params
+
+
+def select_best_normalized_individual(population):
+    """
+    Select the best individual from a population based on Pareto dominance
+    considering normalized fitness and size.
+    
+    This function normalizes both fitness and size to [0,1] range across the
+    entire population, then uses Pareto dominance to find the best individual.
+    In case of multiple non-dominated individuals, one is randomly selected.
+    
+    Parameters
+    ----------
+    population : list
+        List of individuals with 'fitness' and 'nodes_count' attributes.
+        
+    Returns
+    -------
+    Individual
+        The selected best individual based on normalized fitness and size trade-off.
+    """
+    # Create a copy of population to avoid modifying original
+    pop_copy = [ind for ind in population]
+    
+    # Normalize fitness and size attributes
+    normalize_population_attributes(pop_copy, ['fitness', 'nodes_count'])
+    
+    # Use Pareto dominance to select the best individual
+    # We want to minimize both normalized fitness and normalized size
+    attrs = ['normalized_fitness', 'normalized_nodes_count']
+    
+    # Calculate non-dominated set of the entire population
+    from slim_gsgp.selection.selection_algorithms import calculate_non_dominated
+    non_dom_idxs, _ = calculate_non_dominated(pop_copy, attrs, minimization=True)
+    
+    # Get the non-dominated individuals
+    non_dominated = [pop_copy[idx] for idx in non_dom_idxs]
+    
+    # Select one individual from the non-dominated set (randomly if multiple)
+    selected = random.choice(non_dominated)
+    
+    # Return the original individual (without normalized attributes)
+    original_idx = population.index(selected) if selected in population else pop_copy.index(selected)
+    return population[original_idx]

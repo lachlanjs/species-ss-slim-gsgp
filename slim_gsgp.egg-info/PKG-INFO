@@ -1,4 +1,4 @@
-Metadata-Version: 2.4
+Metadata-Version: 2.1
 Name: slim_gsgp
 Version: 0.1.10
 Summary: Semantic Learning algorithm based on Inflate and deflate Mutation (SLIM GSGP)
@@ -17,16 +17,6 @@ Requires-Dist: torch
 Requires-Dist: scipy
 Requires-Dist: scikit-learn
 Requires-Dist: joblib
-Dynamic: author
-Dynamic: author-email
-Dynamic: classifier
-Dynamic: description
-Dynamic: description-content-type
-Dynamic: home-page
-Dynamic: license-file
-Dynamic: requires-dist
-Dynamic: requires-python
-Dynamic: summary
 
 # SLIM (Semantic Learning algorithm based on Inflate and deflate Mutation)
 

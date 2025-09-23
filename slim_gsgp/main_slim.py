@@ -331,8 +331,23 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
     )
 
     optimizer.elite.version = slim_version
+    
+    # Select best individual based on normalized fitness and size using Pareto dominance
+    from slim_gsgp.utils.utils import select_best_normalized_individual
+    best_normalized_individual = select_best_normalized_individual(optimizer.population.population)
+    best_normalized_individual.version = slim_version
 
-    return optimizer.elite
+    # Return both the best fitness individual and the best normalized individual
+    class SlimResults:
+        def __init__(self, best_fitness, best_normalized):
+            self.best_fitness = best_fitness
+            self.best_normalized = best_normalized
+            
+        # For backward compatibility, allow access to best_fitness as if it were the main result
+        def __getattr__(self, name):
+            return getattr(self.best_fitness, name)
+    
+    return SlimResults(optimizer.elite, best_normalized_individual)
 
 
 if __name__ == "__main__":
