@@ -78,7 +78,7 @@ results = slim(X_train=X_train, y_train=y_train,
                dataset_name='airfoil', slim_version='SLIM+ABS', pop_size=100, n_iter=100,
                ms_lower=0, ms_upper=1, p_inflate=0.5, reconstruct=True, 
                # tournament_type="pareto", tournament_size=5, multi_obj_attrs=["fitness", "size"], 
-               oms=False, linear_scaling=True)
+               oms=False, linear_scaling=True, enable_plotting=True)
 
 # Extract both individuals
 best_fitness_individual = results.best_fitness

@@ -28,6 +28,8 @@ import time
 
 import numpy as np
 import torch
+import matplotlib.pyplot as plt
+plt.ion() 
 from slim_gsgp.algorithms.GP.representations.tree import Tree as GP_Tree
 from slim_gsgp.algorithms.GSGP.representations.tree import Tree
 from slim_gsgp.algorithms.SLIM_GSGP.representations.individual import Individual
@@ -35,6 +37,101 @@ from slim_gsgp.algorithms.SLIM_GSGP.representations.population import Population
 from slim_gsgp.utils.diversity import gsgp_pop_div_from_vectors
 from slim_gsgp.utils.logger import logger
 from slim_gsgp.utils.utils import verbose_reporter
+
+# Global variable to store the figure for persistent plotting
+_plot_figure = None
+_plot_axes = None
+
+def plot_generation_fitness_vs_nodes(population, generation, X_test=None, y_test=None, ffunction=None, operator="sum"):
+    """
+    Plot fitness vs number of nodes for all individuals in the population.
+    
+    Parameters:
+    -----------
+    population : Population
+        The current population
+    generation : int
+        Current generation number
+    X_test : torch.Tensor, optional
+        Test input data for fitness calculation
+    y_test : torch.Tensor, optional
+        Test output data for fitness calculation
+    ffunction : function, optional
+        Fitness function to use for test fitness calculation
+    operator : str
+        Operator for semantics aggregation ("sum" or "prod")
+    """
+    global _plot_figure, _plot_axes
+    
+    nodes_counts = []
+    test_fitnesses = []
+    
+    for individual in population.population:
+        nodes_counts.append(individual.nodes_count)
+        
+        # Calculate test fitness if test data is provided
+        if X_test is not None and y_test is not None and ffunction is not None:
+            # Calculate test semantics if not already calculated
+            if individual.test_semantics is None:
+                individual.calculate_semantics(X_test, testing=True)
+            
+            # Calculate test fitness with linear scaling if applicable
+            if hasattr(individual, 'use_linear_scaling') and individual.use_linear_scaling:
+                # Apply linear scaling to test predictions
+                raw_prediction = torch.sum(individual.test_semantics, dim=0) if len(individual.test_semantics.shape) > 1 else individual.test_semantics
+                scaled_prediction = individual.scaling_a + raw_prediction * individual.scaling_b
+                test_fitness = float(ffunction(y_test, scaled_prediction))
+            else:
+                # Use training fitness as proxy if no test data or linear scaling
+                test_fitness = individual.fitness
+        else:
+            # Use training fitness as proxy if no test data provided
+            test_fitness = individual.fitness
+            
+        test_fitnesses.append(test_fitness)
+    
+    # Create the figure and axes if they don't exist
+    if _plot_figure is None:
+        _plot_figure, _plot_axes = plt.subplots(figsize=(10, 6))
+        _plot_figure.canvas.manager.set_window_title('SLIM GSGP Evolution Progress')
+    
+    # Clear the previous plot but keep the figure
+    _plot_axes.clear()
+    
+    # Create the plot
+    _plot_axes.scatter(nodes_counts, test_fitnesses, alpha=0.6, s=50)
+    _plot_axes.set_xlabel('Number of Nodes')
+    _plot_axes.set_ylabel('Test Fitness (RMSE)')
+    _plot_axes.set_title(f'Generation {generation}: Fitness vs Number of Nodes')
+    _plot_axes.grid(True, alpha=0.3)
+    
+    # Set fixed axis limits
+    _plot_axes.set_xlim(1, 200)
+    
+    # Add some statistics to the plot
+    best_idx = np.argmin(test_fitnesses)
+    best_fitness = test_fitnesses[best_idx]
+    best_nodes = nodes_counts[best_idx]
+    
+    _plot_axes.scatter(best_nodes, best_fitness, color='red', s=100, marker='*', 
+                label=f'Best: {best_fitness:.4f} ({best_nodes} nodes)')
+    _plot_axes.legend()
+    
+    # Update the plot without blocking
+    _plot_figure.canvas.draw()
+    _plot_figure.canvas.flush_events()
+    
+    # Pause for 1 second to allow viewing
+    plt.pause(0.2)
+
+
+def close_evolution_plot():
+    """Close the evolution plot window."""
+    global _plot_figure, _plot_axes
+    if _plot_figure is not None:
+        plt.close(_plot_figure)
+        _plot_figure = None
+        _plot_axes = None
 
 
 class SLIM_GSGP:
@@ -61,6 +158,7 @@ class SLIM_GSGP:
         two_trees=True,
         use_linear_scaling=False,
         settings_dict=None,
+        enable_plotting=False,
     ):
         """
         Initialize the SLIM_GSGP algorithm with given parameters.
@@ -129,6 +227,7 @@ class SLIM_GSGP:
         self.use_linear_scaling = use_linear_scaling
         self.settings_dict = settings_dict
         self.find_elit_func = find_elit_func
+        self.enable_plotting = enable_plotting
 
         Tree.FUNCTIONS = pi_init["FUNCTIONS"]
         Tree.TERMINALS = pi_init["TERMINALS"]
@@ -360,6 +459,10 @@ class SLIM_GSGP:
                 self.elite.nodes_count,
             )
         
+        # Plot initial generation if plotting is enabled
+        if self.enable_plotting:
+            plot_generation_fitness_vs_nodes(population, 0, X_test, y_test, ffunction, self.operator)
+
         # begining the evolution process
         for it in range(1, n_iter + 1, 1):
             # starting an empty offspring population
@@ -668,3 +771,13 @@ class SLIM_GSGP:
                     end - start,
                     self.elite.nodes_count,
                 )
+            
+            # Plot current generation if plotting is enabled
+            if self.enable_plotting:
+                plot_generation_fitness_vs_nodes(population, it, X_test, y_test, ffunction, self.operator)
+
+        # Close the evolution plot if it was enabled
+        if self.enable_plotting:
+            close_evolution_plot()
+
+        return self.elite

@@ -11,8 +11,6 @@ slim_gsgp/main_gsgp.py
 slim_gsgp/main_slim.py
 slim_gsgp/plot_results.py
 slim_gsgp/run_all_datasets.py
-slim_gsgp/test_changes.py
-slim_gsgp/test_reload.py
 slim_gsgp.egg-info/PKG-INFO
 slim_gsgp.egg-info/SOURCES.txt
 slim_gsgp.egg-info/dependency_links.txt
@@ -52,8 +50,10 @@ slim_gsgp/datasets/__init__.py
 slim_gsgp/datasets/data_loader.py
 slim_gsgp/datasets/__pycache__/__init__.cpython-310.pyc
 slim_gsgp/datasets/__pycache__/__init__.cpython-311.pyc
+slim_gsgp/datasets/__pycache__/__init__.cpython-312.pyc
 slim_gsgp/datasets/__pycache__/data_loader.cpython-310.pyc
 slim_gsgp/datasets/__pycache__/data_loader.cpython-311.pyc
+slim_gsgp/datasets/__pycache__/data_loader.cpython-312.pyc
 slim_gsgp/datasets/data/airfoil.txt
 slim_gsgp/datasets/data/bike_sharing_day.txt
 slim_gsgp/datasets/data/bioavailability.txt

@@ -72,6 +72,7 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
          test_elite: bool = slim_gsgp_solve_parameters["test_elite"],
          oms: bool = False,
          linear_scaling: bool = False,
+         enable_plotting: bool = False,
          **kwargs):
 
     """
@@ -175,12 +176,14 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
         # Use linear scaling configurations
         current_slim_gsgp_parameters = slim_gsgp_parameters.copy()
         current_slim_gsgp_parameters["use_linear_scaling"] = True
+        current_slim_gsgp_parameters["enable_plotting"] = enable_plotting
         current_slim_gsgp_solve_parameters = slim_gsgp_solve_parameters.copy()
         current_slim_gsgp_pi_init = slim_gsgp_pi_init.copy()
         optimizer_class = SLIM_GSGP
     else:
         # Use standard configurations
         current_slim_gsgp_parameters = slim_gsgp_parameters.copy()
+        current_slim_gsgp_parameters["enable_plotting"] = enable_plotting
         current_slim_gsgp_solve_parameters = slim_gsgp_solve_parameters.copy()
         current_slim_gsgp_pi_init = slim_gsgp_pi_init.copy()
         optimizer_class = SLIM_GSGP
