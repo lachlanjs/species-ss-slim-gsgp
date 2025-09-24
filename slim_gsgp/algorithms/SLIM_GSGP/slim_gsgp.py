@@ -36,7 +36,7 @@ from slim_gsgp.algorithms.SLIM_GSGP.representations.individual import Individual
 from slim_gsgp.algorithms.SLIM_GSGP.representations.population import Population
 from slim_gsgp.utils.diversity import gsgp_pop_div_from_vectors
 from slim_gsgp.utils.logger import logger
-from slim_gsgp.utils.utils import verbose_reporter
+from slim_gsgp.utils.utils import verbose_reporter, select_best_normalized_individual
 
 # Global variable to store the figure for persistent plotting
 _plot_figure = None
@@ -45,6 +45,7 @@ _plot_axes = None
 def plot_generation_fitness_vs_nodes(population, generation, X_test=None, y_test=None, ffunction=None, operator="sum"):
     """
     Plot fitness vs number of nodes for all individuals in the population.
+    Shows both best fitness individual and best normalized individual.
     
     Parameters:
     -----------
@@ -108,13 +109,36 @@ def plot_generation_fitness_vs_nodes(population, generation, X_test=None, y_test
     # Set fixed axis limits
     _plot_axes.set_xlim(1, 200)
     
-    # Add some statistics to the plot
-    best_idx = np.argmin(test_fitnesses)
-    best_fitness = test_fitnesses[best_idx]
-    best_nodes = nodes_counts[best_idx]
+    # Add statistics for both best fitness and best normalized individuals
+    # Best fitness individual (lowest RMSE)
+    best_fitness_idx = np.argmin(test_fitnesses)
+    best_fitness_value = test_fitnesses[best_fitness_idx]
+    best_fitness_nodes = nodes_counts[best_fitness_idx]
     
-    _plot_axes.scatter(best_nodes, best_fitness, color='red', s=100, marker='*', 
-                label=f'Best: {best_fitness:.4f} ({best_nodes} nodes)')
+    # Best normalized individual (Pareto dominance considering fitness and size)
+    best_normalized_individual = select_best_normalized_individual(population.population)
+    
+    # Calculate test fitness for best normalized individual
+    if X_test is not None and y_test is not None and ffunction is not None:
+        if best_normalized_individual.test_semantics is None:
+            best_normalized_individual.calculate_semantics(X_test, testing=True)
+        
+        if hasattr(best_normalized_individual, 'use_linear_scaling') and best_normalized_individual.use_linear_scaling:
+            raw_prediction = torch.sum(best_normalized_individual.test_semantics, dim=0) if len(best_normalized_individual.test_semantics.shape) > 1 else best_normalized_individual.test_semantics
+            scaled_prediction = best_normalized_individual.scaling_a + raw_prediction * best_normalized_individual.scaling_b
+            best_normalized_fitness = float(ffunction(y_test, scaled_prediction))
+        else:
+            best_normalized_fitness = best_normalized_individual.fitness
+    else:
+        best_normalized_fitness = best_normalized_individual.fitness
+    
+    best_normalized_nodes = best_normalized_individual.nodes_count
+    
+    # Plot both best individuals
+    _plot_axes.scatter(best_fitness_nodes, best_fitness_value, color='red', s=100, marker='*', 
+                label=f'Best Fitness: {best_fitness_value:.4f} ({best_fitness_nodes} nodes)')
+    _plot_axes.scatter(best_normalized_nodes, best_normalized_fitness, color='blue', s=100, marker='s', 
+                label=f'Best Normalized: {best_normalized_fitness:.4f} ({best_normalized_nodes} nodes)')
     _plot_axes.legend()
     
     # Update the plot without blocking
