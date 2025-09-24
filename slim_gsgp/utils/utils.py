@@ -772,8 +772,23 @@ def select_best_normalized_individual(population):
     # Get the non-dominated individuals
     non_dominated = [pop_copy[idx] for idx in non_dom_idxs]
     
-    # Select one individual from the non-dominated set (randomly if multiple)
-    selected = random.choice(non_dominated)
+    # Select the best individual from the non-dominated set using deterministic criteria
+    # Instead of random selection, use the one closest to the ideal point (0,0)
+    if len(non_dominated) == 1:
+        selected = non_dominated[0]
+    else:
+        # Calculate distance to ideal point (0,0) for each non-dominated individual
+        best_distance = float('inf')
+        selected = non_dominated[0]  # Default to first in case of exact tie
+        
+        for individual in non_dominated:
+            # Calculate Euclidean distance to ideal point (0,0)
+            distance = (individual.normalized_fitness**2 + individual.normalized_nodes_count**2)**0.5
+            
+            # Select if better distance, or if same distance but smaller size (deterministic tie-breaking)
+            if distance < best_distance or (distance == best_distance and individual.normalized_nodes_count < selected.normalized_nodes_count):
+                best_distance = distance
+                selected = individual
     
     # Return the original individual (without normalized attributes)
     original_idx = population.index(selected) if selected in population else pop_copy.index(selected)

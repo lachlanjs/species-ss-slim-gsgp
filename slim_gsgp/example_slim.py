@@ -66,19 +66,19 @@ def save_results_to_file(dataset_name, training_rmse, validation_rmse, test_rmse
 # Load the airfoil dataset
 X, y = load_airfoil(X_y=True)
 
-# Split into train and test sets
-X_train, X_test, y_train, y_test = train_test_split(X, y, p_test=0.4)
+# Split into train and test sets (with fixed seed for reproducibility)
+X_train, X_test, y_train, y_test = train_test_split(X, y, p_test=0.4, seed=42)
 
-# Split the test set into validation and test sets
-X_val, X_test, y_val, y_test = train_test_split(X_test, y_test, p_test=0.5)
+# Split the test set into validation and test sets (with fixed seed for reproducibility)
+X_val, X_test, y_val, y_test = train_test_split(X_test, y_test, p_test=0.5, seed=42)
 
-# Apply the SLIM GSGP algorithm
+# Apply the SLIM GSGP algorithm (with fixed seed for reproducibility)
 results = slim(X_train=X_train, y_train=y_train,
                X_test=X_val, y_test=y_val,
                dataset_name='airfoil', slim_version='SLIM+ABS', pop_size=100, n_iter=100,
                ms_lower=0, ms_upper=1, p_inflate=0.5, reconstruct=True, 
                # tournament_type="pareto", tournament_size=5, multi_obj_attrs=["fitness", "size"], 
-               oms=False, linear_scaling=True, enable_plotting=True)
+               oms=False, linear_scaling=True, enable_plotting=True, seed=42)
 
 # Extract both individuals
 best_fitness_individual = results.best_fitness

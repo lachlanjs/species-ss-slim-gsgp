@@ -153,6 +153,7 @@ def close_evolution_plot():
     """Close the evolution plot window."""
     global _plot_figure, _plot_axes
     if _plot_figure is not None:
+        print("✅ Cerrando gráfico de evolución...")
         plt.close(_plot_figure)
         _plot_figure = None
         _plot_axes = None
@@ -800,8 +801,11 @@ class SLIM_GSGP:
             if self.enable_plotting:
                 plot_generation_fitness_vs_nodes(population, it, X_test, y_test, ffunction, self.operator)
 
-        # Close the evolution plot if it was enabled
+        # Keep the evolution plot open until user presses Enter
         if self.enable_plotting:
+            print("\n🎯 Evolución completada! El gráfico se mantiene activo.")
+            print("📊 Presiona ENTER para cerrar el gráfico y continuar...")
+            input()  # Wait for user input
             close_evolution_plot()
 
         return self.elite
