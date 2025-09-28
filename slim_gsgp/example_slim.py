@@ -72,13 +72,13 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, p_test=0.4, seed=42)
 # Split the test set into validation and test sets (with fixed seed for reproducibility)
 X_val, X_test, y_val, y_test = train_test_split(X_test, y_test, p_test=0.5, seed=42)
 
-# Apply the SLIM GSGP algorithm (with fixed seed for reproducibility)
+# Apply the SLIM GSGP algorithm (with fixed seed for reproducibility and automatic simplification)
 results = slim(X_train=X_train, y_train=y_train,
                X_test=X_val, y_test=y_val,
                dataset_name='airfoil', slim_version='SLIM+ABS', pop_size=100, n_iter=100,
                ms_lower=0, ms_upper=1, p_inflate=0.5, reconstruct=True, 
                # tournament_type="pareto", tournament_size=5, multi_obj_attrs=["fitness", "size"], 
-               oms=False, linear_scaling=True, enable_plotting=True, seed=42)
+               oms=False, linear_scaling=False, enable_plotting=False, auto_simplify=True, seed=42)
 
 # Extract both individuals
 best_fitness_individual = results.best_fitness
@@ -115,7 +115,7 @@ print(f"Tree depth: {best_fitness_individual.depth}")
 print(f"Train -> Validation -> Test RMSE: {best_fitness_individual.fitness:.6f} -> {best_fitness_individual.test_fitness:.6f} -> {test_rmse_best_fitness:.6f}")
 
 print("\n" + "="*80)
-print("RESULTS FOR BEST NORMALIZED INDIVIDUAL (Pareto-based selection)")
+print("RESULTS FOR BEST NORMALIZED INDIVIDUAL ")
 print("="*80)
 
 # Show the best normalized individual structure
@@ -169,3 +169,110 @@ save_results_to_file(
 
 print(f"\n=== RESULTS SAVED ===")
 print(f"Results have been saved to 'results_slim.csv' using best fitness individual")
+
+# Show simplification information if auto_simplify was used
+if hasattr(results, 'simplification_info') and results.simplification_info is not None:
+    print(f"\n" + "="*80)
+    print("AUTOMATIC SIMPLIFICATION RESULTS")
+    print("="*80)
+    
+    # Always show the converted tree structure
+    if 'converted_tree_structure' in results.simplification_info:
+        print(f"🌳 Mathematical expression:")
+        
+        # Convert tree structure to mathematical notation
+        def tree_to_math_expression(structure):
+            import re
+            
+            def clean_node_name(node):
+                """Clean node names by removing np.str_ wrappers and quotes."""
+                if isinstance(node, tuple):
+                    return node
+                node_str = str(node)
+                # Remove np.str_() wrapper
+                if "np.str_(" in node_str:
+                    node_str = re.sub(r"np\.str_\('([^']+)'\)", r"\1", node_str)
+                # Remove quotes and clean constants
+                node_str = node_str.strip("'\"")
+                if node_str.startswith("constant_"):
+                    node_str = node_str.replace("constant_", "")
+                return node_str
+            
+            def convert_recursive(structure, parent_op=None):
+                """Recursively convert tree structure to expression with proper parentheses."""
+                if not isinstance(structure, tuple):
+                    return clean_node_name(structure)
+                
+                if len(structure) < 3:
+                    return clean_node_name(structure)
+                
+                operator = clean_node_name(structure[0])
+                left = structure[1] 
+                right = structure[2]
+                
+                # Convert operator names to symbols
+                op_symbol = {
+                    'add': '+',
+                    'subtract': '-', 
+                    'multiply': '*',
+                    'divide': '/'
+                }.get(operator, operator)
+                
+                # Recursively convert operands
+                left_expr = convert_recursive(left, operator)
+                right_expr = convert_recursive(right, operator)
+                
+                # Always add parentheses around composite expressions to preserve structure
+                if isinstance(left, tuple) and len(left) >= 3:
+                    left_expr = f"({left_expr})"
+                
+                if isinstance(right, tuple) and len(right) >= 3:
+                    right_expr = f"({right_expr})"
+                
+                expression = f"{left_expr} {op_symbol} {right_expr}"
+                
+                # Add outer parentheses if this is a composite expression within another operation
+                # This ensures mathematical equivalence with the original tree structure
+                if parent_op is not None and isinstance(structure, tuple):
+                    expression = f"({expression})"
+                
+                return expression
+            
+            return convert_recursive(structure)
+        
+        math_expression = tree_to_math_expression(results.simplification_info['converted_tree_structure'])
+        print(f"   {math_expression}")
+        
+        # Generate PNG visualization of the tree
+        try:
+            from slim_gsgp.utils.tree_to_png import save_tree_as_png_simple
+            
+            tree_structure = results.simplification_info['converted_tree_structure']
+            png_path = save_tree_as_png_simple(tree_structure, "slim_tree_visualization.png")
+            print(f"\n🖼️  Tree visualization saved as PNG: slim_tree_visualization.png")
+            
+        except ImportError as e:
+            print(f"\n⚠️  Could not generate PNG (missing dependencies): {e}")
+        except Exception as e:
+            print(f"\n⚠️  Error generating PNG: {e}")
+        
+        print()  # Extra line for spacing
+    
+    if results.simplification_info['applied']:
+        print(f"🔧 Simplification applied successfully!")
+        print(f"   📊 Original model: {results.simplification_info['original_nodes']} nodes, depth {results.simplification_info['original_depth']}")
+        print(f"   ✅ Simplified to: {results.simplification_info['simplified_nodes']} nodes, depth {results.simplification_info['simplified_depth']}")
+        print(f"   📈 Reduction: {results.simplification_info['nodes_removed']} nodes removed ({results.simplification_info['nodes_removed']/results.simplification_info['original_nodes']*100:.1f}%)")
+        print(f"   🎯 Result: Model is {results.simplification_info['nodes_removed']} nodes smaller with same performance!")
+        
+        # Show simplified structure if different
+        if 'simplified_structure' in results.simplification_info:
+            print(f"\n🔧 Simplified mathematical expression:")
+            simplified_math = tree_to_math_expression(results.simplification_info['simplified_structure'])
+            print(f"   {simplified_math}")
+    else:
+        print(f"ℹ️  {results.simplification_info['reason']}")
+        print(f"   📊 Model remains: {results.simplification_info['original_nodes']} nodes, depth {results.simplification_info['original_depth']}")
+        print(f"   💡 The model was already optimally simplified.")
+    
+    print(f"🏁 Simplification process completed")
