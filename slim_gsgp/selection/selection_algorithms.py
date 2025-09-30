@@ -208,11 +208,12 @@ def calculate_non_dominated(pop, attrs: list[str], minimization: bool):
     # - the idx of an individual
     # - its place in the ranking of each attribute (lower is better)    
 
+    # TODO: convert this to numpy instead
     non_dom_df = pd.DataFrame({
         "idx": list(range(len(pop))),
         **{attr: [ind.__dict__[attr] * (1 if minimization else -1) for ind in pop]
            for attr in attrs}
-    })           
+    })
 
     # non_dom_df["size"] = non_dom_df["size"].map(lambda x: max(x, 10))
 
