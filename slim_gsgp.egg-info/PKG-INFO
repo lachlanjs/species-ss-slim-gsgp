@@ -1,5 +1,5 @@
 Metadata-Version: 2.1
-Name: slim-gsgp
+Name: slim_gsgp
 Version: 0.1.10
 Summary: Semantic Learning algorithm based on Inflate and deflate Mutation (SLIM GSGP)
 Home-page: https://github.com/DALabNOVA/slim
@@ -11,6 +11,12 @@ Classifier: Operating System :: OS Independent
 Requires-Python: >=3.10
 Description-Content-Type: text/markdown
 License-File: LICENSE
+Requires-Dist: numpy
+Requires-Dist: pandas
+Requires-Dist: torch
+Requires-Dist: scipy
+Requires-Dist: scikit-learn
+Requires-Dist: joblib
 
 # SLIM (Semantic Learning algorithm based on Inflate and deflate Mutation)
 

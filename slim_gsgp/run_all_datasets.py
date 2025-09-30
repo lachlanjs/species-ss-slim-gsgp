@@ -34,13 +34,6 @@ import os
 from datetime import datetime
 import traceback
 
-def slim_linear_scaling(**kwargs):
-    """
-    Wrapper function for slim with linear_scaling=True
-    """
-    kwargs['linear_scaling'] = True
-    return slim(**kwargs)
-
 def save_results_to_file(dataset_name, training_rmse, validation_rmse, test_rmse, nodes_count, execution_type, filename="results_all_datasets.csv"):
     """
     Save the results to a CSV file.
@@ -79,18 +72,18 @@ def save_results_to_file(dataset_name, training_rmse, validation_rmse, test_rmse
             'execution_type': execution_type
         })
 
-def run_algorithm(algorithm_func, algorithm_name, dataset_name, X_train, y_train, X_val, y_val, X_test, y_test, oms_enabled, use_pareto_tournament=False, slim_version='SLIM+SIG2', output_filename="results_all_datasets.csv"):
+def run_algorithm(algorithm_name, dataset_name, X_train, y_train, X_val, y_val, X_test, y_test, oms_enabled, linear_scaling_enabled, use_pareto_tournament=False, slim_version='SLIM+SIG2', output_filename="results_all_datasets.csv"):
     """
     Run a specific algorithm with given parameters.
     
     Args:
-        algorithm_func: The algorithm function to run (slim or slim_linear_scaling)
         algorithm_name: Name of the algorithm for logging
         dataset_name: Name of the dataset
         X_train, y_train: Training data
         X_val, y_val: Validation data
         X_test, y_test: Test data
         oms_enabled: Whether to use OMS
+        linear_scaling_enabled: Whether to use linear scaling
         use_pareto_tournament: Whether to use Pareto tournament selection
         slim_version: Version of SLIM to use (e.g., 'SLIM+SIG2', 'SLIM+ABS', 'SLIM*ABS')
         output_filename: Name of the output CSV file
@@ -100,8 +93,9 @@ def run_algorithm(algorithm_func, algorithm_name, dataset_name, X_train, y_train
     """
     try:
         oms_suffix = " oms" if oms_enabled else ""
+        linear_suffix = " linear scaling" if linear_scaling_enabled else ""
         pareto_suffix = " pareto" if use_pareto_tournament else ""
-        execution_type = f"{algorithm_name}{oms_suffix}{pareto_suffix}"
+        execution_type = f"slim{linear_suffix}{oms_suffix}{pareto_suffix}"
         
         print(f"  Running {execution_type}...")
         
@@ -119,7 +113,8 @@ def run_algorithm(algorithm_func, algorithm_name, dataset_name, X_train, y_train
             'ms_upper': 1,
             'p_inflate': 0.5,
             'reconstruct': True,
-            'oms': oms_enabled
+            'oms': oms_enabled,
+            'linear_scaling': linear_scaling_enabled
         }
         
         # Add Pareto tournament parameters if enabled
@@ -131,7 +126,7 @@ def run_algorithm(algorithm_func, algorithm_name, dataset_name, X_train, y_train
             })
         
         # Run the algorithm
-        final_tree = algorithm_func(**algorithm_params)
+        final_tree = slim(**algorithm_params)
         
         # Evaluate the final tree on validation data
         final_tree.calculate_semantics(X_val, testing=True)
@@ -200,6 +195,7 @@ def run_all_datasets(slim_version='SLIM+SIG2', output_filename=None):
         # Convert version name to valid filename
         version_suffix = slim_version.replace('+', '_').replace('*', '_').replace(' ', '_').lower()
         output_filename = f"results_all_datasets_{version_suffix}.csv"
+    
     # Define all available datasets
     datasets = [
         ('airfoil', load_airfoil),
@@ -219,10 +215,10 @@ def run_all_datasets(slim_version='SLIM+SIG2', output_filename=None):
         ('resid_build_sale_price', load_resid_build_sale_price)
     ]
     
-    # Algorithm configurations
-    algorithms = [
-        (slim, "slim"),
-        (slim_linear_scaling, "slim linear scaling")
+    # Algorithm configurations - now we use linear_scaling parameter
+    linear_scaling_configs = [
+        (False, "slim"),                    # Standard SLIM
+        (True, "slim linear scaling")       # SLIM with Linear Scaling
     ]
     
     # Configuration combinations: (oms_enabled, use_pareto_tournament)
@@ -250,15 +246,15 @@ def run_all_datasets(slim_version='SLIM+SIG2', output_filename=None):
     print(f"Output file: {output_filename}")
     print(f"OMS Support: {'Yes' if supports_oms else 'No (requires two_trees=True)'}")
     print(f"Total datasets: {len(datasets)}")
-    print(f"Total algorithms: {len(algorithms)}")
+    print(f"Total linear scaling configs: {len(linear_scaling_configs)}")
     print(f"Total execution configurations: {len(execution_configs)}")
-    print(f"Total executions: {len(datasets) * len(algorithms) * len(execution_configs)}")
+    print(f"Total executions: {len(datasets) * len(linear_scaling_configs) * len(execution_configs)}")
     print(f"Execution types: {', '.join(execution_type_names)}")
     print("=" * 80)
     
     successful_runs = 0
     failed_runs = 0
-    total_runs = len(datasets) * len(algorithms) * len(execution_configs)
+    total_runs = len(datasets) * len(linear_scaling_configs) * len(execution_configs)
     
     for dataset_idx, (dataset_name, load_function) in enumerate(datasets, 1):
         print(f"\n[{dataset_idx}/{len(datasets)}] Processing dataset: {dataset_name}")
@@ -274,19 +270,20 @@ def run_all_datasets(slim_version='SLIM+SIG2', output_filename=None):
             print(f"  Dataset loaded - Shape: {X.shape}, Target shape: {y.shape}")
             
             # Run all algorithm combinations
-            for algorithm_func, algorithm_name in algorithms:
+            for linear_scaling_enabled, algorithm_name in linear_scaling_configs:
                 for oms_enabled, use_pareto_tournament in execution_configs:
                     run_algorithm(
-                        algorithm_func, algorithm_name, dataset_name,
+                        algorithm_name, dataset_name,
                         X_train, y_train, X_val, y_val, X_test, y_test,
-                        oms_enabled, use_pareto_tournament, slim_version, output_filename
+                        oms_enabled, linear_scaling_enabled, use_pareto_tournament,
+                        slim_version, output_filename
                     )
                     successful_runs += 1
                     
         except Exception as e:
             print(f"  ✗ Error loading dataset {dataset_name}: {str(e)}")
             print(f"  Traceback: {traceback.format_exc()}")
-            failed_runs += len(algorithms) * len(execution_configs)
+            failed_runs += len(linear_scaling_configs) * len(execution_configs)
             continue
     
     # Final summary

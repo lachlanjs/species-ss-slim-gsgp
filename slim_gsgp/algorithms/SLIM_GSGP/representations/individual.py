@@ -57,7 +57,7 @@ class Individual:
         The maximum depth of the tree.
     """
 
-    def __init__(self, collection, train_semantics, test_semantics, reconstruct):
+    def __init__(self, collection, train_semantics, test_semantics, reconstruct, use_linear_scaling=False):
         """
         Initialize an Individual with a collection of trees and their associated semantics.
 
@@ -71,6 +71,8 @@ class Individual:
             Testing semantics associated with the individual. Can be None if not applicable.
         reconstruct : bool
             Boolean indicating if the structure of the individual should be stored.
+        use_linear_scaling : bool, optional
+            Whether to use linear scaling for this individual. Default is False.
         """
         # setting the Individual attributes based on the collection, if existent.
         # Otherwise, those are added to the individual after its created (during mutation).
@@ -95,6 +97,11 @@ class Individual:
         self.test_semantics = test_semantics
         self.fitness = None
         self.test_fitness = None
+        
+        # Linear scaling attributes
+        self.use_linear_scaling = use_linear_scaling
+        self.scaling_a = None  # intercept term
+        self.scaling_b = None  # slope term
 
     def calculate_semantics(self, inputs, testing=False):
         """
@@ -190,32 +197,44 @@ class Individual:
         """
         # getting the correct torch operator based on the slim_gsgp version
         if operator == "sum":
-            operator = torch.sum
+            torch_operator = torch.sum
         else:
-            operator = torch.prod
+            torch_operator = torch.prod
 
         # computing the testing fitness, if applicable
         if testing:
-            self.test_fitness = ffunction(
-                y,
-                torch.clamp(
-                    operator(self.test_semantics, dim=0),
-                    -1000000000000.0,
-                    1000000000000.0,
-                ),
+            raw_semantics = torch.clamp(
+                torch_operator(self.test_semantics, dim=0),
+                -1000000000000.0,
+                1000000000000.0,
             )
+            
+            # Apply linear scaling if enabled
+            if self.use_linear_scaling and self.scaling_a is not None:
+                scaled_semantics = self.scaling_a + raw_semantics * self.scaling_b
+                # Convert to float explicitly when linear scaling is applied (like backup version)
+                self.test_fitness = float(ffunction(y, scaled_semantics))
+            else:
+                scaled_semantics = raw_semantics
+                self.test_fitness = ffunction(y, scaled_semantics)
         # computing the training fitness
         else:
-            self.fitness = ffunction(
-                y,
-                torch.clamp(
-                    operator(self.train_semantics, dim=0),
-                    -1000000000000.0,
-                    1000000000000.0,
-                ),
+            raw_semantics = torch.clamp(
+                torch_operator(self.train_semantics, dim=0),
+                -1000000000000.0,
+                1000000000000.0,
             )
+            
+            # Apply linear scaling if enabled
+            if self.use_linear_scaling and self.scaling_a is not None:
+                scaled_semantics = self.scaling_a + raw_semantics * self.scaling_b
+                # Convert to float explicitly when linear scaling is applied (like backup version)
+                self.fitness = float(ffunction(y, scaled_semantics))
+            else:
+                scaled_semantics = raw_semantics
+                self.fitness = ffunction(y, scaled_semantics)
 
-    def predict(self, data):
+    def predict(self, data, apply_scaling=True):
         """
             Predict the output for the given input data using the model's collection of trees
             and the specified slim_gsgp version.
@@ -226,6 +245,8 @@ class Individual:
                 The input data to predict. It should be an array-like structure
                 (e.g., list, numpy array) or a pandas DataFrame, where each row represents a
                 different observation and each column represents a feature.
+            apply_scaling : bool, optional
+                Whether to apply linear scaling to the predictions if enabled. Default is True.
 
             Returns
             -------
@@ -310,9 +331,15 @@ class Individual:
         semantics = [ten if ten.numel() == len(data) else ten.repeat(len(data)) for ten in semantics]
 
         # clamping the semantics
-        return torch.clamp(
+        raw_prediction = torch.clamp(
             operator(torch.stack(semantics), dim=0), -1000000000000.0, 1000000000000.0
         )
+        
+        # Apply linear scaling if enabled
+        if apply_scaling and self.use_linear_scaling and self.scaling_a is not None:
+            return self.scaling_a + raw_prediction * self.scaling_b
+        
+        return raw_prediction
 
     def get_tree_representation(self):
         """
@@ -363,3 +390,83 @@ class Individual:
         """
 
         print(self.get_tree_representation())
+
+    def calculate_linear_scaling(self, y_true):
+        """
+        Calculate and store linear scaling parameters for this individual.
+        Formula: y_scaled = a + y_raw * b
+        
+        Parameters
+        ----------
+        y_true : torch.Tensor
+            True target values to fit scaling parameters to.
+        """
+        if self.train_semantics is not None and self.use_linear_scaling:
+            # Get raw semantics (before scaling)
+            y_raw = torch.sum(self.train_semantics, dim=0) if len(self.train_semantics.shape) > 1 else self.train_semantics
+            
+            # Calculate optimal scaling parameters
+            self.scaling_a, self.scaling_b = self._calculate_linear_scaling_params(y_raw, y_true)
+    
+    def _calculate_linear_scaling_params(self, y_raw, y_true):
+        """
+        Calculate optimal linear scaling parameters a and b for: y_scaled = a + y_raw * b
+        
+        Parameters
+        ----------
+        y_raw : torch.Tensor
+            Raw output from the individual
+        y_true : torch.Tensor
+            True target values
+            
+        Returns
+        -------
+        tuple
+            (a, b) scaling parameters where a is intercept and b is slope
+        """
+        try:
+            # Create design matrix [ones, y_raw] for y_scaled = a + y_raw * b
+            A = torch.stack([torch.ones(len(y_raw), device=y_raw.device), y_raw], dim=1)
+            
+            # Solve least squares: A * [a, b]^T = y_true
+            coeffs = torch.linalg.lstsq(A, y_true).solution
+            
+            a, b = coeffs[0], coeffs[1]
+            
+            # Ensure finite values
+            if not torch.isfinite(a) or not torch.isfinite(b):
+                return 0.0, 1.0
+                
+            return float(a), float(b)
+        except:
+            # Fallback to no scaling if calculation fails
+            return 0.0, 1.0
+    
+    def get_scaling_info(self):
+        """
+        Get linear scaling parameters information.
+        
+        Returns
+        -------
+        dict
+            Dictionary containing scaling parameters and status.
+        """
+        return {
+            'use_linear_scaling': self.use_linear_scaling,
+            'scaling_a': self.scaling_a,
+            'scaling_b': self.scaling_b,
+            'scaling_formula': f"y_scaled = {self.scaling_a:.6f} + y_raw * {self.scaling_b:.6f}" if self.use_linear_scaling and self.scaling_a is not None else "No scaling applied"
+        }
+    
+    def print_scaling_info(self):
+        """
+        Print linear scaling information for this individual.
+        """
+        info = self.get_scaling_info()
+        print(f"Linear Scaling Status: {'Enabled' if info['use_linear_scaling'] else 'Disabled'}")
+        if info['use_linear_scaling'] and self.scaling_a is not None:
+            print(f"Scaling Parameter a: {info['scaling_a']:.6f}")
+            print(f"Scaling Parameter b: {info['scaling_b']:.6f}")
+            print(f"Scaling Formula: {info['scaling_formula']}")
+        else:
+            print("No linear scaling applied")

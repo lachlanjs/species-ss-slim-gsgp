@@ -460,6 +460,7 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
                 else None
             ),
             reconstruct=reconstruct,
+            use_linear_scaling=getattr(individual, 'use_linear_scaling', False),
         )
         # computing offspring attributes
         offs.size = individual.size + 1
@@ -525,6 +526,7 @@ def deflate_mutation(individual, reconstruct):
             else None
         ),
         reconstruct=reconstruct,
+        use_linear_scaling=getattr(individual, 'use_linear_scaling', False),
     )
 
     # computing offspring attributes

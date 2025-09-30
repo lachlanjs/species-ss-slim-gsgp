@@ -27,6 +27,40 @@ from slim_gsgp.selection.selection_algorithms import tournament_selection_min
 from slim_gsgp.evaluators.fitness_functions import *
 from slim_gsgp.utils.utils import (get_best_min, protected_div)
 
+def calculate_linear_scaling_params(y_raw, y_true):
+    """
+    Calculate optimal linear scaling parameters a and b for: y_scaled = a + y_raw * b
+    
+    Parameters
+    ----------
+    y_raw : torch.Tensor
+        Raw output from the individual
+    y_true : torch.Tensor
+        True target values
+        
+    Returns
+    -------
+    tuple
+        (a, b) scaling parameters where a is intercept and b is slope
+    """
+    try:
+        # Create design matrix [ones, y_raw] for y_scaled = a + y_raw * b
+        A = torch.stack([torch.ones(len(y_raw)), y_raw], dim=1)
+        
+        # Solve least squares: A * [a, b]^T = y_true
+        coeffs = torch.linalg.lstsq(A, y_true).solution
+        
+        a, b = coeffs[0], coeffs[1]
+        
+        # Ensure finite values
+        if not torch.isfinite(a) or not torch.isfinite(b):
+            return 0.0, 1.0
+            
+        return float(a), float(b)
+    except:
+        # Fallback to no scaling if calculation fails
+        return 0.0, 1.0
+
 # Define functions and constants
 
 FUNCTIONS = {
@@ -78,6 +112,7 @@ slim_gsgp_parameters = {
     "operator": None,
     "pop_size": 100,
     "seed": 74,
+    "use_linear_scaling": False,
 }
 slim_gsgp_parameters["p_m"] = 1 - slim_gsgp_parameters["p_xo"]
 

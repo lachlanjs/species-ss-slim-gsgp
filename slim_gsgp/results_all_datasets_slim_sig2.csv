@@ -1,0 +1,271 @@
+timestamp,dataset_name,training_rmse,validation_rmse,test_rmse,nodes_count,execution_type
+2025-09-21 12:35:56,airfoil,tensor(61.7228),tensor(59.8017),59.707359313964844,149,slim
+2025-09-21 12:36:01,airfoil,tensor(4.5664),tensor(4.6702),4.586551189422607,167,slim oms
+2025-09-21 12:36:35,airfoil,tensor(6.0595),tensor(6.0260),5.9449782371521,187,slim oms pareto
+2025-09-21 12:36:40,airfoil,tensor(61.7228),tensor(5.8670),6.043084621429443,149,slim linear scaling
+2025-09-21 12:36:45,airfoil,tensor(4.5664),tensor(4.6842),4.53493595123291,167,slim linear scaling oms
+2025-09-21 12:37:12,airfoil,tensor(6.0595),tensor(5.9977),5.885157108306885,187,slim linear scaling oms pareto
+2025-09-21 12:37:16,bike_sharing,tensor(0.1276),tensor(0.1320),0.13868218660354614,124,slim
+2025-09-21 12:37:20,bike_sharing,tensor(0.0669),tensor(0.0639),0.15674901008605957,133,slim oms
+2025-09-21 12:37:46,bike_sharing,tensor(0.0111),tensor(0.0096),0.011335721239447594,121,slim oms pareto
+2025-09-21 12:37:52,bike_sharing,tensor(0.1276),tensor(0.1311),0.13859856128692627,124,slim linear scaling
+2025-09-21 12:37:56,bike_sharing,tensor(0.0669),tensor(0.0645),0.1573478877544403,133,slim linear scaling oms
+2025-09-21 12:38:24,bike_sharing,tensor(0.0111),tensor(0.0096),0.011294195428490639,121,slim linear scaling oms pareto
+2025-09-21 12:38:27,bioavailability,tensor(44.1938),tensor(41.1070),47.65617752075195,124,slim
+2025-09-21 12:38:30,bioavailability,tensor(26.0913),tensor(30.7426),28.76274299621582,124,slim oms
+2025-09-21 12:38:57,bioavailability,tensor(27.6920),tensor(29.5193),27.45582389831543,124,slim oms pareto
+2025-09-21 12:39:01,bioavailability,tensor(44.1938),tensor(29.3299),29.425796508789062,124,slim linear scaling
+2025-09-21 12:39:06,bioavailability,tensor(26.0913),tensor(32.1987),29.800819396972656,124,slim linear scaling oms
+2025-09-21 12:39:33,bioavailability,tensor(27.6920),tensor(29.1824),27.368316650390625,124,slim linear scaling oms pareto
+2025-09-21 12:39:35,boston,tensor(8.3874),tensor(8.1577),8.813081741333008,144,slim
+2025-09-21 12:39:38,boston,tensor(4.9061),tensor(5.3066),5.132218360900879,152,slim oms
+2025-09-21 12:40:04,boston,tensor(4.8257),tensor(5.0747),4.775976657867432,125,slim oms pareto
+2025-09-21 12:40:08,boston,tensor(8.3874),tensor(8.1994),8.848631858825684,144,slim linear scaling
+2025-09-21 12:40:13,boston,tensor(4.9061),tensor(5.0701),4.8345746994018555,152,slim linear scaling oms
+2025-09-21 12:40:40,boston,tensor(4.8257),tensor(5.0998),4.772663116455078,125,slim linear scaling oms pareto
+2025-09-21 12:40:43,breast_cancer,tensor(0.2779),tensor(0.2971),0.33667847514152527,121,slim
+2025-09-21 12:40:46,breast_cancer,tensor(0.2369),tensor(0.2883),0.29258647561073303,134,slim oms
+2025-09-21 12:41:11,breast_cancer,tensor(0.2562),tensor(0.2946),0.3135073184967041,123,slim oms pareto
+2025-09-21 12:41:16,breast_cancer,tensor(0.2779),tensor(0.2974),0.3353187143802643,121,slim linear scaling
+2025-09-21 12:41:20,breast_cancer,tensor(0.2369),tensor(0.2876),0.29293036460876465,134,slim linear scaling oms
+2025-09-21 12:41:47,breast_cancer,tensor(0.2562),tensor(0.2943),0.313982218503952,123,slim linear scaling oms pareto
+2025-09-21 12:41:50,concrete_slump,tensor(9.7712),tensor(9.8414),8.339773178100586,149,slim
+2025-09-21 12:41:53,concrete_slump,tensor(6.3548),tensor(11.3681),5.732282638549805,171,slim oms
+2025-09-21 12:42:19,concrete_slump,tensor(7.5265),tensor(9.0504),6.503210544586182,148,slim oms pareto
+2025-09-21 12:42:23,concrete_slump,tensor(9.7712),tensor(9.6354),7.13029146194458,149,slim linear scaling
+2025-09-21 12:42:28,concrete_slump,tensor(6.3548),tensor(11.6458),5.819365501403809,171,slim linear scaling oms
+2025-09-21 12:43:01,concrete_slump,tensor(7.5265),tensor(9.2440),6.726302623748779,148,slim linear scaling oms pareto
+2025-09-21 12:43:07,concrete_strength,tensor(23.7527),tensor(23.3527),24.117046356201172,121,slim
+2025-09-21 12:43:12,concrete_strength,tensor(8.6030),tensor(8.3155),8.080490112304688,147,slim oms
+2025-09-21 12:43:46,concrete_strength,tensor(12.5454),tensor(13.9527),11.313170433044434,135,slim oms pareto
+2025-09-21 12:43:50,concrete_strength,tensor(23.7527),tensor(14.8972),15.457860946655273,121,slim linear scaling
+2025-09-21 12:43:56,concrete_strength,tensor(8.6030),tensor(8.2298),8.049901962280273,147,slim linear scaling oms
+2025-09-21 12:44:25,concrete_strength,tensor(12.5454),tensor(12.3958),11.477029800415039,135,slim linear scaling oms pareto
+2025-09-21 12:44:29,diabetes,tensor(148.3839),tensor(155.0595),145.37818908691406,144,slim
+2025-09-21 12:44:33,diabetes,tensor(58.9132),tensor(61.0049),60.67805099487305,111,slim oms
+2025-09-21 12:45:04,diabetes,tensor(61.6333),tensor(59.1892),58.89545440673828,125,slim oms pareto
+2025-09-21 12:45:08,diabetes,tensor(148.3839),tensor(69.7767),65.59139251708984,144,slim linear scaling
+2025-09-21 12:45:13,diabetes,tensor(58.9132),tensor(60.1791),60.315330505371094,111,slim linear scaling oms
+2025-09-21 12:45:42,diabetes,tensor(61.6333),tensor(59.0182),58.689456939697266,125,slim linear scaling oms pareto
+2025-09-21 12:45:44,efficiency_cooling,tensor(8.9676),tensor(8.1018),7.829539775848389,122,slim
+2025-09-21 12:45:48,efficiency_cooling,tensor(3.7809),tensor(4.0442),3.644909620285034,160,slim oms
+2025-09-21 12:46:15,efficiency_cooling,tensor(3.6864),tensor(3.7227),3.5662899017333984,151,slim oms pareto
+2025-09-21 12:46:20,efficiency_cooling,tensor(8.9676),tensor(7.4000),7.03108024597168,122,slim linear scaling
+2025-09-21 12:46:25,efficiency_cooling,tensor(3.7809),tensor(3.8889),3.5046169757843018,160,slim linear scaling oms
+2025-09-21 12:46:54,efficiency_cooling,tensor(3.6864),tensor(3.7075),3.5431103706359863,151,slim linear scaling oms pareto
+2025-09-21 12:46:57,efficiency_heating,tensor(8.0595),tensor(7.3056),7.328061103820801,170,slim
+2025-09-21 12:47:00,efficiency_heating,tensor(3.3498),tensor(3.2803),3.521904706954956,136,slim oms
+2025-09-21 12:47:28,efficiency_heating,tensor(3.4965),tensor(3.4313),3.5713860988616943,123,slim oms pareto
+2025-09-21 12:47:33,efficiency_heating,tensor(8.0595),tensor(7.3524),7.358227252960205,170,slim linear scaling
+2025-09-21 12:47:38,efficiency_heating,tensor(3.3498),tensor(3.2527),3.4879672527313232,136,slim linear scaling oms
+2025-09-21 12:48:10,efficiency_heating,tensor(3.4965),tensor(3.4379),3.5907435417175293,123,slim linear scaling oms pareto
+2025-09-21 12:48:13,forest_fires,tensor(1.2921),tensor(1.5248),1.5150806903839111,166,slim
+2025-09-21 12:48:16,forest_fires,tensor(1.2696),tensor(1.5740),1.762939214706421,132,slim oms
+2025-09-21 12:48:44,forest_fires,tensor(1.2850),tensor(1.5656),1.5137392282485962,134,slim oms pareto
+2025-09-21 12:48:49,forest_fires,tensor(1.2921),tensor(1.5388),1.5302823781967163,166,slim linear scaling
+2025-09-21 12:48:54,forest_fires,tensor(1.2696),tensor(1.5892),1.814416527748108,132,slim linear scaling oms
+2025-09-21 12:49:25,forest_fires,tensor(1.2850),tensor(1.5760),1.5229169130325317,134,slim linear scaling oms pareto
+2025-09-21 12:49:29,istanbul,tensor(0.0135),tensor(0.0150),0.015234720893204212,92,slim
+2025-09-21 12:49:32,istanbul,tensor(0.0127),tensor(0.0161),0.014347396790981293,149,slim oms
+2025-09-21 12:50:01,istanbul,tensor(0.0129),tensor(0.0149),0.014131564646959305,148,slim oms pareto
+2025-09-21 12:50:06,istanbul,tensor(0.0135),tensor(0.0151),0.015215449966490269,92,slim linear scaling
+2025-09-21 12:50:11,istanbul,tensor(0.0127),tensor(0.0161),0.014406959526240826,149,slim linear scaling oms
+2025-09-21 12:50:40,istanbul,tensor(0.0129),tensor(0.0149),0.014057813212275505,148,slim linear scaling oms pareto
+2025-09-21 12:50:45,parkinson_updrs,tensor(10.8332),tensor(10.8511),10.923823356628418,142,slim
+2025-09-21 12:50:48,parkinson_updrs,tensor(10.1866),tensor(10.2233),10.010257720947266,178,slim oms
+2025-09-21 12:51:16,parkinson_updrs,tensor(10.2711),tensor(10.2959),10.07179069519043,148,slim oms pareto
+2025-09-21 12:51:24,parkinson_updrs,tensor(10.8332),tensor(10.5382),10.473146438598633,142,slim linear scaling
+2025-09-21 12:51:29,parkinson_updrs,tensor(10.1866),tensor(10.2151),9.967641830444336,178,slim linear scaling oms
+2025-09-21 12:51:59,parkinson_updrs,tensor(10.2711),tensor(10.2941),10.067241668701172,148,slim linear scaling oms pareto
+2025-09-21 12:52:02,ppb,tensor(39.4183),tensor(42.1795),39.84884262084961,124,slim
+2025-09-21 12:52:06,ppb,tensor(19.5116),tensor(30.3424),29.94620132446289,128,slim oms
+2025-09-21 12:52:38,ppb,tensor(22.8654),tensor(31.1600),29.05841064453125,124,slim oms pareto
+2025-09-21 12:52:49,ppb,tensor(39.4183),tensor(33.0879),29.91200828552246,124,slim linear scaling
+2025-09-21 12:53:03,ppb,tensor(19.5116),tensor(30.8383),30.816099166870117,128,slim linear scaling oms
+2025-09-21 12:53:36,ppb,tensor(22.8654),tensor(31.4378),29.34881591796875,124,slim linear scaling oms pareto
+2025-09-21 12:53:39,resid_build_sale_price,tensor(132.6306),tensor(114.9087),122.45071411132812,124,slim
+2025-09-21 12:53:43,resid_build_sale_price,tensor(91.2682),tensor(81.9587),74.94937133789062,117,slim oms
+2025-09-21 12:54:12,resid_build_sale_price,tensor(95.2493),tensor(86.4413),81.27465057373047,128,slim oms pareto
+2025-09-21 12:54:16,resid_build_sale_price,tensor(132.6306),tensor(103.2918),99.19560241699219,124,slim linear scaling
+2025-09-21 12:54:21,resid_build_sale_price,tensor(91.2682),tensor(81.6527),70.91663360595703,117,slim linear scaling oms
+2025-09-21 12:54:50,resid_build_sale_price,tensor(95.2493),tensor(86.6894),80.2829360961914,128,slim linear scaling oms pareto
+2025-09-21 13:02:39,airfoil,tensor(61.7228),tensor(59.8017),59.707359313964844,149,slim
+2025-09-21 13:02:43,airfoil,tensor(4.5664),tensor(4.6702),4.586551189422607,167,slim oms
+2025-09-21 13:03:15,airfoil,tensor(6.0595),tensor(6.0260),5.9449782371521,187,slim oms pareto
+2025-09-21 13:03:24,airfoil,tensor(61.7228),tensor(5.8670),6.043084621429443,149,slim linear scaling
+2025-09-21 13:03:40,airfoil,tensor(4.5664),tensor(4.6842),4.53493595123291,167,slim linear scaling oms
+2025-09-21 13:04:47,airfoil,tensor(6.0595),tensor(5.9977),5.885157108306885,187,slim linear scaling oms pareto
+2025-09-21 13:04:56,bike_sharing,tensor(0.1276),tensor(0.1320),0.13868218660354614,124,slim
+2025-09-21 13:05:04,bike_sharing,tensor(0.0669),tensor(0.0639),0.15674901008605957,133,slim oms
+2025-09-21 13:05:49,bike_sharing,tensor(0.0111),tensor(0.0096),0.011335721239447594,121,slim oms pareto
+2025-09-21 13:05:58,bike_sharing,tensor(0.1276),tensor(0.1311),0.13859856128692627,124,slim linear scaling
+2025-09-21 13:06:03,bike_sharing,tensor(0.0669),tensor(0.0645),0.1573478877544403,133,slim linear scaling oms
+2025-09-21 13:06:41,bike_sharing,tensor(0.0111),tensor(0.0096),0.011294195428490639,121,slim linear scaling oms pareto
+2025-09-21 13:06:47,bioavailability,tensor(44.1938),tensor(41.1070),47.65617752075195,124,slim
+2025-09-21 13:06:52,bioavailability,tensor(26.0913),tensor(30.7426),28.76274299621582,124,slim oms
+2025-09-21 13:07:29,bioavailability,tensor(27.6920),tensor(29.5193),27.45582389831543,124,slim oms pareto
+2025-09-21 13:07:35,bioavailability,tensor(44.1938),tensor(29.3299),29.425796508789062,124,slim linear scaling
+2025-09-21 13:07:39,bioavailability,tensor(26.0913),tensor(32.1987),29.800819396972656,124,slim linear scaling oms
+2025-09-21 13:08:08,bioavailability,tensor(27.6920),tensor(29.1824),27.368316650390625,124,slim linear scaling oms pareto
+2025-09-21 13:08:11,boston,tensor(8.3874),tensor(8.1577),8.813081741333008,144,slim
+2025-09-21 13:08:14,boston,tensor(4.9061),tensor(5.3066),5.132218360900879,152,slim oms
+2025-09-21 13:08:44,boston,tensor(4.8257),tensor(5.0747),4.775976657867432,125,slim oms pareto
+2025-09-21 13:08:49,boston,tensor(8.3874),tensor(8.1994),8.848631858825684,144,slim linear scaling
+2025-09-21 13:08:53,boston,tensor(4.9061),tensor(5.0701),4.8345746994018555,152,slim linear scaling oms
+2025-09-21 13:09:22,boston,tensor(4.8257),tensor(5.0998),4.772663116455078,125,slim linear scaling oms pareto
+2025-09-21 13:09:26,breast_cancer,tensor(0.2779),tensor(0.2971),0.33667847514152527,121,slim
+2025-09-21 13:09:29,breast_cancer,tensor(0.2369),tensor(0.2883),0.29258647561073303,134,slim oms
+2025-09-21 13:10:02,breast_cancer,tensor(0.2562),tensor(0.2946),0.3135073184967041,123,slim oms pareto
+2025-09-21 13:10:08,breast_cancer,tensor(0.2779),tensor(0.2974),0.3353187143802643,121,slim linear scaling
+2025-09-21 13:10:15,breast_cancer,tensor(0.2369),tensor(0.2876),0.29293036460876465,134,slim linear scaling oms
+2025-09-21 13:10:50,breast_cancer,tensor(0.2562),tensor(0.2943),0.313982218503952,123,slim linear scaling oms pareto
+2025-09-21 13:10:54,concrete_slump,tensor(9.7712),tensor(9.8414),8.339773178100586,149,slim
+2025-09-21 13:10:57,concrete_slump,tensor(6.3548),tensor(11.3681),5.732282638549805,171,slim oms
+2025-09-21 13:11:32,concrete_slump,tensor(7.5265),tensor(9.0504),6.503210544586182,148,slim oms pareto
+2025-09-21 13:11:43,concrete_slump,tensor(9.7712),tensor(9.6354),7.13029146194458,149,slim linear scaling
+2025-09-21 13:11:50,concrete_slump,tensor(6.3548),tensor(11.6458),5.819365501403809,171,slim linear scaling oms
+2025-09-21 13:12:27,concrete_slump,tensor(7.5265),tensor(9.2440),6.726302623748779,148,slim linear scaling oms pareto
+2025-09-21 13:12:32,concrete_strength,tensor(23.7527),tensor(23.3527),24.117046356201172,121,slim
+2025-09-21 13:12:36,concrete_strength,tensor(8.6030),tensor(8.3155),8.080490112304688,147,slim oms
+2025-09-21 13:13:08,concrete_strength,tensor(12.5454),tensor(13.9527),11.313170433044434,135,slim oms pareto
+2025-09-21 13:13:16,concrete_strength,tensor(23.7527),tensor(14.8972),15.457860946655273,121,slim linear scaling
+2025-09-21 13:13:24,concrete_strength,tensor(8.6030),tensor(8.2298),8.049901962280273,147,slim linear scaling oms
+2025-09-21 13:13:59,concrete_strength,tensor(12.5454),tensor(12.3958),11.477029800415039,135,slim linear scaling oms pareto
+2025-09-21 13:14:02,diabetes,tensor(148.3839),tensor(155.0595),145.37818908691406,144,slim
+2025-09-21 13:14:06,diabetes,tensor(58.9132),tensor(61.0049),60.67805099487305,111,slim oms
+2025-09-21 13:14:37,diabetes,tensor(61.6333),tensor(59.1892),58.89545440673828,125,slim oms pareto
+2025-09-21 13:14:43,diabetes,tensor(148.3839),tensor(69.7767),65.59139251708984,144,slim linear scaling
+2025-09-21 13:14:49,diabetes,tensor(58.9132),tensor(60.1791),60.315330505371094,111,slim linear scaling oms
+2025-09-21 13:15:24,diabetes,tensor(61.6333),tensor(59.0182),58.689456939697266,125,slim linear scaling oms pareto
+2025-09-21 13:15:28,efficiency_cooling,tensor(8.9676),tensor(8.1018),7.829539775848389,122,slim
+2025-09-21 13:15:32,efficiency_cooling,tensor(3.7809),tensor(4.0442),3.644909620285034,160,slim oms
+2025-09-21 13:16:05,efficiency_cooling,tensor(3.6864),tensor(3.7227),3.5662899017333984,151,slim oms pareto
+2025-09-21 13:16:09,efficiency_cooling,tensor(8.9676),tensor(7.4000),7.03108024597168,122,slim linear scaling
+2025-09-21 13:16:15,efficiency_cooling,tensor(3.7809),tensor(3.8889),3.5046169757843018,160,slim linear scaling oms
+2025-09-21 13:16:47,efficiency_cooling,tensor(3.6864),tensor(3.7075),3.5431103706359863,151,slim linear scaling oms pareto
+2025-09-21 13:16:51,efficiency_heating,tensor(8.0595),tensor(7.3056),7.328061103820801,170,slim
+2025-09-21 13:16:54,efficiency_heating,tensor(3.3498),tensor(3.2803),3.521904706954956,136,slim oms
+2025-09-21 13:17:29,efficiency_heating,tensor(3.4965),tensor(3.4313),3.5713860988616943,123,slim oms pareto
+2025-09-21 13:17:35,efficiency_heating,tensor(8.0595),tensor(7.3524),7.358227252960205,170,slim linear scaling
+2025-09-21 13:17:40,efficiency_heating,tensor(3.3498),tensor(3.2527),3.4879672527313232,136,slim linear scaling oms
+2025-09-21 13:18:15,efficiency_heating,tensor(3.4965),tensor(3.4379),3.5907435417175293,123,slim linear scaling oms pareto
+2025-09-21 13:18:19,forest_fires,tensor(1.2921),tensor(1.5248),1.5150806903839111,166,slim
+2025-09-21 13:18:22,forest_fires,tensor(1.2696),tensor(1.5740),1.762939214706421,132,slim oms
+2025-09-21 13:18:55,forest_fires,tensor(1.2850),tensor(1.5656),1.5137392282485962,134,slim oms pareto
+2025-09-21 13:19:00,forest_fires,tensor(1.2921),tensor(1.5388),1.5302823781967163,166,slim linear scaling
+2025-09-21 13:19:05,forest_fires,tensor(1.2696),tensor(1.5892),1.814416527748108,132,slim linear scaling oms
+2025-09-21 13:19:38,forest_fires,tensor(1.2850),tensor(1.5760),1.5229169130325317,134,slim linear scaling oms pareto
+2025-09-21 13:19:42,istanbul,tensor(0.0135),tensor(0.0150),0.015234720893204212,92,slim
+2025-09-21 13:19:46,istanbul,tensor(0.0127),tensor(0.0161),0.014347396790981293,149,slim oms
+2025-09-21 13:20:16,istanbul,tensor(0.0129),tensor(0.0149),0.014131564646959305,148,slim oms pareto
+2025-09-21 13:20:23,istanbul,tensor(0.0135),tensor(0.0151),0.015215449966490269,92,slim linear scaling
+2025-09-21 13:20:28,istanbul,tensor(0.0127),tensor(0.0161),0.014406959526240826,149,slim linear scaling oms
+2025-09-21 13:21:00,istanbul,tensor(0.0129),tensor(0.0149),0.014057813212275505,148,slim linear scaling oms pareto
+2025-09-21 13:21:05,parkinson_updrs,tensor(10.8332),tensor(10.8511),10.923823356628418,142,slim
+2025-09-21 13:21:09,parkinson_updrs,tensor(10.1866),tensor(10.2233),10.010257720947266,178,slim oms
+2025-09-21 13:21:41,parkinson_updrs,tensor(10.2711),tensor(10.2959),10.07179069519043,148,slim oms pareto
+2025-09-21 13:21:49,parkinson_updrs,tensor(10.8332),tensor(10.5382),10.473146438598633,142,slim linear scaling
+2025-09-21 13:21:55,parkinson_updrs,tensor(10.1866),tensor(10.2151),9.967641830444336,178,slim linear scaling oms
+2025-09-21 13:22:25,parkinson_updrs,tensor(10.2711),tensor(10.2941),10.067241668701172,148,slim linear scaling oms pareto
+2025-09-21 13:22:29,ppb,tensor(39.4183),tensor(42.1795),39.84884262084961,124,slim
+2025-09-21 13:22:34,ppb,tensor(19.5116),tensor(30.3424),29.94620132446289,128,slim oms
+2025-09-21 13:23:04,ppb,tensor(22.8654),tensor(31.1600),29.05841064453125,124,slim oms pareto
+2025-09-21 13:23:09,ppb,tensor(39.4183),tensor(33.0879),29.91200828552246,124,slim linear scaling
+2025-09-21 13:23:14,ppb,tensor(19.5116),tensor(30.8383),30.816099166870117,128,slim linear scaling oms
+2025-09-21 13:23:44,ppb,tensor(22.8654),tensor(31.4378),29.34881591796875,124,slim linear scaling oms pareto
+2025-09-21 13:23:47,resid_build_sale_price,tensor(132.6306),tensor(114.9087),122.45071411132812,124,slim
+2025-09-21 13:23:51,resid_build_sale_price,tensor(91.2682),tensor(81.9587),74.94937133789062,117,slim oms
+2025-09-21 13:24:20,resid_build_sale_price,tensor(95.2493),tensor(86.4413),81.27465057373047,128,slim oms pareto
+2025-09-21 13:24:24,resid_build_sale_price,tensor(132.6306),tensor(103.2918),99.19560241699219,124,slim linear scaling
+2025-09-21 13:24:30,resid_build_sale_price,tensor(91.2682),tensor(81.6527),70.91663360595703,117,slim linear scaling oms
+2025-09-21 13:25:03,resid_build_sale_price,tensor(95.2493),tensor(86.6894),80.2829360961914,128,slim linear scaling oms pareto
+2025-09-21 14:33:30,airfoil,tensor(61.7228),tensor(59.8017),59.707359313964844,149,slim
+2025-09-21 14:33:35,airfoil,tensor(4.5664),tensor(4.6702),4.586551189422607,167,slim oms
+2025-09-21 14:34:09,airfoil,tensor(6.0595),tensor(6.0260),5.9449782371521,187,slim oms pareto
+2025-09-21 14:34:15,airfoil,tensor(61.7228),5.867025375366211,6.043084621429443,149,slim linear scaling
+2025-09-21 14:34:21,airfoil,tensor(4.5664),4.6842241287231445,4.53493595123291,167,slim linear scaling oms
+2025-09-21 14:34:57,airfoil,tensor(6.0595),5.997732639312744,5.8851542472839355,187,slim linear scaling oms pareto
+2025-09-21 14:35:01,bike_sharing,tensor(0.1276),tensor(0.1320),0.13868218660354614,124,slim
+2025-09-21 14:35:07,bike_sharing,tensor(0.0669),tensor(0.0639),0.15674901008605957,133,slim oms
+2025-09-21 14:35:51,bike_sharing,tensor(0.0111),tensor(0.0096),0.011335721239447594,121,slim oms pareto
+2025-09-21 14:36:00,bike_sharing,tensor(0.1276),0.13111424446105957,0.13859856128692627,124,slim linear scaling
+2025-09-21 14:36:08,bike_sharing,tensor(0.0669),0.06501077115535736,0.15722769498825073,133,slim linear scaling oms
+2025-09-21 14:36:52,bike_sharing,tensor(0.0111),0.00966871902346611,0.01126792561262846,121,slim linear scaling oms pareto
+2025-09-21 14:36:57,bioavailability,tensor(44.1938),tensor(41.1070),47.65617752075195,124,slim
+2025-09-21 14:37:04,bioavailability,tensor(26.0913),tensor(30.7426),28.76274299621582,124,slim oms
+2025-09-21 14:37:43,bioavailability,tensor(27.6920),tensor(29.5193),27.45582389831543,124,slim oms pareto
+2025-09-21 14:37:49,bioavailability,tensor(44.1938),29.329877853393555,29.425796508789062,124,slim linear scaling
+2025-09-21 14:37:55,bioavailability,tensor(26.0913),32.19866943359375,29.800819396972656,124,slim linear scaling oms
+2025-09-21 14:38:30,bioavailability,tensor(27.6920),29.18239402770996,27.368316650390625,124,slim linear scaling oms pareto
+2025-09-21 14:38:34,boston,tensor(8.3874),tensor(8.1577),8.813081741333008,144,slim
+2025-09-21 14:38:37,boston,tensor(4.9061),tensor(5.3066),5.132218360900879,152,slim oms
+2025-09-21 14:39:10,boston,tensor(4.8257),tensor(5.0747),4.775976657867432,125,slim oms pareto
+2025-09-21 14:39:15,boston,tensor(8.3874),8.19941520690918,8.848631858825684,144,slim linear scaling
+2025-09-21 14:39:20,boston,tensor(4.9061),5.0701375007629395,4.834574222564697,152,slim linear scaling oms
+2025-09-21 14:39:55,boston,tensor(4.8257),5.099773406982422,4.772663116455078,125,slim linear scaling oms pareto
+2025-09-21 14:39:59,breast_cancer,tensor(0.2779),tensor(0.2971),0.33667847514152527,121,slim
+2025-09-21 14:40:02,breast_cancer,tensor(0.2369),tensor(0.2883),0.29258647561073303,134,slim oms
+2025-09-21 14:40:34,breast_cancer,tensor(0.2562),tensor(0.2946),0.3135073184967041,123,slim oms pareto
+2025-09-21 14:40:40,breast_cancer,tensor(0.2779),0.297374963760376,0.33531874418258667,121,slim linear scaling
+2025-09-21 14:40:45,breast_cancer,tensor(0.2369),0.2876434922218323,0.29293036460876465,134,slim linear scaling oms
+2025-09-21 14:41:58,breast_cancer,tensor(0.2562),0.2943364083766937,0.313982218503952,123,slim linear scaling oms pareto
+2025-09-21 14:42:05,concrete_slump,tensor(9.7712),tensor(9.8414),8.339773178100586,149,slim
+2025-09-21 14:42:11,concrete_slump,tensor(6.3548),tensor(11.3681),5.732282638549805,171,slim oms
+2025-09-21 14:42:44,concrete_slump,tensor(7.5265),tensor(9.0504),6.503210544586182,148,slim oms pareto
+2025-09-21 14:42:51,concrete_slump,tensor(9.7712),9.635384559631348,7.1302900314331055,149,slim linear scaling
+2025-09-21 14:42:57,concrete_slump,tensor(6.3548),11.645782470703125,5.819365501403809,171,slim linear scaling oms
+2025-09-21 14:43:30,concrete_slump,tensor(7.5265),9.244034767150879,6.726302623748779,148,slim linear scaling oms pareto
+2025-09-21 14:43:34,concrete_strength,tensor(23.7527),tensor(23.3527),24.117046356201172,121,slim
+2025-09-21 14:43:38,concrete_strength,tensor(8.6030),tensor(8.3155),8.080490112304688,147,slim oms
+2025-09-21 14:44:08,concrete_strength,tensor(12.5454),tensor(13.9527),11.313170433044434,135,slim oms pareto
+2025-09-21 14:44:14,concrete_strength,tensor(23.7527),14.897156715393066,15.457860946655273,121,slim linear scaling
+2025-09-21 14:44:19,concrete_strength,tensor(8.6030),8.229765892028809,8.049901962280273,147,slim linear scaling oms
+2025-09-21 14:44:54,concrete_strength,tensor(12.5454),12.395777702331543,11.477031707763672,135,slim linear scaling oms pareto
+2025-09-21 14:44:58,diabetes,tensor(148.3839),tensor(155.0595),145.37818908691406,144,slim
+2025-09-21 14:45:02,diabetes,tensor(58.9132),tensor(61.0049),60.67805099487305,111,slim oms
+2025-09-21 14:45:32,diabetes,tensor(61.6333),tensor(59.1892),58.89545440673828,125,slim oms pareto
+2025-09-21 14:45:37,diabetes,tensor(148.3839),69.77666473388672,65.59141540527344,144,slim linear scaling
+2025-09-21 14:45:42,diabetes,tensor(58.9132),60.179054260253906,60.315330505371094,111,slim linear scaling oms
+2025-09-21 14:46:13,diabetes,tensor(61.6333),59.018157958984375,58.689456939697266,125,slim linear scaling oms pareto
+2025-09-21 14:46:16,efficiency_cooling,tensor(8.9676),tensor(8.1018),7.829539775848389,122,slim
+2025-09-21 14:46:19,efficiency_cooling,tensor(3.7809),tensor(4.0442),3.644909620285034,160,slim oms
+2025-09-21 14:46:48,efficiency_cooling,tensor(3.6864),tensor(3.7227),3.5662899017333984,151,slim oms pareto
+2025-09-21 14:46:52,efficiency_cooling,tensor(8.9676),7.399966239929199,7.03108024597168,122,slim linear scaling
+2025-09-21 14:46:58,efficiency_cooling,tensor(3.7809),3.8889150619506836,3.50461745262146,160,slim linear scaling oms
+2025-09-21 14:47:33,efficiency_cooling,tensor(3.6864),3.707465648651123,3.5431103706359863,151,slim linear scaling oms pareto
+2025-09-21 14:47:37,efficiency_heating,tensor(8.0595),tensor(7.3056),7.328061103820801,170,slim
+2025-09-21 14:47:40,efficiency_heating,tensor(3.3498),tensor(3.2803),3.521904706954956,136,slim oms
+2025-09-21 14:48:10,efficiency_heating,tensor(3.4965),tensor(3.4313),3.5713860988616943,123,slim oms pareto
+2025-09-21 14:48:16,efficiency_heating,tensor(8.0595),7.352421760559082,7.358227252960205,170,slim linear scaling
+2025-09-21 14:48:22,efficiency_heating,tensor(3.3498),3.2526590824127197,3.4879672527313232,136,slim linear scaling oms
+2025-09-21 14:48:53,efficiency_heating,tensor(3.4965),3.4378960132598877,3.5907435417175293,123,slim linear scaling oms pareto
+2025-09-21 14:48:56,forest_fires,tensor(1.2921),tensor(1.5248),1.5150806903839111,166,slim
+2025-09-21 14:48:59,forest_fires,tensor(1.2696),tensor(1.5740),1.762939214706421,132,slim oms
+2025-09-21 14:49:29,forest_fires,tensor(1.2850),tensor(1.5656),1.5137392282485962,134,slim oms pareto
+2025-09-21 14:49:34,forest_fires,tensor(1.2921),1.5388060808181763,1.5302823781967163,166,slim linear scaling
+2025-09-21 14:49:39,forest_fires,tensor(1.2696),1.5891705751419067,1.814416527748108,132,slim linear scaling oms
+2025-09-21 14:50:11,forest_fires,tensor(1.2850),1.5759940147399902,1.5229169130325317,134,slim linear scaling oms pareto
+2025-09-21 14:50:15,istanbul,tensor(0.0135),tensor(0.0150),0.015234720893204212,92,slim
+2025-09-21 14:50:19,istanbul,tensor(0.0127),tensor(0.0161),0.014347396790981293,149,slim oms
+2025-09-21 14:50:47,istanbul,tensor(0.0129),tensor(0.0149),0.014131564646959305,148,slim oms pareto
+2025-09-21 14:50:53,istanbul,tensor(0.0135),0.015078994445502758,0.015215449966490269,92,slim linear scaling
+2025-09-21 14:50:58,istanbul,tensor(0.0127),0.016113411635160446,0.0144069604575634,149,slim linear scaling oms
+2025-09-21 14:51:29,istanbul,tensor(0.0129),0.014925859868526459,0.014057813212275505,148,slim linear scaling oms pareto
+2025-09-21 14:51:34,parkinson_updrs,tensor(10.8332),tensor(10.8511),10.923823356628418,142,slim
+2025-09-21 14:51:39,parkinson_updrs,tensor(10.1866),tensor(10.2233),10.010257720947266,178,slim oms
+2025-09-21 14:52:13,parkinson_updrs,tensor(10.2711),tensor(10.2959),10.07179069519043,148,slim oms pareto
+2025-09-21 14:52:22,parkinson_updrs,tensor(10.8332),10.538232803344727,10.473146438598633,142,slim linear scaling
+2025-09-21 14:52:29,parkinson_updrs,tensor(10.1866),10.215127944946289,9.967641830444336,178,slim linear scaling oms
+2025-09-21 14:53:03,parkinson_updrs,tensor(10.2711),10.294078826904297,10.067240715026855,148,slim linear scaling oms pareto
+2025-09-21 14:53:07,ppb,tensor(39.4183),tensor(42.1795),39.84884262084961,124,slim
+2025-09-21 14:53:11,ppb,tensor(19.5116),tensor(30.3424),29.94620132446289,128,slim oms
+2025-09-21 14:53:41,ppb,tensor(22.8654),tensor(31.1600),29.05841064453125,124,slim oms pareto
+2025-09-21 14:53:46,ppb,tensor(39.4183),33.08791732788086,29.91200828552246,124,slim linear scaling
+2025-09-21 14:53:53,ppb,tensor(19.5116),30.838268280029297,30.816099166870117,128,slim linear scaling oms
+2025-09-21 14:54:26,ppb,tensor(22.8654),31.437841415405273,29.348819732666016,124,slim linear scaling oms pareto
+2025-09-21 14:54:30,resid_build_sale_price,tensor(132.6306),tensor(114.9087),122.45071411132812,124,slim
+2025-09-21 14:54:33,resid_build_sale_price,tensor(91.2682),tensor(81.9587),74.94937133789062,117,slim oms
+2025-09-21 14:55:04,resid_build_sale_price,tensor(95.2493),tensor(86.4413),81.27465057373047,128,slim oms pareto
+2025-09-21 14:55:09,resid_build_sale_price,tensor(132.6306),103.29180908203125,99.19560241699219,124,slim linear scaling
+2025-09-21 14:55:14,resid_build_sale_price,tensor(91.2682),81.65269470214844,70.91663360595703,117,slim linear scaling oms
+2025-09-21 14:55:44,resid_build_sale_price,tensor(95.2493),86.68936920166016,80.2829360961914,128,slim linear scaling oms pareto
