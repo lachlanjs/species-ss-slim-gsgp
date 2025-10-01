@@ -68,3 +68,9 @@ timestamp,dataset_name,training_rmse,validation_rmse,test_rmse,execution_type
 2025-09-26 17:11:50,airfoil,tensor(61.5682),tensor(61.3181),61.6630744934082,slim linear scaling
 2025-09-28 13:27:41,airfoil,tensor(61.5682),tensor(61.3181),61.6630744934082,slim linear scaling
 2025-09-28 13:30:11,airfoil,tensor(61.5682),tensor(61.3181),61.6630744934082,slim linear scaling
+2025-09-28 13:49:46,airfoil,tensor(61.5682),tensor(61.3181),61.6630744934082,slim linear scaling
+2025-09-28 13:50:52,airfoil,tensor(61.5682),tensor(61.3181),61.6630744934082,slim linear scaling
+2025-09-28 13:54:26,airfoil,tensor(61.5682),tensor(61.3181),61.6630744934082,slim linear scaling
+2025-09-28 13:57:07,airfoil,tensor(61.5682),tensor(61.3181),61.6630744934082,slim linear scaling
+2025-09-28 14:01:27,airfoil,tensor(61.5682),tensor(61.3181),61.6630744934082,slim linear scaling
+2025-09-28 14:02:23,airfoil,5.533651828765869,5.5098652839660645,5.423908710479736,slim linear scaling

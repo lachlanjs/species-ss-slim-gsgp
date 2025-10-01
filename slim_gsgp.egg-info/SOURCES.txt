@@ -79,6 +79,8 @@ slim_gsgp/selection/selection_algorithms.py
 slim_gsgp/utils/__init__.py
 slim_gsgp/utils/diversity.py
 slim_gsgp/utils/logger.py
+slim_gsgp/utils/simplification.py
+slim_gsgp/utils/tree_to_png.py
 slim_gsgp/utils/utils.py
 tests/__init__.py
 tests/test_gp.py

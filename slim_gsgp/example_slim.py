@@ -78,7 +78,7 @@ results = slim(X_train=X_train, y_train=y_train,
                dataset_name='airfoil', slim_version='SLIM+ABS', pop_size=100, n_iter=100,
                ms_lower=0, ms_upper=1, p_inflate=0.5, reconstruct=True, 
                # tournament_type="pareto", tournament_size=5, multi_obj_attrs=["fitness", "size"], 
-               oms=False, linear_scaling=False, enable_plotting=False, auto_simplify=True, seed=42)
+               oms=False, linear_scaling=True, enable_plotting=False, auto_simplify=True, seed=42)
 
 # Extract both individuals
 best_fitness_individual = results.best_fitness
@@ -240,15 +240,18 @@ if hasattr(results, 'simplification_info') and results.simplification_info is no
             
             return convert_recursive(structure)
         
-        math_expression = tree_to_math_expression(results.simplification_info['converted_tree_structure'])
+        # Use simplified structure if available, otherwise use converted structure
+        display_structure = results.simplification_info.get('simplified_structure', 
+                                                           results.simplification_info['converted_tree_structure'])
+        
+        math_expression = tree_to_math_expression(display_structure)
         print(f"   {math_expression}")
         
         # Generate PNG visualization of the tree
         try:
             from slim_gsgp.utils.tree_to_png import save_tree_as_png_simple
             
-            tree_structure = results.simplification_info['converted_tree_structure']
-            png_path = save_tree_as_png_simple(tree_structure, "slim_tree_visualization.png")
+            png_path = save_tree_as_png_simple(display_structure, "slim_tree_visualization.png")
             print(f"\n🖼️  Tree visualization saved as PNG: slim_tree_visualization.png")
             
         except ImportError as e:
@@ -259,11 +262,21 @@ if hasattr(results, 'simplification_info') and results.simplification_info is no
         print()  # Extra line for spacing
     
     if results.simplification_info['applied']:
-        print(f"🔧 Simplification applied successfully!")
-        print(f"   📊 Original model: {results.simplification_info['original_nodes']} nodes, depth {results.simplification_info['original_depth']}")
-        print(f"   ✅ Simplified to: {results.simplification_info['simplified_nodes']} nodes, depth {results.simplification_info['simplified_depth']}")
-        print(f"   📈 Reduction: {results.simplification_info['nodes_removed']} nodes removed ({results.simplification_info['nodes_removed']/results.simplification_info['original_nodes']*100:.1f}%)")
-        print(f"   🎯 Result: Model is {results.simplification_info['nodes_removed']} nodes smaller with same performance!")
+        mathematical_simplifications = results.simplification_info.get('mathematical_simplifications', 0)
+        nodes_removed = results.simplification_info['nodes_removed']
+        
+        if nodes_removed > 0:
+            print(f"🎉 Structural simplification successful!")
+            print(f"   📊 Original model: {results.simplification_info['original_nodes']} nodes, depth {results.simplification_info['original_depth']}")
+            print(f"   ✅ Simplified to: {results.simplification_info['simplified_nodes']} nodes, depth {results.simplification_info['simplified_depth']}")
+            print(f"   📈 Reduction: {nodes_removed} nodes removed ({nodes_removed/results.simplification_info['original_nodes']*100:.1f}%)")
+            print(f"   🎯 Result: Model is {nodes_removed} nodes smaller with same performance!")
+        elif mathematical_simplifications > 0:
+            print(f"🎉 Mathematical simplification successful!")
+            print(f"   📊 Model structure: {results.simplification_info['simplified_nodes']} nodes, depth {results.simplification_info['simplified_depth']}")
+            print(f"   🔧 Applied {mathematical_simplifications} mathematical simplification(s)")
+            print(f"   ✨ Combined duplicate terms (x+x→2x, etc.)")
+            print(f"   🎯 Result: Mathematically equivalent but cleaner expression!")
         
         # Show simplified structure if different
         if 'simplified_structure' in results.simplification_info:

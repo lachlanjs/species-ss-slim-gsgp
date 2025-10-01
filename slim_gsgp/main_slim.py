@@ -354,7 +354,7 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
         original_depth = best_normalized_individual.depth
         
         # Simplify the individual with debug enabled
-        simplified_individual = simplify_individual(best_normalized_individual, max_simplification_iterations=3, debug=True)
+        simplified_individual = simplify_individual(best_normalized_individual, max_simplification_iterations=8, debug=True)
         
         # Recalculate semantics and fitness for the simplified individual
         if X_train is not None:
@@ -379,14 +379,22 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
             if 'simplified_tree_structure' in simplified_individual._simplification_info:
                 base_simplification_info['simplified_structure'] = simplified_individual._simplification_info['simplified_tree_structure']
         
-        # Only use simplified version if it's actually simpler (fewer nodes)
-        if simplified_individual.nodes_count < best_normalized_individual.nodes_count:
+        # Check if mathematical simplifications were applied
+        simplifications_applied = 0
+        if hasattr(simplified_individual, '_simplification_info'):
+            simplifications_applied = simplified_individual._simplification_info.get('simplifications_applied', 0)
+        
+        # Use simplified version if it has fewer nodes OR if mathematical simplifications were applied
+        if (simplified_individual.nodes_count < best_normalized_individual.nodes_count or 
+            simplifications_applied > 0):
+            
             simplification_info = {
                 **base_simplification_info,
                 'applied': True,
                 'simplified_nodes': simplified_individual.nodes_count,
                 'simplified_depth': simplified_individual.depth,
-                'nodes_removed': original_nodes - simplified_individual.nodes_count
+                'nodes_removed': original_nodes - simplified_individual.nodes_count,
+                'mathematical_simplifications': simplifications_applied
             }
             best_normalized_individual = simplified_individual
             best_normalized_individual.version = slim_version
