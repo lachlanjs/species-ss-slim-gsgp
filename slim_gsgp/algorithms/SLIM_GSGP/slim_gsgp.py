@@ -65,31 +65,12 @@ def plot_generation_fitness_vs_nodes(population, generation, X_test=None, y_test
     global _plot_figure, _plot_axes
     
     nodes_counts = []
-    test_fitnesses = []
+    training_fitnesses = []
     
     for individual in population.population:
         nodes_counts.append(individual.nodes_count)
-        
-        # Calculate test fitness if test data is provided
-        if X_test is not None and y_test is not None and ffunction is not None:
-            # Calculate test semantics if not already calculated
-            if individual.test_semantics is None:
-                individual.calculate_semantics(X_test, testing=True)
-            
-            # Calculate test fitness with linear scaling if applicable
-            if hasattr(individual, 'use_linear_scaling') and individual.use_linear_scaling:
-                # Apply linear scaling to test predictions
-                raw_prediction = torch.sum(individual.test_semantics, dim=0) if len(individual.test_semantics.shape) > 1 else individual.test_semantics
-                scaled_prediction = individual.scaling_a + raw_prediction * individual.scaling_b
-                test_fitness = float(ffunction(y_test, scaled_prediction))
-            else:
-                # Use training fitness as proxy if no test data or linear scaling
-                test_fitness = individual.fitness
-        else:
-            # Use training fitness as proxy if no test data provided
-            test_fitness = individual.fitness
-            
-        test_fitnesses.append(test_fitness)
+        # Use training fitness for consistent visualization with normalization analysis
+        training_fitnesses.append(individual.fitness)
     
     # Create the figure and axes if they don't exist
     if _plot_figure is None:
@@ -100,9 +81,9 @@ def plot_generation_fitness_vs_nodes(population, generation, X_test=None, y_test
     _plot_axes.clear()
     
     # Create the plot
-    _plot_axes.scatter(nodes_counts, test_fitnesses, alpha=0.6, s=50)
+    _plot_axes.scatter(nodes_counts, training_fitnesses, alpha=0.6, s=50)
     _plot_axes.set_xlabel('Number of Nodes')
-    _plot_axes.set_ylabel('Test Fitness (RMSE)')
+    _plot_axes.set_ylabel('Training Fitness (RMSE)')
     _plot_axes.set_title(f'Generation {generation}: Fitness vs Number of Nodes')
     _plot_axes.grid(True, alpha=0.3)
     
@@ -111,26 +92,16 @@ def plot_generation_fitness_vs_nodes(population, generation, X_test=None, y_test
     
     # Add statistics for both best fitness and best normalized individuals
     # Best fitness individual (lowest RMSE)
-    best_fitness_idx = np.argmin(test_fitnesses)
-    best_fitness_value = test_fitnesses[best_fitness_idx]
+    best_fitness_idx = np.argmin(training_fitnesses)
+    best_fitness_value = training_fitnesses[best_fitness_idx]
     best_fitness_nodes = nodes_counts[best_fitness_idx]
     
     # Best normalized individual (Pareto dominance considering fitness and size)
     best_normalized_individual = select_best_normalized_individual(population.population)
     
-    # Calculate test fitness for best normalized individual
-    if X_test is not None and y_test is not None and ffunction is not None:
-        if best_normalized_individual.test_semantics is None:
-            best_normalized_individual.calculate_semantics(X_test, testing=True)
-        
-        if hasattr(best_normalized_individual, 'use_linear_scaling') and best_normalized_individual.use_linear_scaling:
-            raw_prediction = torch.sum(best_normalized_individual.test_semantics, dim=0) if len(best_normalized_individual.test_semantics.shape) > 1 else best_normalized_individual.test_semantics
-            scaled_prediction = best_normalized_individual.scaling_a + raw_prediction * best_normalized_individual.scaling_b
-            best_normalized_fitness = float(ffunction(y_test, scaled_prediction))
-        else:
-            best_normalized_fitness = best_normalized_individual.fitness
-    else:
-        best_normalized_fitness = best_normalized_individual.fitness
+    # Use training fitness for consistent visualization
+    # (The normalization is based on training fitness, so the plot should show the same)
+    best_normalized_fitness = best_normalized_individual.fitness
     
     best_normalized_nodes = best_normalized_individual.nodes_count
     
@@ -141,12 +112,77 @@ def plot_generation_fitness_vs_nodes(population, generation, X_test=None, y_test
                 label=f'Best Normalized: {best_normalized_fitness:.4f} ({best_normalized_nodes} nodes)')
     _plot_axes.legend()
     
+    # Show detailed normalization information
+    print(f"\n{'='*80}")
+    print(f"GENERACIÓN {generation} - ANÁLISIS DE NORMALIZACIÓN")
+    print(f"{'='*80}")
+    
+    # Get normalization details by creating temporary copies and normalizing
+    from slim_gsgp.utils.utils import normalize_population_attributes
+    import copy
+    
+    # Create minimal copies for normalization analysis
+    temp_population = []
+    for i, ind in enumerate(population.population):
+        temp_ind = type('TempIndividual', (), {})()
+        temp_ind.fitness = ind.fitness
+        temp_ind.nodes_count = ind.nodes_count
+        temp_ind.original_index = i
+        temp_population.append(temp_ind)
+    
+    # Normalize the temporary population
+    normalize_population_attributes(temp_population, ['fitness', 'nodes_count'])
+    
+    # Find min/max for reference
+    fitnesses = [ind.fitness for ind in population.population]
+    nodes = [ind.nodes_count for ind in population.population]
+    min_fitness, max_fitness = min(fitnesses), max(fitnesses)
+    min_nodes, max_nodes = min(nodes), max(nodes)
+    
+    print(f"Rango Fitness: [{min_fitness:.4f}, {max_fitness:.4f}]")
+    print(f"Rango Nodes: [{min_nodes}, {max_nodes}]")
+    print(f"\nTodos los individuos:")
+    print(f"{'Idx':<3} {'Fitness':<8} {'Nodes':<5} {'Fit_norm':<8} {'Nodes_norm':<10} {'Distancia':<9} {'Selección'}")
+    print(f"{'-'*80}")
+    
+    best_distance = float('inf')
+    selected_idx = -1
+    
+    for i, temp_ind in enumerate(temp_population):
+        original_ind = population.population[i]
+        distance = (temp_ind.normalized_fitness**2 + temp_ind.normalized_nodes_count**2)**0.5
+        
+        if distance < best_distance:
+            best_distance = distance
+            selected_idx = i
+        
+        selection_mark = ""
+        print(f"{i:<3} {original_ind.fitness:<8.4f} {original_ind.nodes_count:<5} "
+              f"{temp_ind.normalized_fitness:<8.4f} {temp_ind.normalized_nodes_count:<10.4f} "
+              f"{distance:<9.4f} {selection_mark}")
+    
+    # Mark the selected individual
+    print(f"{'-'*80}")
+    selected_original = population.population[selected_idx]
+    selected_temp = temp_population[selected_idx]
+    print(f"★ SELECCIONADO: Individuo {selected_idx}")
+    print(f"  Fitness: {selected_original.fitness:.4f} → {selected_temp.normalized_fitness:.4f}")
+    print(f"  Nodes: {selected_original.nodes_count} → {selected_temp.normalized_nodes_count:.4f}")
+    print(f"  Distancia al origen (0,0): {best_distance:.4f}")
+    
+    # Verify it matches the function's selection
+    function_selected = select_best_normalized_individual(population.population)
+    matches = (function_selected.fitness == selected_original.fitness and 
+              function_selected.nodes_count == selected_original.nodes_count)
+    print(f"  ✓ Coincide con select_best_normalized_individual: {matches}")
+    print(f"{'='*80}")
+    
     # Update the plot without blocking
     _plot_figure.canvas.draw()
     _plot_figure.canvas.flush_events()
     
     # Pause for 1 second to allow viewing
-    plt.pause(0.2)
+    plt.pause(1.0)
 
 
 def close_evolution_plot():

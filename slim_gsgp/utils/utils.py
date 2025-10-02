@@ -738,12 +738,11 @@ def normalize_population_attributes(population, attrs):
 
 def select_best_normalized_individual(population):
     """
-    Select the best individual from a population based on Pareto dominance
+    Select the best individual from a population based on distance to ideal point
     considering normalized fitness and size.
     
     This function normalizes both fitness and size to [0,1] range across the
-    entire population, then uses Pareto dominance to find the best individual.
-    In case of multiple non-dominated individuals, one is randomly selected.
+    entire population, then selects the individual closest to the ideal point (0,0).
     
     Parameters
     ----------
@@ -755,41 +754,37 @@ def select_best_normalized_individual(population):
     Individual
         The selected best individual based on normalized fitness and size trade-off.
     """
-    # Create a copy of population to avoid modifying original
-    pop_copy = [ind for ind in population]
+    # Create a proper copy of population to avoid modifying original
+    # We only need fitness and nodes_count for normalization, so we create minimal copies
+    import copy
     
-    # Normalize fitness and size attributes
+    # Create shallow copies of individuals with only the needed attributes
+    pop_copy = []
+    for ind in population:
+        # Create a simple object with just the attributes we need
+        copy_ind = type('TempIndividual', (), {})()
+        copy_ind.fitness = ind.fitness
+        copy_ind.nodes_count = ind.nodes_count
+        copy_ind._original_index = population.index(ind)  # Keep track of original position
+        pop_copy.append(copy_ind)
+    
+    # Normalize fitness and size attributes on copies
     normalize_population_attributes(pop_copy, ['fitness', 'nodes_count'])
     
-    # Use Pareto dominance to select the best individual
+    # Find the individual closest to the ideal point (0,0) in normalized space
     # We want to minimize both normalized fitness and normalized size
-    attrs = ['normalized_fitness', 'normalized_nodes_count']
+    best_distance = float('inf')
+    selected = pop_copy[0]  # Default to first individual
     
-    # Calculate non-dominated set of the entire population
-    from slim_gsgp.selection.selection_algorithms import calculate_non_dominated
-    non_dom_idxs, _ = calculate_non_dominated(pop_copy, attrs, minimization=True)
-    
-    # Get the non-dominated individuals
-    non_dominated = [pop_copy[idx] for idx in non_dom_idxs]
-    
-    # Select the best individual from the non-dominated set using deterministic criteria
-    # Instead of random selection, use the one closest to the ideal point (0,0)
-    if len(non_dominated) == 1:
-        selected = non_dominated[0]
-    else:
-        # Calculate distance to ideal point (0,0) for each non-dominated individual
-        best_distance = float('inf')
-        selected = non_dominated[0]  # Default to first in case of exact tie
+    for individual in pop_copy:
+        # Calculate Euclidean distance to ideal point (0,0)
+        distance = (individual.normalized_fitness**2 + individual.normalized_nodes_count**2)**0.5
         
-        for individual in non_dominated:
-            # Calculate Euclidean distance to ideal point (0,0)
-            distance = (individual.normalized_fitness**2 + individual.normalized_nodes_count**2)**0.5
-            
-            # Select if better distance, or if same distance but smaller size (deterministic tie-breaking)
-            if distance < best_distance or (distance == best_distance and individual.normalized_nodes_count < selected.normalized_nodes_count):
-                best_distance = distance
-                selected = individual
+        # Select if better distance, or if same distance but smaller size (deterministic tie-breaking)
+        if distance < best_distance or (distance == best_distance and individual.normalized_nodes_count < selected.normalized_nodes_count):
+            best_distance = distance
+            selected = individual
     
     # Return the original individual (without normalized attributes)
-    original_idx = population.index(selected) if selected in population else pop_copy.index(selected)
+    original_idx = selected._original_index
     return population[original_idx]
