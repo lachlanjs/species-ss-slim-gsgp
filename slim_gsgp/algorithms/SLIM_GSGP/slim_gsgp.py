@@ -36,7 +36,7 @@ from slim_gsgp.algorithms.SLIM_GSGP.representations.individual import Individual
 from slim_gsgp.algorithms.SLIM_GSGP.representations.population import Population
 from slim_gsgp.utils.diversity import gsgp_pop_div_from_vectors
 from slim_gsgp.utils.logger import logger
-from slim_gsgp.utils.utils import verbose_reporter, select_best_normalized_individual
+from slim_gsgp.utils.utils import verbose_reporter, select_best_normalized_individual, get_population_outliers
 
 # Global variable to store the figure for persistent plotting
 _plot_figure = None
@@ -80,11 +80,44 @@ def plot_generation_fitness_vs_nodes(population, generation, X_test=None, y_test
     # Clear the previous plot but keep the figure
     _plot_axes.clear()
     
-    # Create the plot
-    _plot_axes.scatter(nodes_counts, training_fitnesses, alpha=0.6, s=50)
+    # Get outlier information with debug enabled for first few generations
+    debug_outliers = generation <= 3  # Enable debug for first 3 generations
+    outlier_info = get_population_outliers(population.population, remove_outliers=True, 
+                                         outlier_multiplier=1.5, debug=debug_outliers)
+    
+    # Combine both fitness and nodes outliers (union)
+    fitness_outlier_indices = set(outlier_info['fitness']['indices'])
+    nodes_outlier_indices = set(outlier_info['nodes_count']['indices'])
+    all_outlier_indices = fitness_outlier_indices.union(nodes_outlier_indices)
+    
+    # Separate normal individuals and outliers for plotting
+    normal_nodes = []
+    normal_fitness = []
+    outlier_nodes = []
+    outlier_fitness = []
+    
+    for i, (nodes, fitness) in enumerate(zip(nodes_counts, training_fitnesses)):
+        if i in all_outlier_indices:
+            outlier_nodes.append(nodes)
+            outlier_fitness.append(fitness)
+        else:
+            normal_nodes.append(nodes)
+            normal_fitness.append(fitness)
+    
+    # Plot normal individuals as blue circles
+    if normal_nodes:
+        _plot_axes.scatter(normal_nodes, normal_fitness, alpha=0.6, s=50, color='blue', 
+                          label=f'Normal individuals ({len(normal_nodes)})')
+    
+    # Plot outliers as gray X marks
+    if outlier_nodes:
+        _plot_axes.scatter(outlier_nodes, outlier_fitness, alpha=0.7, s=80, color='gray', 
+                          marker='x', linewidths=2, 
+                          label=f'Outliers (excluded from normalization, {len(outlier_nodes)})')
+    
     _plot_axes.set_xlabel('Number of Nodes')
     _plot_axes.set_ylabel('Training Fitness (RMSE)')
-    _plot_axes.set_title(f'Generation {generation}: Fitness vs Number of Nodes')
+    _plot_axes.set_title(f'Generation {generation}: Fitness vs Number of Nodes (with Outlier Detection)')
     _plot_axes.grid(True, alpha=0.3)
     
     # Set fixed axis limits
@@ -106,76 +139,102 @@ def plot_generation_fitness_vs_nodes(population, generation, X_test=None, y_test
     best_normalized_nodes = best_normalized_individual.nodes_count
     
     # Plot both best individuals
-    _plot_axes.scatter(best_fitness_nodes, best_fitness_value, color='red', s=100, marker='*', 
-                label=f'Best Fitness: {best_fitness_value:.4f} ({best_fitness_nodes} nodes)')
-    _plot_axes.scatter(best_normalized_nodes, best_normalized_fitness, color='blue', s=100, marker='s', 
-                label=f'Best Normalized: {best_normalized_fitness:.4f} ({best_normalized_nodes} nodes)')
-    _plot_axes.legend()
+    _plot_axes.scatter(best_fitness_nodes, best_fitness_value, color='red', s=120, marker='*', 
+                label=f'Best Fitness: {best_fitness_value:.4f} ({best_fitness_nodes} nodes)', zorder=5)
+    _plot_axes.scatter(best_normalized_nodes, best_normalized_fitness, color='green', s=120, marker='s', 
+                label=f'Best Normalized: {best_normalized_fitness:.4f} ({best_normalized_nodes} nodes)', zorder=5)
     
-    # Show detailed normalization information
-    print(f"\n{'='*80}")
-    print(f"GENERACIÓN {generation} - ANÁLISIS DE NORMALIZACIÓN")
-    print(f"{'='*80}")
+    # Add legend with information about outlier detection
+    _plot_axes.legend(loc='upper right', fontsize=9)
     
-    # Get normalization details by creating temporary copies and normalizing
-    from slim_gsgp.utils.utils import normalize_population_attributes
-    import copy
+    # Check if best fitness individual is being excluded as outlier
+    best_fitness_idx = np.argmin(training_fitnesses)
+    best_is_outlier = best_fitness_idx in all_outlier_indices
     
-    # Create minimal copies for normalization analysis
-    temp_population = []
-    for i, ind in enumerate(population.population):
-        temp_ind = type('TempIndividual', (), {})()
-        temp_ind.fitness = ind.fitness
-        temp_ind.nodes_count = ind.nodes_count
-        temp_ind.original_index = i
-        temp_population.append(temp_ind)
+    # Add outlier detection info as text
+    if outlier_nodes:
+        outlier_text = f"IQR 1.5x rule: {len(fitness_outlier_indices)} fitness outliers, {len(nodes_outlier_indices)} nodes outliers"
+        if best_is_outlier:
+            outlier_text += f"\n⚠️ ALERT: Best fitness individual excluded as outlier!"
+        _plot_axes.text(0.02, 0.98, outlier_text, transform=_plot_axes.transAxes, 
+                       fontsize=8, verticalalignment='top', 
+                       bbox=dict(boxstyle='round', facecolor='lightcoral' if best_is_outlier else 'lightgray', alpha=0.7))
     
-    # Normalize the temporary population
-    normalize_population_attributes(temp_population, ['fitness', 'nodes_count'])
+    # Print warning if best fitness individual is excluded
+    if best_is_outlier and debug_outliers:
+        print(f"\n⚠️⚠️⚠️ CRITICAL: Generation {generation} - Best fitness individual (idx {best_fitness_idx}) excluded as outlier!")
+        print(f"    Best fitness: {training_fitnesses[best_fitness_idx]:.6f}")
+        print(f"    Best nodes: {nodes_counts[best_fitness_idx]}")
+        print(f"    Is in fitness outliers: {best_fitness_idx in fitness_outlier_indices}")
+        print(f"    Is in nodes outliers: {best_fitness_idx in nodes_outlier_indices}")
     
-    # Find min/max for reference
-    fitnesses = [ind.fitness for ind in population.population]
-    nodes = [ind.nodes_count for ind in population.population]
-    min_fitness, max_fitness = min(fitnesses), max(fitnesses)
-    min_nodes, max_nodes = min(nodes), max(nodes)
+    # Detailed normalization information disabled for cleaner output
+    # Uncomment the section below if you need to debug normalization issues
     
-    print(f"Rango Fitness: [{min_fitness:.4f}, {max_fitness:.4f}]")
-    print(f"Rango Nodes: [{min_nodes}, {max_nodes}]")
-    print(f"\nTodos los individuos:")
-    print(f"{'Idx':<3} {'Fitness':<8} {'Nodes':<5} {'Fit_norm':<8} {'Nodes_norm':<10} {'Distancia':<9} {'Selección'}")
-    print(f"{'-'*80}")
-    
-    best_distance = float('inf')
-    selected_idx = -1
-    
-    for i, temp_ind in enumerate(temp_population):
-        original_ind = population.population[i]
-        distance = (temp_ind.normalized_fitness**2 + temp_ind.normalized_nodes_count**2)**0.5
-        
-        if distance < best_distance:
-            best_distance = distance
-            selected_idx = i
-        
-        selection_mark = ""
-        print(f"{i:<3} {original_ind.fitness:<8.4f} {original_ind.nodes_count:<5} "
-              f"{temp_ind.normalized_fitness:<8.4f} {temp_ind.normalized_nodes_count:<10.4f} "
-              f"{distance:<9.4f} {selection_mark}")
-    
-    # Mark the selected individual
-    print(f"{'-'*80}")
-    selected_original = population.population[selected_idx]
-    selected_temp = temp_population[selected_idx]
-    print(f"★ SELECCIONADO: Individuo {selected_idx}")
-    print(f"  Fitness: {selected_original.fitness:.4f} → {selected_temp.normalized_fitness:.4f}")
-    print(f"  Nodes: {selected_original.nodes_count} → {selected_temp.normalized_nodes_count:.4f}")
-    print(f"  Distancia al origen (0,0): {best_distance:.4f}")
-    
-    # Verify it matches the function's selection
-    function_selected = select_best_normalized_individual(population.population)
-    matches = (function_selected.fitness == selected_original.fitness and 
-              function_selected.nodes_count == selected_original.nodes_count)
-    print(f"  ✓ Coincide con select_best_normalized_individual: {matches}")
-    print(f"{'='*80}")
+    # # Show detailed normalization information
+    # print(f"\n{'='*80}")
+    # print(f"GENERACIÓN {generation} - ANÁLISIS DE NORMALIZACIÓN")
+    # print(f"{'='*80}")
+    # 
+    # # Get normalization details by creating temporary copies and normalizing
+    # from slim_gsgp.utils.utils import normalize_population_attributes
+    # import copy
+    # 
+    # # Create minimal copies for normalization analysis
+    # temp_population = []
+    # for i, ind in enumerate(population.population):
+    #     temp_ind = type('TempIndividual', (), {})()
+    #     temp_ind.fitness = ind.fitness
+    #     temp_ind.nodes_count = ind.nodes_count
+    #     temp_ind.original_index = i
+    #     temp_population.append(temp_ind)
+    # 
+    # # Normalize the temporary population
+    # normalize_population_attributes(temp_population, ['fitness', 'nodes_count'])
+    # 
+    # # Find min/max for reference
+    # fitnesses = [ind.fitness for ind in population.population]
+    # nodes = [ind.nodes_count for ind in population.population]
+    # min_fitness, max_fitness = min(fitnesses), max(fitnesses)
+    # min_nodes, max_nodes = min(nodes), max(nodes)
+    # 
+    # print(f"Rango Fitness: [{min_fitness:.4f}, {max_fitness:.4f}]")
+    # print(f"Rango Nodes: [{min_nodes}, {max_nodes}]")
+    # print(f"\nTodos los individuos:")
+    # print(f"{'Idx':<3} {'Fitness':<8} {'Nodes':<5} {'Fit_norm':<8} {'Nodes_norm':<10} {'Distancia':<9} {'Selección'}")
+    # print(f"{'-'*80}")
+    # 
+    # best_distance = float('inf')
+    # selected_idx = -1
+    # 
+    # for i, temp_ind in enumerate(temp_population):
+    #     original_ind = population.population[i]
+    #     distance = (temp_ind.normalized_fitness**2 + temp_ind.normalized_nodes_count**2)**0.5
+    #     
+    #     if distance < best_distance:
+    #         best_distance = distance
+    #         selected_idx = i
+    #     
+    #     selection_mark = ""
+    #     print(f"{i:<3} {original_ind.fitness:<8.4f} {original_ind.nodes_count:<5} "
+    #           f"{temp_ind.normalized_fitness:<8.4f} {temp_ind.normalized_nodes_count:<10.4f} "
+    #           f"{distance:<9.4f} {selection_mark}")
+    # 
+    # # Mark the selected individual
+    # print(f"{'-'*80}")
+    # selected_original = population.population[selected_idx]
+    # selected_temp = temp_population[selected_idx]
+    # print(f"★ SELECCIONADO: Individuo {selected_idx}")
+    # print(f"  Fitness: {selected_original.fitness:.4f} → {selected_temp.normalized_fitness:.4f}")
+    # print(f"  Nodes: {selected_original.nodes_count} → {selected_temp.normalized_nodes_count:.4f}")
+    # print(f"  Distancia al origen (0,0): {best_distance:.4f}")
+    # 
+    # # Verify it matches the function's selection
+    # function_selected = select_best_normalized_individual(population.population)
+    # matches = (function_selected.fitness == selected_original.fitness and 
+    #           function_selected.nodes_count == selected_original.nodes_count)
+    # print(f"  ✓ Coincide con select_best_normalized_individual: {matches}")
+    # print(f"{'='*80}")
     
     # Update the plot without blocking
     _plot_figure.canvas.draw()

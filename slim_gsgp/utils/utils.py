@@ -696,9 +696,97 @@ def _evaluate_slim_individual(individual, ffunction, y, testing=False, operator=
         return ffunction(y, raw_semantics)
 
 
-def normalize_population_attributes(population, attrs):
+def remove_outliers_iqr(values, multiplier=1.5, debug=False, attr_name="", only_upper=True):
+    """
+    Remove outliers from a list of values using the IQR (Interquartile Range) rule.
+    
+    By default, only removes upper outliers (high values) which is appropriate for
+    fitness (high error = bad) and nodes_count (high count = complex). This prevents
+    removing individuals that are "too good" (low error) or "too simple" (low nodes).
+    
+    Parameters
+    ----------
+    values : list
+        List of numeric values to filter.
+    multiplier : float, optional
+        IQR multiplier for outlier detection (default: 1.5).
+    debug : bool, optional
+        Whether to print debug information (default: False).
+    attr_name : str, optional
+        Name of the attribute for debug messages (default: "").
+    only_upper : bool, optional
+        If True, only detect upper outliers (high values). Default True for optimization contexts.
+        
+    Returns
+    -------
+    list
+        List of values with outliers removed.
+    list
+        List of boolean indices indicating which values were kept (True) or removed (False).
+    """
+    import numpy as np
+    
+    if len(values) <= 4:  # Not enough data for meaningful IQR calculation
+        if debug:
+            print(f"  🔍 {attr_name}: Too few values ({len(values)}) for IQR analysis")
+        return values, [True] * len(values)
+    
+    # Convert to numpy array for easier calculation
+    np_values = np.array(values)
+    
+    # Calculate quartiles
+    Q1 = np.percentile(np_values, 25)
+    Q3 = np.percentile(np_values, 75)
+    IQR = Q3 - Q1
+    
+    # Define outlier bounds
+    lower_bound = Q1 - multiplier * IQR
+    upper_bound = Q3 + multiplier * IQR
+    
+    # Create mask for non-outliers
+    if only_upper:
+        # Only remove upper outliers (values that are too high)
+        mask = np_values <= upper_bound
+        lower_bound = None  # Not used for upper-only detection
+    else:
+        # Remove both upper and lower outliers (traditional IQR)
+        mask = (np_values >= lower_bound) & (np_values <= upper_bound)
+    
+    # Debug information
+    if debug:
+        outlier_indices = [i for i, keep in enumerate(mask) if not keep]
+        outlier_values = np_values[~mask]
+        
+        print(f"  🔍 {attr_name} IQR Analysis:")
+        print(f"    📊 Q1={Q1:.4f}, Q3={Q3:.4f}, IQR={IQR:.4f}")
+        if only_upper:
+            print(f"    📏 Upper bound: {upper_bound:.4f} (only detecting high outliers)")
+        else:
+            print(f"    📏 Bounds: [{lower_bound:.4f}, {upper_bound:.4f}]")
+        print(f"    📈 Value range: [{np.min(np_values):.4f}, {np.max(np_values):.4f}]")
+        print(f"    ❌ Outliers detected: {len(outlier_indices)} out of {len(values)}")
+        
+        if len(outlier_indices) > 0:
+            print(f"    🎯 Outlier indices: {outlier_indices}")
+            print(f"    🎯 Outlier values: {[f'{v:.4f}' for v in outlier_values]}")
+            
+            # Show which direction each outlier is in
+            for i, val in zip(outlier_indices, outlier_values):
+                if only_upper:
+                    direction = "above upper bound"
+                else:
+                    direction = "below lower bound" if val < lower_bound else "above upper bound"
+                print(f"      Index {i}: {val:.4f} ({direction})")
+    
+    # Return filtered values and the mask
+    filtered_values = np_values[mask].tolist()
+    return filtered_values, mask.tolist()
+
+
+def normalize_population_attributes(population, attrs, remove_outliers=True, outlier_multiplier=1.5):
     """
     Normalize specified attributes of a population to range [0, 1].
+    Optionally removes outliers before normalization using the IQR rule.
     
     Parameters
     ----------
@@ -706,18 +794,52 @@ def normalize_population_attributes(population, attrs):
         List of individuals with attributes to normalize.
     attrs : list[str]
         List of attribute names to normalize.
+    remove_outliers : bool, optional
+        Whether to remove outliers before normalization (default: True).
+    outlier_multiplier : float, optional
+        IQR multiplier for outlier detection (default: 1.5).
         
     Returns
     -------
     dict
-        Dictionary containing min and max values for each attribute for denormalization.
+        Dictionary containing min and max values for each attribute for denormalization,
+        and information about detected outliers.
     """
-    normalization_params = {}
+    normalization_params = {'outliers_info': {}}
     
     for attr in attrs:
         values = [getattr(ind, attr) for ind in population]
-        min_val = min(values)
-        max_val = max(values)
+        
+        # Remove outliers if requested
+        if remove_outliers:
+            # By default, only remove upper outliers (bad fitness = high error, bad size = high nodes)
+            filtered_values, mask = remove_outliers_iqr(values, outlier_multiplier)
+            
+            # Store outlier information
+            outlier_indices = [i for i, is_kept in enumerate(mask) if not is_kept]
+            normalization_params['outliers_info'][attr] = {
+                'indices': outlier_indices,
+                'values': [values[i] for i in outlier_indices],
+                'mask': mask
+            }
+            
+            # Use filtered values for min/max calculation
+            if len(filtered_values) > 0:
+                min_val = min(filtered_values)
+                max_val = max(filtered_values)
+            else:
+                # Fallback to original values if all were filtered out
+                min_val = min(values)
+                max_val = max(values)
+        else:
+            min_val = min(values)
+            max_val = max(values)
+            # No outliers when removal is disabled
+            normalization_params['outliers_info'][attr] = {
+                'indices': [],
+                'values': [],
+                'mask': [True] * len(values)
+            }
         
         # Store normalization parameters
         normalization_params[attr] = {'min': min_val, 'max': max_val}
@@ -730,24 +852,113 @@ def normalize_population_attributes(population, attrs):
         else:
             for ind in population:
                 original_val = getattr(ind, attr)
-                normalized_val = (original_val - min_val) / (max_val - min_val)
+                # Clamp values to the filtered range to handle outliers
+                clamped_val = max(min_val, min(max_val, original_val))
+                normalized_val = (clamped_val - min_val) / (max_val - min_val)
                 setattr(ind, f'normalized_{attr}', normalized_val)
     
     return normalization_params
 
 
-def select_best_normalized_individual(population):
+def get_population_outliers(population, remove_outliers=True, outlier_multiplier=1.5, debug=False):
     """
-    Select the best individual from a population based on distance to ideal point
-    considering normalized fitness and size.
-    
-    This function normalizes both fitness and size to [0,1] range across the
-    entire population, then selects the individual closest to the ideal point (0,0).
+    Identify outlier individuals in a population based on fitness and nodes_count.
     
     Parameters
     ----------
     population : list
         List of individuals with 'fitness' and 'nodes_count' attributes.
+    remove_outliers : bool, optional
+        Whether to detect outliers (default: True).
+    outlier_multiplier : float, optional
+        IQR multiplier for outlier detection (default: 1.5).
+    debug : bool, optional
+        Whether to print debug information (default: False).
+        
+    Returns
+    -------
+    dict
+        Dictionary with outlier information for fitness and nodes_count.
+    """
+    outlier_info = {'fitness': {'indices': [], 'values': []}, 
+                   'nodes_count': {'indices': [], 'values': []}}
+    
+    if not remove_outliers:
+        if debug:
+            print("  🔧 Outlier removal disabled")
+        return outlier_info
+    
+    if debug:
+        print(f"\n🔍 OUTLIER DETECTION DEBUG (Population size: {len(population)})")
+        print("="*60)
+        
+        # Show best fitness individual for comparison
+        fitness_values = [ind.fitness for ind in population]
+        best_fitness_idx = fitness_values.index(min(fitness_values))
+        print(f"📊 Best fitness individual: Index {best_fitness_idx}, Fitness {fitness_values[best_fitness_idx]:.6f}, Nodes {population[best_fitness_idx].nodes_count}")
+    
+    # Check fitness outliers - ONLY detect high error (bad fitness), not low error (good fitness)
+    fitness_values = [ind.fitness for ind in population]
+    _, fitness_mask = remove_outliers_iqr(fitness_values, outlier_multiplier, debug=debug, 
+                                         attr_name="FITNESS")
+    fitness_outlier_indices = [i for i, is_kept in enumerate(fitness_mask) if not is_kept]
+    outlier_info['fitness']['indices'] = fitness_outlier_indices
+    outlier_info['fitness']['values'] = [fitness_values[i] for i in fitness_outlier_indices]
+    
+    # Check nodes_count outliers - ONLY detect high node count, not low node count
+    nodes_values = [ind.nodes_count for ind in population]
+    _, nodes_mask = remove_outliers_iqr(nodes_values, outlier_multiplier, debug=debug, 
+                                       attr_name="NODES_COUNT")
+    nodes_outlier_indices = [i for i, is_kept in enumerate(nodes_mask) if not is_kept]
+    outlier_info['nodes_count']['indices'] = nodes_outlier_indices
+    outlier_info['nodes_count']['values'] = [nodes_values[i] for i in nodes_outlier_indices]
+    
+    if debug:
+        # Check if best fitness individual is marked as outlier
+        best_fitness_idx = fitness_values.index(min(fitness_values))
+        
+        fitness_outlier = best_fitness_idx in fitness_outlier_indices
+        nodes_outlier = best_fitness_idx in nodes_outlier_indices
+        any_outlier = fitness_outlier or nodes_outlier
+        
+        print(f"\n🎯 BEST FITNESS INDIVIDUAL ANALYSIS:")
+        print(f"  Index: {best_fitness_idx}")
+        print(f"  Fitness: {fitness_values[best_fitness_idx]:.6f}")
+        print(f"  Nodes: {population[best_fitness_idx].nodes_count}")
+        print(f"  Is FITNESS outlier: {'❌ YES' if fitness_outlier else '✅ NO'}")
+        print(f"  Is NODES outlier: {'❌ YES' if nodes_outlier else '✅ NO'}")
+        print(f"  Excluded from normalization: {'❌ YES' if any_outlier else '✅ NO'}")
+        
+        if any_outlier:
+            print(f"\n⚠️  WARNING: Best fitness individual is being excluded as outlier!")
+            if fitness_outlier:
+                print(f"    💡 Reason: Fitness {fitness_values[best_fitness_idx]:.6f} is considered outlier")
+            if nodes_outlier:
+                print(f"    💡 Reason: Nodes {population[best_fitness_idx].nodes_count} is considered outlier")
+        
+        print("="*60)
+    
+    return outlier_info
+
+
+def select_best_normalized_individual(population, remove_outliers=True, outlier_multiplier=1.5):
+    """
+    Select the best individual from a population based on distance to ideal point
+    considering normalized fitness and size, with optional outlier removal.
+    
+    This function normalizes both fitness and size to [0,1] range across the
+    entire population, optionally removing only upper outliers (bad fitness = high error,
+    bad size = high nodes) before normalization, then selects the individual closest 
+    to the ideal point (0,0).
+    
+    Parameters
+    ----------
+    population : list
+        List of individuals with 'fitness' and 'nodes_count' attributes.
+    remove_outliers : bool, optional
+        Whether to remove outliers before normalization using IQR rule (default: True).
+    outlier_multiplier : float, optional
+        IQR multiplier for outlier detection (default: 1.5).
         
     Returns
     -------
@@ -768,8 +979,10 @@ def select_best_normalized_individual(population):
         copy_ind._original_index = population.index(ind)  # Keep track of original position
         pop_copy.append(copy_ind)
     
-    # Normalize fitness and size attributes on copies
-    normalize_population_attributes(pop_copy, ['fitness', 'nodes_count'])
+    # Normalize fitness and size attributes on copies, with outlier removal
+    normalize_population_attributes(pop_copy, ['fitness', 'nodes_count'], 
+                                  remove_outliers=remove_outliers, 
+                                  outlier_multiplier=outlier_multiplier)
     
     # Find the individual closest to the ideal point (0,0) in normalized space
     # We want to minimize both normalized fitness and normalized size
