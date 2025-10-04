@@ -73,7 +73,6 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
          oms: bool = False,
          linear_scaling: bool = False,
          enable_plotting: bool = False,
-         auto_simplify: bool = False,
          **kwargs):
 
     """
@@ -148,10 +147,6 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
     linear_scaling : bool, optional
         Whether to use linear scaling for fitness evaluation. When enabled, applies optimal linear 
         transformation y_scaled = a + y_raw * b to improve fitness. (Default is False)
-    auto_simplify : bool, optional
-        Whether to apply automatic simplification to the best normalized individual at the end 
-        of evolution. Reduces model complexity without losing predictive capability. (Default is False)
-
 
     Returns
     -------
@@ -343,80 +338,18 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
     from slim_gsgp.utils.utils import select_best_normalized_individual
     best_normalized_individual = select_best_normalized_individual(optimizer.population.population)
     best_normalized_individual.version = slim_version
-    
-    # Apply automatic simplification to the best normalized individual if requested
-    simplification_info = None
-    if auto_simplify:
-        from slim_gsgp.utils.simplification import simplify_individual
-        
-        # Store original info
-        original_nodes = best_normalized_individual.nodes_count
-        original_depth = best_normalized_individual.depth
-        
-        # Simplify the individual with debug enabled
-        simplified_individual = simplify_individual(best_normalized_individual, max_simplification_iterations=8, debug=True)
-        
-        # Recalculate semantics and fitness for the simplified individual
-        if X_train is not None:
-            simplified_individual.calculate_semantics(X_train, testing=False)
-            simplified_individual.evaluate(current_slim_gsgp_solve_parameters["ffunction"], y_train, operator=optimizer.operator)
-            
-            # Calculate test semantics and fitness if test data is available
-            if X_test is not None and y_test is not None:
-                simplified_individual.calculate_semantics(X_test, testing=True)
-                simplified_individual.evaluate(current_slim_gsgp_solve_parameters["ffunction"], y_test, testing=True, operator=optimizer.operator)
-        
-        # Extract simplification info from the simplified individual
-        base_simplification_info = {
-            'original_nodes': original_nodes,
-            'original_depth': original_depth,
-        }
-        
-        # Add tree structure information if available
-        if hasattr(simplified_individual, '_simplification_info'):
-            if 'converted_tree_structure' in simplified_individual._simplification_info:
-                base_simplification_info['converted_tree_structure'] = simplified_individual._simplification_info['converted_tree_structure']
-            if 'simplified_tree_structure' in simplified_individual._simplification_info:
-                base_simplification_info['simplified_structure'] = simplified_individual._simplification_info['simplified_tree_structure']
-        
-        # Check if mathematical simplifications were applied
-        simplifications_applied = 0
-        if hasattr(simplified_individual, '_simplification_info'):
-            simplifications_applied = simplified_individual._simplification_info.get('simplifications_applied', 0)
-        
-        # Use simplified version if it has fewer nodes OR if mathematical simplifications were applied
-        if (simplified_individual.nodes_count < best_normalized_individual.nodes_count or 
-            simplifications_applied > 0):
-            
-            simplification_info = {
-                **base_simplification_info,
-                'applied': True,
-                'simplified_nodes': simplified_individual.nodes_count,
-                'simplified_depth': simplified_individual.depth,
-                'nodes_removed': original_nodes - simplified_individual.nodes_count,
-                'mathematical_simplifications': simplifications_applied
-            }
-            best_normalized_individual = simplified_individual
-            best_normalized_individual.version = slim_version
-        else:
-            simplification_info = {
-                **base_simplification_info,
-                'applied': False,
-                'reason': 'No simplification possible'
-            }
 
     # Return both the best fitness individual and the best normalized individual
     class SlimResults:
-        def __init__(self, best_fitness, best_normalized, simplification_info=None):
+        def __init__(self, best_fitness, best_normalized):
             self.best_fitness = best_fitness
             self.best_normalized = best_normalized
-            self.simplification_info = simplification_info
             
         # For backward compatibility, allow access to best_fitness as if it were the main result
         def __getattr__(self, name):
             return getattr(self.best_fitness, name)
     
-    return SlimResults(optimizer.elite, best_normalized_individual, simplification_info)
+    return SlimResults(optimizer.elite, best_normalized_individual)
 
 
 if __name__ == "__main__":

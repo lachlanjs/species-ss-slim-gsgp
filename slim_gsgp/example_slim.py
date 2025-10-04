@@ -1,4 +1,4 @@
-# MIT License
+﻿# MIT License
 #
 # Copyright (c) 2024 DALabNOVA
 #
@@ -20,7 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 from slim_gsgp.main_slim import slim  # import the slim_gsgp library
-from slim_gsgp.datasets.data_loader import load_airfoil  # import the loader for the dataset airfoil
+from slim_gsgp.datasets.data_loader import load_diabetes  # import the loader for the dataset diabetes
 from slim_gsgp.evaluators.fitness_functions import rmse  # import the rmse fitness metric
 from slim_gsgp.utils.utils import train_test_split  # import the train-test split function
 import csv
@@ -63,8 +63,8 @@ def save_results_to_file(dataset_name, training_rmse, validation_rmse, test_rmse
             'execution_type': execution_type
         })
 
-# Load the airfoil dataset
-X, y = load_airfoil(X_y=True)
+# Load the diabetes dataset
+X, y = load_diabetes(X_y=True)
 
 # Split into train and test sets (with fixed seed for reproducibility)
 X_train, X_test, y_train, y_test = train_test_split(X, y, p_test=0.4, seed=42)
@@ -72,13 +72,13 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, p_test=0.4, seed=42)
 # Split the test set into validation and test sets (with fixed seed for reproducibility)
 X_val, X_test, y_val, y_test = train_test_split(X_test, y_test, p_test=0.5, seed=42)
 
-# Apply the SLIM GSGP algorithm (with fixed seed for reproducibility and automatic simplification)
+# Apply the SLIM GSGP algorithm (with fixed seed for reproducibility)
 results = slim(X_train=X_train, y_train=y_train,
                X_test=X_val, y_test=y_val,
-               dataset_name='airfoil', slim_version='SLIM+ABS', pop_size=100, n_iter=100,
+               dataset_name='diabetes', slim_version='SLIM+ABS', pop_size=100, n_iter=100,
                ms_lower=0, ms_upper=1, p_inflate=0.5, reconstruct=True, 
                # tournament_type="pareto", tournament_size=5, multi_obj_attrs=["fitness", "size"], 
-               oms=False, linear_scaling=True, enable_plotting=True, auto_simplify=False, seed=42)
+               oms=False, linear_scaling=False, enable_plotting=False, seed=42)
 
 # Extract both individuals
 best_fitness_individual = results.best_fitness
@@ -145,7 +145,7 @@ print(f"Tree depth: {best_normalized_individual.depth}")
 print(f"Train -> Validation -> Test RMSE: {best_normalized_individual.fitness:.6f} -> {best_normalized_individual.test_fitness:.6f} -> {test_rmse_best_normalized:.6f}")
 
 # Save results to file
-dataset_name = 'airfoil'
+dataset_name = 'diabetes'
 # Determine execution type based on OMS and linear scaling usage
 oms_used = False  # Change this to match the oms parameter above
 linear_scaling_used = True  # Change this to match the linear_scaling parameter above
@@ -168,38 +168,47 @@ save_results_to_file(
 )
 
 print(f"\n=== RESULTS SAVED ===")
-print(f"Results have been saved to 'results_slim.csv' using best fitness individual")
 
-# Show simplification information if auto_simplify was used
-if hasattr(results, 'simplification_info') and results.simplification_info is not None:
-    print(f"\n" + "="*80)
-    print("AUTOMATIC SIMPLIFICATION RESULTS")
-    print("="*80)
+# Convert SLIM GSGP to readable tree and visualize
+print("\n" + "="*80)
+print("TREE VISUALIZATION - BEST NORMALIZED INDIVIDUAL")
+print("="*80)
+
+try:
+    from slim_gsgp.utils.simplification import convert_slim_individual_to_normal_tree
+    import re
     
-    # Always show the converted tree structure
-    if 'converted_tree_structure' in results.simplification_info:
-        print(f"🌳 Mathematical expression:")
+    # Convert the best normalized individual to a readable tree
+    tree_structure, tree_dicts = convert_slim_individual_to_normal_tree(best_normalized_individual)
+    
+    if tree_structure and tree_dicts:
+        print("✅ Successfully converted SLIM GSGP to readable tree structure")
         
         # Convert tree structure to mathematical notation
         def tree_to_math_expression(structure):
-            import re
-            
             def clean_node_name(node):
-                """Clean node names by removing np.str_ wrappers and quotes."""
                 if isinstance(node, tuple):
+                    if len(node) == 2 and str(node[0]).upper() == 'NEGATIVE':
+                        return f"-{clean_node_name(node[1])}"
                     return node
+                
                 node_str = str(node)
-                # Remove np.str_() wrapper
                 if "np.str_(" in node_str:
                     node_str = re.sub(r"np\.str_\('([^']+)'\)", r"\1", node_str)
-                # Remove quotes and clean constants
                 node_str = node_str.strip("'\"")
+                
                 if node_str.startswith("constant_"):
-                    node_str = node_str.replace("constant_", "")
+                    const_val = node_str.replace("constant_", "")
+                    if const_val.startswith("_"):
+                        const_val = "-" + const_val[1:]
+                    return const_val
+                
+                if node_str.startswith("_") and node_str[1:].replace(".", "").replace("-", "").isdigit():
+                    return node_str[1:]
+                
                 return node_str
             
-            def convert_recursive(structure, parent_op=None):
-                """Recursively convert tree structure to expression with proper parentheses."""
+            def convert_recursive(structure, parent_op=None, is_right=False):
                 if not isinstance(structure, tuple):
                     return clean_node_name(structure)
                 
@@ -207,85 +216,84 @@ if hasattr(results, 'simplification_info') and results.simplification_info is no
                     return clean_node_name(structure)
                 
                 operator = clean_node_name(structure[0])
-                left = structure[1] 
+                left = structure[1]
                 right = structure[2]
                 
-                # Convert operator names to symbols
-                op_symbol = {
-                    'add': '+',
-                    'subtract': '-', 
-                    'multiply': '*',
-                    'divide': '/'
-                }.get(operator, operator)
+                op_symbol = {'add': '+', 'subtract': '-', 'multiply': '*', 'divide': '/'}.get(operator, operator)
+                precedence = {'add': 1, 'subtract': 1, 'multiply': 2, 'divide': 2}
+                current_prec = precedence.get(operator, 0)
                 
-                # Recursively convert operands
-                left_expr = convert_recursive(left, operator)
-                right_expr = convert_recursive(right, operator)
+                # Recursively convert children
+                left_expr = convert_recursive(left, operator, is_right=False)
+                right_expr = convert_recursive(right, operator, is_right=True)
                 
-                # Always add parentheses around composite expressions to preserve structure
+                # Add parentheses to left child if it has lower precedence
                 if isinstance(left, tuple) and len(left) >= 3:
-                    left_expr = f"({left_expr})"
+                    left_op = clean_node_name(left[0])
+                    left_prec = precedence.get(left_op, 0)
+                    if left_prec < current_prec:
+                        left_expr = f"({left_expr})"
                 
+                # Add parentheses to right child if needed
                 if isinstance(right, tuple) and len(right) >= 3:
-                    right_expr = f"({right_expr})"
+                    right_op = clean_node_name(right[0])
+                    right_prec = precedence.get(right_op, 0)
+                    
+                    # Need parens if:
+                    # 1. Right has lower precedence than current
+                    # 2. Same precedence but operator is non-associative (subtract/divide)
+                    # 3. For multiply: if right is also multiply or divide (to preserve order)
+                    if right_prec < current_prec:
+                        right_expr = f"({right_expr})"
+                    elif right_prec == current_prec:
+                        # For subtract and divide: always need parens on right
+                        # For multiply: need parens if right is multiply or divide
+                        if operator in ['subtract', 'divide']:
+                            right_expr = f"({right_expr})"
+                        elif operator == 'multiply' and right_op in ['multiply', 'divide']:
+                            right_expr = f"({right_expr})"
                 
+                # Build the expression (no outer parens added here)
                 expression = f"{left_expr} {op_symbol} {right_expr}"
-                
-                # Add outer parentheses if this is a composite expression within another operation
-                # This ensures mathematical equivalence with the original tree structure
-                if parent_op is not None and isinstance(structure, tuple):
-                    expression = f"({expression})"
                 
                 return expression
             
             return convert_recursive(structure)
         
-        # Use simplified structure if available, otherwise use converted structure
-        display_structure = results.simplification_info.get('simplified_structure', 
-                                                           results.simplification_info['converted_tree_structure'])
-        
-        math_expression = tree_to_math_expression(display_structure)
+        math_expression = tree_to_math_expression(tree_structure)
+        print(f"\n🌳 Mathematical expression:")
         print(f"   {math_expression}")
         
-        # Generate PNG visualization of the tree
+        print(f"\n📊 Tree statistics:")
+        def count_nodes(struct):
+            if not isinstance(struct, tuple):
+                return 1
+            count = 1
+            for i in range(1, len(struct)):
+                count += count_nodes(struct[i])
+            return count
+        
+        node_count = count_nodes(tree_structure)
+        print(f"   Total nodes: {node_count}")
+        
+        # Generate PNG visualization
         try:
             from slim_gsgp.utils.tree_to_png import save_tree_as_png_simple
             
-            png_path = save_tree_as_png_simple(display_structure, "slim_tree_visualization.png")
-            print(f"\n🖼️  Tree visualization saved as PNG: slim_tree_visualization.png")
+            png_path = save_tree_as_png_simple(tree_structure, "slim_tree_visualization.png")
+            print(f"\n🖼️  Tree visualization saved: slim_tree_visualization.png")
             
         except ImportError as e:
             print(f"\n⚠️  Could not generate PNG (missing dependencies): {e}")
+            print(f"    Install required packages: pip install graphviz")
         except Exception as e:
             print(f"\n⚠️  Error generating PNG: {e}")
-        
-        print()  # Extra line for spacing
-    
-    if results.simplification_info['applied']:
-        mathematical_simplifications = results.simplification_info.get('mathematical_simplifications', 0)
-        nodes_removed = results.simplification_info['nodes_removed']
-        
-        if nodes_removed > 0:
-            print(f"🎉 Structural simplification successful!")
-            print(f"   📊 Original model: {results.simplification_info['original_nodes']} nodes, depth {results.simplification_info['original_depth']}")
-            print(f"   ✅ Simplified to: {results.simplification_info['simplified_nodes']} nodes, depth {results.simplification_info['simplified_depth']}")
-            print(f"   📈 Reduction: {nodes_removed} nodes removed ({nodes_removed/results.simplification_info['original_nodes']*100:.1f}%)")
-            print(f"   🎯 Result: Model is {nodes_removed} nodes smaller with same performance!")
-        elif mathematical_simplifications > 0:
-            print(f"🎉 Mathematical simplification successful!")
-            print(f"   📊 Model structure: {results.simplification_info['simplified_nodes']} nodes, depth {results.simplification_info['simplified_depth']}")
-            print(f"   🔧 Applied {mathematical_simplifications} mathematical simplification(s)")
-            print(f"   ✨ Combined duplicate terms (x+x→2x, etc.)")
-            print(f"   🎯 Result: Mathematically equivalent but cleaner expression!")
-        
-        # Show simplified structure if different
-        if 'simplified_structure' in results.simplification_info:
-            print(f"\n🔧 Simplified mathematical expression:")
-            simplified_math = tree_to_math_expression(results.simplification_info['simplified_structure'])
-            print(f"   {simplified_math}")
     else:
-        print(f"ℹ️  {results.simplification_info['reason']}")
-        print(f"   📊 Model remains: {results.simplification_info['original_nodes']} nodes, depth {results.simplification_info['original_depth']}")
-        print(f"   💡 The model was already optimally simplified.")
-    
-    print(f"🏁 Simplification process completed")
+        print("❌ Could not convert SLIM GSGP to tree structure")
+        
+except Exception as e:
+    print(f"❌ Error during tree conversion: {e}")
+    import traceback
+    traceback.print_exc()
+
+print("\n" + "="*80)
