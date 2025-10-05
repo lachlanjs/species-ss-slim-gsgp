@@ -72,6 +72,83 @@ def save_results_to_file(dataset_name, training_rmse, validation_rmse, test_rmse
             'execution_type': execution_type
         })
 
+def save_simplification_to_txt(dataset_name, execution_type, individual_type, original_expr, simplified_expr, nodes_removed, original_nodes, simplified_nodes, txt_file="log/simplifications_all.txt"):
+    """
+    Append a simplification entry to a text file.
+    
+    Args:
+        dataset_name: Name of the dataset
+        execution_type: Type of execution
+        individual_type: "fitness" or "normalized"
+        original_expr: Original expression
+        simplified_expr: Simplified expression
+        nodes_removed: Number of nodes removed
+        original_nodes: Original node count
+        simplified_nodes: Simplified node count
+        txt_file: Path to the text file
+    """
+    import os
+    from datetime import datetime
+    
+    # Create log directory if it doesn't exist
+    log_dir = os.path.dirname(txt_file)
+    if log_dir and not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    
+    file_exists = os.path.exists(txt_file)
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    with open(txt_file, 'a', encoding='utf-8') as f:
+        # Write header if file is new
+        if not file_exists:
+            f.write("="*100 + "\n")
+            f.write("SIMPLIFIED TREES - ALL DATASETS\n")
+            f.write("="*100 + "\n\n")
+        
+        f.write("-"*100 + "\n")
+        f.write(f"[{timestamp}] {dataset_name} | {execution_type} | {individual_type.upper()}\n")
+        f.write(f"Nodes: {original_nodes} → {simplified_nodes} (removed {nodes_removed})\n")
+        f.write(f"\nOriginal:\n  {original_expr}\n")
+        f.write(f"\nSimplified:\n  {simplified_expr}\n")
+        f.write("-"*100 + "\n\n")
+
+def save_no_simplification_to_txt(dataset_name, execution_type, individual_type, original_expr, node_count, txt_file="log/simplifications_all.txt"):
+    """
+    Append an entry for a tree that could not be simplified.
+    
+    Args:
+        dataset_name: Name of the dataset
+        execution_type: Type of execution
+        individual_type: "fitness" or "normalized"
+        original_expr: Original expression
+        node_count: Number of nodes
+        txt_file: Path to the text file
+    """
+    import os
+    from datetime import datetime
+    
+    # Create log directory if it doesn't exist
+    log_dir = os.path.dirname(txt_file)
+    if log_dir and not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    
+    file_exists = os.path.exists(txt_file)
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    with open(txt_file, 'a', encoding='utf-8') as f:
+        # Write header if file is new
+        if not file_exists:
+            f.write("="*100 + "\n")
+            f.write("SIMPLIFIED TREES - ALL DATASETS\n")
+            f.write("="*100 + "\n\n")
+        
+        f.write("-"*100 + "\n")
+        f.write(f"[{timestamp}] {dataset_name} | {execution_type} | {individual_type.upper()}\n")
+        f.write(f"Nodes: {node_count}\n")
+        f.write(f"Status: No simplifications possible (no adjacent constant operations found)\n")
+        f.write(f"\nTree expression:\n  {original_expr}\n")
+        f.write("-"*100 + "\n\n")
+
 def run_algorithm(algorithm_name, dataset_name, X_train, y_train, X_val, y_val, X_test, y_test, oms_enabled, linear_scaling_enabled, use_pareto_tournament=False, slim_version='SLIM+SIG2', output_filename="results_all_datasets.csv"):
     """
     Run a specific algorithm with given parameters.
@@ -135,6 +212,105 @@ def run_algorithm(algorithm_name, dataset_name, X_train, y_train, X_val, y_val, 
         # Get the prediction on test set
         predictions = final_tree.predict(X_test)
         test_rmse = float(rmse(y_true=y_test, y_pred=predictions))
+        
+        # Try to simplify and save trees
+        try:
+            from utils.simplification import convert_slim_individual_to_normal_tree, simplify_constant_operations
+            import re
+            
+            # Helper function to convert tree to math expression
+            def tree_to_expression(structure):
+                def clean_node(node):
+                    if isinstance(node, tuple):
+                        return node
+                    node_str = str(node)
+                    if "np.str_(" in node_str:
+                        node_str = re.sub(r"np\.str_\('([^']+)'\)", r"\1", node_str)
+                    node_str = node_str.strip("'\"")
+                    if node_str.startswith("constant_"):
+                        const_val = node_str.replace("constant_", "")
+                        if const_val.startswith("_"):
+                            const_val = "-" + const_val[1:]
+                        return const_val
+                    return node_str
+                
+                def convert_rec(struct):
+                    if not isinstance(struct, tuple) or len(struct) < 3:
+                        return clean_node(struct)
+                    op = clean_node(struct[0])
+                    left = convert_rec(struct[1])
+                    right = convert_rec(struct[2])
+                    op_sym = {'add': '+', 'subtract': '-', 'multiply': '*', 'divide': '/'}.get(op, op)
+                    prec = {'add': 1, 'subtract': 1, 'multiply': 2, 'divide': 2}
+                    curr_prec = prec.get(op, 0)
+                    
+                    if isinstance(struct[1], tuple) and len(struct[1]) >= 3:
+                        left_op = clean_node(struct[1][0])
+                        if prec.get(left_op, 0) < curr_prec:
+                            left = f"({left})"
+                    
+                    if isinstance(struct[2], tuple) and len(struct[2]) >= 3:
+                        right_op = clean_node(struct[2][0])
+                        right_prec = prec.get(right_op, 0)
+                        if right_prec < curr_prec or (right_prec == curr_prec and op in ['subtract', 'divide']):
+                            right = f"({right})"
+                    
+                    return f"{left} {op_sym} {right}"
+                
+                return convert_rec(structure)
+            
+            def count_nodes(struct):
+                if not isinstance(struct, tuple):
+                    return 1
+                return 1 + sum(count_nodes(struct[i]) for i in range(1, len(struct)))
+            
+            # Process fitness individual
+            tree_struct, tree_dicts = convert_slim_individual_to_normal_tree(final_tree.best_fitness)
+            if tree_struct and tree_dicts:
+                simplified_tree, nodes_removed = simplify_constant_operations(tree_struct, tree_dicts['CONSTANTS'])
+                original_expr = tree_to_expression(tree_struct)
+                node_count = count_nodes(tree_struct)
+                
+                if nodes_removed > 0:
+                    simplified_expr = tree_to_expression(simplified_tree)
+                    save_simplification_to_txt(
+                        dataset_name, execution_type, "fitness",
+                        original_expr, simplified_expr, nodes_removed,
+                        node_count, count_nodes(simplified_tree)
+                    )
+                else:
+                    # No simplification possible - save the tree with a message
+                    save_no_simplification_to_txt(
+                        dataset_name, execution_type, "fitness",
+                        original_expr, node_count
+                    )
+            
+            # Process normalized individual if exists
+            if hasattr(final_tree, 'best_normalized') and final_tree.best_normalized:
+                tree_struct_norm, tree_dicts_norm = convert_slim_individual_to_normal_tree(final_tree.best_normalized)
+                if tree_struct_norm and tree_dicts_norm:
+                    simplified_tree_norm, nodes_removed_norm = simplify_constant_operations(tree_struct_norm, tree_dicts_norm['CONSTANTS'])
+                    original_expr_norm = tree_to_expression(tree_struct_norm)
+                    node_count_norm = count_nodes(tree_struct_norm)
+                    
+                    if nodes_removed_norm > 0:
+                        simplified_expr_norm = tree_to_expression(simplified_tree_norm)
+                        save_simplification_to_txt(
+                            dataset_name, execution_type, "normalized",
+                            original_expr_norm, simplified_expr_norm, nodes_removed_norm,
+                            node_count_norm, count_nodes(simplified_tree_norm)
+                        )
+                    else:
+                        # No simplification possible - save the tree with a message
+                        save_no_simplification_to_txt(
+                            dataset_name, execution_type, "normalized",
+                            original_expr_norm, node_count_norm
+                        )
+        except Exception as e:
+            # Simplification is optional, don't fail the whole execution
+            print(f"Warning: Error during simplification for {dataset_name}: {str(e)}")
+            import traceback
+            traceback.print_exc()
         
         # Save results
         save_results_to_file(
@@ -244,7 +420,9 @@ def run_all_datasets(slim_version='SLIM+SIG2', output_filename=None):
     print("=" * 80)
     print(f"SLIM Version: {slim_version}")
     print(f"Output file: {output_filename}")
-    print(f"OMS Support: {'Yes' if supports_oms else 'No (requires two_trees=True)'}")
+    print(f"Simplifications file: log/simplifications_all.txt")
+    oms_msg = "Yes" if supports_oms else "No (requires two_trees=True)"
+    print(f"OMS Support: {oms_msg}")
     print(f"Total datasets: {len(datasets)}")
     print(f"Total linear scaling configs: {len(linear_scaling_configs)}")
     print(f"Total execution configurations: {len(execution_configs)}")

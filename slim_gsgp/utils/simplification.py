@@ -124,3 +124,133 @@ def convert_slim_individual_to_normal_tree(individual, data_sample=None):
         'TERMINALS': combined_terminals,
         'CONSTANTS': combined_constants
     }
+
+
+def simplify_constant_operations(tree_structure, constants_dict):
+    """
+    Simplify algebraic operations in the tree structure.
+    
+    Simplifications applied:
+    1. Identity simplifications:
+       - x - x → 0
+       - x / x → 1
+    2. Constant folding (all operations):
+       - 5.0 + 3.0 → 8.0
+       - 10.0 - 4.0 → 6.0
+       - 2.0 * 3.0 → 6.0
+       - 4.0 / 2.0 → 2.0
+    3. Nested simplifications:
+       - ('add', x, ('add', 5, 3)) → ('add', x, 8)
+       - ('multiply', 2, ('add', 3, 2)) → ('multiply', 2, 5)
+    
+    Parameters
+    ----------
+    tree_structure : tuple
+        Tree structure to simplify
+    constants_dict : dict
+        Dictionary mapping constant names to values
+        
+    Returns
+    -------
+    tuple
+        Simplified tree structure
+    int
+        Number of nodes removed during simplification
+    """
+    if not isinstance(tree_structure, tuple) or len(tree_structure) < 3:
+        return tree_structure, 0
+    
+    nodes_removed = 0
+    
+    def is_constant(node):
+        """Check if a node is a constant value"""
+        if isinstance(node, (int, float)):
+            return True
+        if isinstance(node, str):
+            # Check if it's a constant name in the dictionary
+            if node in constants_dict:
+                return True
+            # Check if it's a numeric string
+            try:
+                float(node)
+                return True
+            except (ValueError, TypeError):
+                return False
+        return False
+    
+    def get_constant_value(node):
+        """Get the numeric value of a constant node"""
+        if isinstance(node, (int, float)):
+            return node
+        if isinstance(node, str):
+            if node in constants_dict:
+                const_val = constants_dict[node]
+                # Handle lambda functions that return torch tensors
+                if callable(const_val):
+                    try:
+                        tensor_val = const_val(None)
+                        return float(tensor_val.item())
+                    except:
+                        return None
+                # Handle direct numeric values
+                return float(const_val) if isinstance(const_val, (int, float)) else None
+            try:
+                return float(node)
+            except (ValueError, TypeError):
+                return None
+        return None
+    
+    def simplify_recursive(structure):
+        nonlocal nodes_removed
+        
+        if not isinstance(structure, tuple) or len(structure) < 3:
+            return structure
+        
+        operator = structure[0]
+        left = structure[1]
+        right = structure[2]
+        
+        # First, recursively simplify children
+        left_simplified = simplify_recursive(left)
+        right_simplified = simplify_recursive(right)
+        
+        # Simplification 1: x - x → 0
+        if operator == 'subtract' and left_simplified == right_simplified:
+            nodes_removed += 2  # Removed operator node and one operand
+            return '0.0'
+        
+        # Simplification 2: x / x → 1
+        if operator == 'divide' and left_simplified == right_simplified:
+            nodes_removed += 2  # Removed operator node and one operand
+            return '1.0'
+        
+        # Constant folding for all operations with two constants
+        if operator in ['add', 'subtract', 'multiply', 'divide']:
+            if is_constant(left_simplified) and is_constant(right_simplified):
+                left_val = get_constant_value(left_simplified)
+                right_val = get_constant_value(right_simplified)
+                
+                if left_val is not None and right_val is not None:
+                    if operator == 'add':
+                        result = left_val + right_val
+                    elif operator == 'subtract':
+                        result = left_val - right_val
+                    elif operator == 'multiply':
+                        result = left_val * right_val
+                    elif operator == 'divide':
+                        # Avoid division by zero
+                        if right_val != 0:
+                            result = left_val / right_val
+                        else:
+                            # Cannot simplify division by zero, return as is
+                            return (operator, left_simplified, right_simplified)
+                    
+                    # Convert result to string for consistency
+                    nodes_removed += 2  # Removed operator node and one constant
+                    return str(result)
+        
+        # If no simplification occurred, return the structure with simplified children
+        return (operator, left_simplified, right_simplified)
+    
+    simplified_tree = simplify_recursive(tree_structure)
+    return simplified_tree, nodes_removed
