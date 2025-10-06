@@ -52,7 +52,10 @@ def convert_slim_individual_to_normal_tree(individual, data_sample=None):
         return None, None
         
     # Get the SLIM version information
-    operator, sig, trees = check_slim_version(slim_version=individual.version)
+    # Use default version if not set (during evolution)
+    # Default to 'SLIM+ABS' as it's the most common
+    slim_version = getattr(individual, 'version', 'SLIM+ABS')
+    operator, sig, trees = check_slim_version(slim_version=slim_version)
     
     # Collect all trees and their structures
     all_tree_structures = []
@@ -254,3 +257,106 @@ def simplify_constant_operations(tree_structure, constants_dict):
     
     simplified_tree = simplify_recursive(tree_structure)
     return simplified_tree, nodes_removed
+
+
+def simplify_population(population, debug=False):
+    """
+    Apply simplification to ALL individuals in a population.
+    
+    This function converts each SLIM individual to a tree structure, applies constant
+    folding and identity simplifications, then updates the individual's nodes_count
+    to reflect the simplified tree size.
+    
+    This is applied systematically to the entire population in each generation,
+    BEFORE Pareto frontier calculation and normalization, so that all selection
+    is based on simplified tree sizes.
+    
+    Parameters
+    ----------
+    population : list[Individual]
+        List of all individuals in the population
+    debug : bool
+        If True, print debug information for first failed individual
+        
+    Returns
+    -------
+    dict
+        Dictionary with statistics:
+        - 'total': Total number of individuals
+        - 'simplified': Number of individuals that were simplified
+        - 'failed': Number that failed to simplify
+        - 'nodes_removed_total': Total nodes removed across all individuals
+    """
+    total = len(population)
+    simplified = 0
+    failed = 0
+    nodes_removed_total = 0
+    debug_printed = False
+    
+    for i, individual in enumerate(population):
+        try:
+            # Convert SLIM individual to tree structure
+            tree_structure, tree_dicts = convert_slim_individual_to_normal_tree(individual)
+            
+            if tree_structure and tree_dicts:
+                # Count nodes in tree BEFORE simplification
+                def count_nodes(tree):
+                    if not isinstance(tree, tuple):
+                        return 1
+                    if len(tree) == 2:  # Unary operator
+                        return 1 + count_nodes(tree[1])
+                    elif len(tree) == 3:  # Binary operator
+                        return 1 + count_nodes(tree[1]) + count_nodes(tree[2])
+                    return 1
+                
+                original_node_count = count_nodes(tree_structure)
+                
+                # Apply simplification
+                simplified_tree, nodes_removed = simplify_constant_operations(
+                    tree_structure, tree_dicts['CONSTANTS']
+                )
+                
+                # Count nodes in simplified tree
+                simplified_node_count = count_nodes(simplified_tree)
+                
+                # Update individual's node count with simplified count
+                individual.nodes_count = simplified_node_count
+                
+                # Track if simplification occurred (compare converted tree sizes)
+                if simplified_node_count < original_node_count:
+                    simplified += 1
+                    nodes_removed_total += (original_node_count - simplified_node_count)
+                    
+                    # Debug: show what was simplified
+                    if debug and simplified <= 3:  # Show first 3 simplifications
+                        print(f"\n[DEBUG] Individual {i} simplified: {original_node_count} → {simplified_node_count} nodes")
+                        print(f"  nodes_removed from simplify_constant_operations: {nodes_removed}")
+                        print(f"  Actual node difference: {original_node_count - simplified_node_count}")
+            else:
+                failed += 1
+                if debug and not debug_printed:
+                    print(f"\n[DEBUG] Individual {i}: convert_slim_individual_to_normal_tree returned None")
+                    print(f"  Has collection: {hasattr(individual, 'collection')}")
+                    if hasattr(individual, 'collection'):
+                        print(f"  Collection length: {len(individual.collection) if individual.collection else 0}")
+                        print(f"  Collection type: {type(individual.collection)}")
+                    print(f"  Has version: {hasattr(individual, 'version')}")
+                    if hasattr(individual, 'version'):
+                        print(f"  Version: {individual.version}")
+                    debug_printed = True
+                
+        except Exception as e:
+            # If simplification fails for any reason, keep original node count
+            failed += 1
+            if debug and not debug_printed:
+                print(f"\n[DEBUG] Individual {i}: Exception during simplification: {type(e).__name__}: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                debug_printed = True
+    
+    return {
+        'total': total,
+        'simplified': simplified,
+        'failed': failed,
+        'nodes_removed_total': nodes_removed_total
+    }

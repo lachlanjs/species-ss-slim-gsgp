@@ -468,5 +468,6 @@ class Individual:
             print(f"Scaling Parameter a: {info['scaling_a']:.6f}")
             print(f"Scaling Parameter b: {info['scaling_b']:.6f}")
             print(f"Scaling Formula: {info['scaling_formula']}")
+            print()
         else:
-            print("No linear scaling applied")
+            print()

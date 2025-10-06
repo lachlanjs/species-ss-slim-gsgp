@@ -335,10 +335,14 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
     optimizer.elite.version = slim_version
     
     # Select best individual based on normalized fitness and size using Pareto dominance
-    # First, get the non-dominated individuals (Pareto frontier)
+    # Step 1: Apply simplification to ENTIRE population first
+    from slim_gsgp.utils.simplification import simplify_population
     from slim_gsgp.selection.selection_algorithms import calculate_non_dominated
     from slim_gsgp.utils.utils import select_best_normalized_individual
     
+    simplif_stats_all = simplify_population(optimizer.population.population, debug=False)
+    
+    # Step 2: Calculate non-dominated individuals (Pareto frontier) using simplified nodes_count
     non_dominated_idxs, _ = calculate_non_dominated(
         optimizer.population.population, 
         attrs=["fitness", "nodes_count"], 
@@ -348,21 +352,26 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
     # Create list of non-dominated individuals
     non_dominated_population = [optimizer.population.population[idx] for idx in non_dominated_idxs]
     
-    # Apply normalization and outlier removal only to non-dominated individuals
+    # Step 3: Apply normalization only to non-dominated individuals (already simplified)
     best_normalized_individual = select_best_normalized_individual(non_dominated_population)
     best_normalized_individual.version = slim_version
+    
+    # Step 4: Find the smallest individual from the entire population (already simplified)
+    smallest_individual = min(optimizer.population.population, key=lambda ind: ind.nodes_count)
+    smallest_individual.version = slim_version
 
-    # Return both the best fitness individual and the best normalized individual
+    # Return three individuals: best fitness, best normalized, and smallest
     class SlimResults:
-        def __init__(self, best_fitness, best_normalized):
+        def __init__(self, best_fitness, best_normalized, smallest):
             self.best_fitness = best_fitness
             self.best_normalized = best_normalized
+            self.smallest = smallest
             
         # For backward compatibility, allow access to best_fitness as if it were the main result
         def __getattr__(self, name):
             return getattr(self.best_fitness, name)
     
-    return SlimResults(optimizer.elite, best_normalized_individual)
+    return SlimResults(optimizer.elite, best_normalized_individual, smallest_individual)
 
 
 if __name__ == "__main__":

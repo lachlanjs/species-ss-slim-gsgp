@@ -47,6 +47,10 @@ def save_results_to_file(dataset_name, training_rmse, validation_rmse, test_rmse
         execution_type: Type of execution
         filename: Name of the output file
     """
+    # Ensure filename includes log directory if not already present
+    if not filename.startswith("log"):
+        filename = os.path.join("log", filename)
+    
     # Check if file exists to determine if we need to write headers
     file_exists = os.path.exists(filename)
     
@@ -370,7 +374,7 @@ def run_all_datasets(slim_version='SLIM+SIG2', output_filename=None):
     if output_filename is None:
         # Convert version name to valid filename
         version_suffix = slim_version.replace('+', '_').replace('*', '_').replace(' ', '_').lower()
-        output_filename = f"results_all_datasets_{version_suffix}.csv"
+        output_filename = os.path.join("log", f"results_all_datasets_{version_suffix}.csv")
     
     # Define all available datasets
     datasets = [

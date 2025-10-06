@@ -316,5 +316,4 @@ def save_tree_as_png_simple(tree_structure, filename="tree_simple.png", figsize=
     plt.close()
     
     abs_path = os.path.abspath(filename)
-    print(f"✅ Tree visualization saved to: {abs_path}")
     return abs_path

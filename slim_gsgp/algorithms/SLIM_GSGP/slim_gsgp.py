@@ -131,10 +131,11 @@ def plot_generation_fitness_vs_nodes(population, generation, X_test=None, y_test
     best_fitness_nodes = nodes_counts[best_fitness_idx]
     
     # Best normalized individual (Pareto dominance considering fitness and size)
-    # Use the non-dominated individuals already calculated above
+    # The non-dominated individuals were already calculated above
+    # Note: Simplification is already done in the main loop, so nodes_count should already be updated
     non_dominated_population = [population.population[idx] for idx in non_dominated_idxs]
     
-    # Apply normalization only to non-dominated individuals
+    # Apply normalization to non-dominated individuals (already simplified in main loop)
     best_normalized_individual = select_best_normalized_individual(non_dominated_population)
     
     # Use training fitness for consistent visualization
@@ -563,6 +564,21 @@ class SLIM_GSGP:
                 self.elite.nodes_count,
             )
         
+        # Apply simplification to entire population, then calculate Pareto for generation 0
+        from slim_gsgp.selection.selection_algorithms import calculate_non_dominated
+        from slim_gsgp.utils.simplification import simplify_population
+        
+        # Step 1: Simplify entire population
+        simplif_stats = simplify_population(population.population, debug=False)
+        
+        # Step 2: Calculate Pareto frontier using simplified nodes_count
+        non_dominated_idxs, _ = calculate_non_dominated(
+            population.population, 
+            attrs=["fitness", "nodes_count"], 
+            minimization=True
+        )
+        non_dominated_population = [population.population[idx] for idx in non_dominated_idxs]
+        
         # Plot initial generation if plotting is enabled
         if self.enable_plotting:
             plot_generation_fitness_vs_nodes(population, 0, X_test, y_test, ffunction, self.operator)
@@ -875,6 +891,22 @@ class SLIM_GSGP:
                     end - start,
                     self.elite.nodes_count,
                 )
+            
+            # Apply simplification to entire population, then calculate Pareto (log every 10 generations)
+            if it % 10 == 0:
+                from slim_gsgp.selection.selection_algorithms import calculate_non_dominated
+                from slim_gsgp.utils.simplification import simplify_population
+                
+                # Step 1: Simplify entire population
+                simplif_stats = simplify_population(population.population, debug=False)
+                
+                # Step 2: Calculate Pareto frontier using simplified nodes_count
+                non_dominated_idxs, _ = calculate_non_dominated(
+                    population.population, 
+                    attrs=["fitness", "nodes_count"], 
+                    minimization=True
+                )
+                non_dominated_population = [population.population[idx] for idx in non_dominated_idxs]
             
             # Plot current generation if plotting is enabled
             if self.enable_plotting:

@@ -1,6 +1,0 @@
-timestamp,dataset_name,training_rmse,validation_rmse,test_rmse,execution_type
-2025-08-31 10:54:34,bike_sharing,tensor(0.1276),tensor(0.1320),0.13868218660354614,slim oms
-2025-08-31 10:55:11,bike_sharing,tensor(0.0669),tensor(0.0639),0.15674884617328644,slim oms
-2025-08-31 11:05:47,bike_sharing,tensor(0.1276),tensor(0.1320),0.13868218660354614,slim oms
-2025-08-31 11:06:35,bike_sharing,tensor(0.0669),tensor(0.0639),0.15674884617328644,slim oms
-2025-08-31 11:17:48,bike_sharing,tensor(0.1276),tensor(0.1320),0.13868218660354614,slim oms

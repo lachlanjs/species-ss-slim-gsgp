@@ -1,0 +1,2 @@
+timestamp,dataset_name,training_rmse,validation_rmse,test_rmse,execution_type
+2025-10-06 14:26:32,airfoil,4.771811485290527,4.575123310089111,4.890029430389404,slim linear scaling
