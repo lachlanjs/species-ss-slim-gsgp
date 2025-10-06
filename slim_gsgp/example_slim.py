@@ -27,15 +27,19 @@ import csv
 import os
 from datetime import datetime
 
-def save_results_to_file(dataset_name, training_rmse, validation_rmse, test_rmse, execution_type, filename="results_slim.csv"):
+def save_results_to_file(dataset_name, 
+                        best_fitness_train, best_fitness_val, best_fitness_test, best_fitness_nodes, best_fitness_depth,
+                        best_norm_train, best_norm_val, best_norm_test, best_norm_nodes, best_norm_depth,
+                        smallest_train, smallest_val, smallest_test, smallest_nodes, smallest_depth,
+                        execution_type, filename="results_slim.csv"):
     """
-    Save the results to a CSV file.
+    Save the results of all three individuals to a CSV file.
     
     Args:
         dataset_name: Name of the dataset used
-        training_rmse: Training fitness (RMSE)
-        validation_rmse: Validation fitness (RMSE)
-        test_rmse: Final test fitness (RMSE)
+        best_fitness_*: Metrics for best fitness individual
+        best_norm_*: Metrics for best normalized individual
+        smallest_*: Metrics for smallest size individual
         execution_type: Type of execution (e.g., "slim")
         filename: Name of the output file
     """
@@ -50,7 +54,10 @@ def save_results_to_file(dataset_name, training_rmse, validation_rmse, test_rmse
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     with open(filename, 'a', newline='', encoding='utf-8') as csvfile:
-        fieldnames = ['timestamp', 'dataset_name', 'training_rmse', 'validation_rmse', 'test_rmse', 'execution_type']
+        fieldnames = ['timestamp', 'dataset_name', 'execution_type',
+                     'bf_train_rmse', 'bf_val_rmse', 'bf_test_rmse', 'bf_nodes', 'bf_depth',
+                     'bn_train_rmse', 'bn_val_rmse', 'bn_test_rmse', 'bn_nodes', 'bn_depth',
+                     'sm_train_rmse', 'sm_val_rmse', 'sm_test_rmse', 'sm_nodes', 'sm_depth']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         
         # Write header if file is new
@@ -61,10 +68,22 @@ def save_results_to_file(dataset_name, training_rmse, validation_rmse, test_rmse
         writer.writerow({
             'timestamp': timestamp,
             'dataset_name': dataset_name,
-            'training_rmse': training_rmse,
-            'validation_rmse': validation_rmse,
-            'test_rmse': test_rmse,
-            'execution_type': execution_type
+            'execution_type': execution_type,
+            'bf_train_rmse': best_fitness_train,
+            'bf_val_rmse': best_fitness_val,
+            'bf_test_rmse': best_fitness_test,
+            'bf_nodes': best_fitness_nodes,
+            'bf_depth': best_fitness_depth,
+            'bn_train_rmse': best_norm_train,
+            'bn_val_rmse': best_norm_val,
+            'bn_test_rmse': best_norm_test,
+            'bn_nodes': best_norm_nodes,
+            'bn_depth': best_norm_depth,
+            'sm_train_rmse': smallest_train,
+            'sm_val_rmse': smallest_val,
+            'sm_test_rmse': smallest_test,
+            'sm_nodes': smallest_nodes,
+            'sm_depth': smallest_depth
         })
 
 # Load the airfoil dataset
@@ -291,13 +310,6 @@ elif oms_used:
 else:
     execution_type = 'slim'
 
-save_results_to_file(
-    dataset_name=dataset_name,
-    training_rmse=best_fitness_individual.fitness,
-    validation_rmse=best_fitness_individual.test_fitness,
-    test_rmse=test_rmse_best_fitness,
-    execution_type=execution_type
-)
 # Convert SLIM GSGP to readable tree and visualize
 try:
     from slim_gsgp.utils.simplification import convert_slim_individual_to_normal_tree
@@ -594,6 +606,27 @@ except Exception as e:
     print(f"❌ Error during tree conversion: {e}")
     import traceback
     traceback.print_exc()
+
+# Save results to CSV file with all three individuals
+save_results_to_file(
+    dataset_name=dataset_name,
+    best_fitness_train=best_fitness_individual.fitness,
+    best_fitness_val=best_fitness_individual.test_fitness,
+    best_fitness_test=test_rmse_best_fitness,
+    best_fitness_nodes=best_fitness_individual.nodes_count,
+    best_fitness_depth=best_fitness_individual.depth,
+    best_norm_train=best_normalized_individual.fitness,
+    best_norm_val=best_normalized_individual.test_fitness,
+    best_norm_test=test_rmse_best_normalized,
+    best_norm_nodes=best_normalized_individual.nodes_count,
+    best_norm_depth=best_normalized_individual.depth,
+    smallest_train=smallest_individual.fitness,
+    smallest_val=smallest_individual.test_fitness,
+    smallest_test=test_rmse_smallest,
+    smallest_nodes=smallest_individual.nodes_count,
+    smallest_depth=smallest_individual.depth,
+    execution_type=execution_type
+)
 
 # Summary table with results from all three individuals
 print("\n" + "="*80)
