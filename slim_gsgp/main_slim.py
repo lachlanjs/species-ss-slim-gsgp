@@ -335,8 +335,21 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
     optimizer.elite.version = slim_version
     
     # Select best individual based on normalized fitness and size using Pareto dominance
+    # First, get the non-dominated individuals (Pareto frontier)
+    from slim_gsgp.selection.selection_algorithms import calculate_non_dominated
     from slim_gsgp.utils.utils import select_best_normalized_individual
-    best_normalized_individual = select_best_normalized_individual(optimizer.population.population)
+    
+    non_dominated_idxs, _ = calculate_non_dominated(
+        optimizer.population.population, 
+        attrs=["fitness", "nodes_count"], 
+        minimization=True
+    )
+    
+    # Create list of non-dominated individuals
+    non_dominated_population = [optimizer.population.population[idx] for idx in non_dominated_idxs]
+    
+    # Apply normalization and outlier removal only to non-dominated individuals
+    best_normalized_individual = select_best_normalized_individual(non_dominated_population)
     best_normalized_individual.version = slim_version
 
     # Return both the best fitness individual and the best normalized individual

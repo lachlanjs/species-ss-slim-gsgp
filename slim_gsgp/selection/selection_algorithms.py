@@ -201,49 +201,64 @@ def calculate_non_dominated(pop, attrs: list[str], minimization: bool):
         Returns
         -------
         list[int]
-            The indices of the individuals in the non-dominated set # NOTE: could sort by the first attr
+            The indices of the individuals in the non-dominated set
     """
 
-    # construct a dataframe where each row contains:
-    # - the idx of an individual
-    # - its place in the ranking of each attribute (lower is better)    
-
-    non_dom_df = pd.DataFrame({
-        "idx": list(range(len(pop))),
-        **{attr: [ind.__dict__[attr] * (1 if minimization else -1) for ind in pop]
-           for attr in attrs}
-    })           
-
-    # non_dom_df["size"] = non_dom_df["size"].map(lambda x: max(x, 10))
-
-    # carve away anything that is dominated
-
-    original_idxs = list(range(len(pop)))
-
-    for idx in original_idxs:
-        if idx not in non_dom_df["idx"]:
-            continue
-        
-        # remove_idxs = non_dom_df.index
-        remove_idxs = pd.Series([True for i in range(len(non_dom_df))])        
-        
+    # Extract attribute values for all individuals
+    values = []
+    for ind in pop:
+        ind_values = []
         for attr in attrs:
-            remove_idxs = remove_idxs & (non_dom_df[attr] > non_dom_df[attr][idx]) # NOTE: Lachie left an absolute clanger on this line (<)
+            val = ind.__dict__[attr]
+            # If minimization, keep as is; if maximization, negate
+            ind_values.append(val if minimization else -val)
+        values.append(ind_values)
+    
+    # Find non-dominated individuals
+    # An individual i is dominated if there exists another individual j such that:
+    # - j is better or equal in all attributes
+    # - j is strictly better in at least one attribute
+    
+    non_dominated_indices = []
+    
+    for i in range(len(pop)):
+        is_dominated = False
         
-        non_dom_df = non_dom_df[~remove_idxs]
-        non_dom_df = non_dom_df.reset_index(drop=True)
-
-    # the remaining df contains the non-dominated set
-    non_dom_idxs = np.array(non_dom_df["idx"], dtype=np.int32)
-
-    # determine degeneracy
+        for j in range(len(pop)):
+            if i == j:
+                continue
+            
+            # Check if j dominates i
+            # j dominates i if: all attributes of j <= attributes of i, and at least one is strictly <
+            all_better_or_equal = True
+            at_least_one_better = False
+            
+            for attr_idx in range(len(attrs)):
+                if values[j][attr_idx] > values[i][attr_idx]:
+                    # j is worse in this attribute
+                    all_better_or_equal = False
+                    break
+                elif values[j][attr_idx] < values[i][attr_idx]:
+                    # j is better in this attribute
+                    at_least_one_better = True
+            
+            if all_better_or_equal and at_least_one_better:
+                # Individual j dominates individual i
+                is_dominated = True
+                break
+        
+        if not is_dominated:
+            non_dominated_indices.append(i)
+    
+    # Determine degeneracy (all non-dominated individuals have same value for an attribute)
     degenerate_attrs = []
-    for attr in attrs:
-        # if they are all equal to the first ones, then they are all equal to each-other
-        if (non_dom_df[attr] == non_dom_df[attr].iloc[0]).all(): 
-            degenerate_attrs.append(attr)            
-
-    return non_dom_idxs, degenerate_attrs
+    if len(non_dominated_indices) > 1:
+        for attr_idx, attr in enumerate(attrs):
+            first_val = values[non_dominated_indices[0]][attr_idx]
+            if all(values[idx][attr_idx] == first_val for idx in non_dominated_indices):
+                degenerate_attrs.append(attr)
+    
+    return np.array(non_dominated_indices, dtype=np.int32), degenerate_attrs
 
 def tournament_selection_pareto(pool_size, attrs: list[str], minimization: bool=True):
 

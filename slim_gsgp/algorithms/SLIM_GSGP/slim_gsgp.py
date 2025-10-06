@@ -36,7 +36,7 @@ from slim_gsgp.algorithms.SLIM_GSGP.representations.individual import Individual
 from slim_gsgp.algorithms.SLIM_GSGP.representations.population import Population
 from slim_gsgp.utils.diversity import gsgp_pop_div_from_vectors
 from slim_gsgp.utils.logger import logger
-from slim_gsgp.utils.utils import verbose_reporter, select_best_normalized_individual, get_population_outliers
+from slim_gsgp.utils.utils import verbose_reporter, select_best_normalized_individual
 
 # Global variable to store the figure for persistent plotting
 _plot_figure = None
@@ -80,44 +80,45 @@ def plot_generation_fitness_vs_nodes(population, generation, X_test=None, y_test
     # Clear the previous plot but keep the figure
     _plot_axes.clear()
     
-    # Get outlier information with debug enabled for first few generations
-    debug_outliers = generation <= 3  # Enable debug for first 3 generations
-    outlier_info = get_population_outliers(population.population, remove_outliers=True, 
-                                         outlier_multiplier=1.5, debug=debug_outliers)
+    # Calculate non-dominated individuals (Pareto frontier) FIRST
+    from slim_gsgp.selection.selection_algorithms import calculate_non_dominated
     
-    # Combine both fitness and nodes outliers (union)
-    fitness_outlier_indices = set(outlier_info['fitness']['indices'])
-    nodes_outlier_indices = set(outlier_info['nodes_count']['indices'])
-    all_outlier_indices = fitness_outlier_indices.union(nodes_outlier_indices)
+    non_dominated_idxs, _ = calculate_non_dominated(
+        population.population, 
+        attrs=["fitness", "nodes_count"], 
+        minimization=True
+    )
+    non_dominated_set = set(non_dominated_idxs)
     
-    # Separate normal individuals and outliers for plotting
-    normal_nodes = []
-    normal_fitness = []
-    outlier_nodes = []
-    outlier_fitness = []
+    # Separate individuals into two categories for plotting
+    dominated_nodes = []
+    dominated_fitness = []
+    pareto_nodes = []
+    pareto_fitness = []
     
     for i, (nodes, fitness) in enumerate(zip(nodes_counts, training_fitnesses)):
-        if i in all_outlier_indices:
-            outlier_nodes.append(nodes)
-            outlier_fitness.append(fitness)
+        if i in non_dominated_set:
+            # This is a non-dominated individual (Pareto frontier)
+            pareto_nodes.append(nodes)
+            pareto_fitness.append(fitness)
         else:
-            normal_nodes.append(nodes)
-            normal_fitness.append(fitness)
+            # Dominated individual
+            dominated_nodes.append(nodes)
+            dominated_fitness.append(fitness)
     
-    # Plot normal individuals as blue circles
-    if normal_nodes:
-        _plot_axes.scatter(normal_nodes, normal_fitness, alpha=0.6, s=50, color='blue', 
-                          label=f'Normal individuals ({len(normal_nodes)})')
+    # Plot dominated individuals as light gray circles (more transparent)
+    if dominated_nodes:
+        _plot_axes.scatter(dominated_nodes, dominated_fitness, alpha=0.3, s=40, color='gray', 
+                          label=f'Dominated ({len(dominated_nodes)})')
     
-    # Plot outliers as gray X marks
-    if outlier_nodes:
-        _plot_axes.scatter(outlier_nodes, outlier_fitness, alpha=0.7, s=80, color='gray', 
-                          marker='x', linewidths=2, 
-                          label=f'Outliers (excluded from normalization, {len(outlier_nodes)})')
+    # Plot Pareto frontier individuals as black circles (opaque)
+    if pareto_nodes:
+        _plot_axes.scatter(pareto_nodes, pareto_fitness, alpha=1, s=40, color='black', 
+                          label=f'Pareto frontier (normalized, {len(pareto_nodes)})')
     
     _plot_axes.set_xlabel('Number of Nodes')
     _plot_axes.set_ylabel('Training Fitness (RMSE)')
-    _plot_axes.set_title(f'Generation {generation}: Fitness vs Number of Nodes (with Outlier Detection)')
+    _plot_axes.set_title(f'Generation {generation}: Fitness vs Nodes (Pareto Frontier Normalization)')
     _plot_axes.grid(True, alpha=0.3)
     
     # Set fixed axis limits
@@ -130,7 +131,11 @@ def plot_generation_fitness_vs_nodes(population, generation, X_test=None, y_test
     best_fitness_nodes = nodes_counts[best_fitness_idx]
     
     # Best normalized individual (Pareto dominance considering fitness and size)
-    best_normalized_individual = select_best_normalized_individual(population.population)
+    # Use the non-dominated individuals already calculated above
+    non_dominated_population = [population.population[idx] for idx in non_dominated_idxs]
+    
+    # Apply normalization only to non-dominated individuals
+    best_normalized_individual = select_best_normalized_individual(non_dominated_population)
     
     # Use training fitness for consistent visualization
     # (The normalization is based on training fitness, so the plot should show the same)
@@ -144,29 +149,8 @@ def plot_generation_fitness_vs_nodes(population, generation, X_test=None, y_test
     _plot_axes.scatter(best_normalized_nodes, best_normalized_fitness, color='green', s=120, marker='s', 
                 label=f'Best Normalized: {best_normalized_fitness:.4f} ({best_normalized_nodes} nodes)', zorder=5)
     
-    # Add legend with information about outlier detection
+    # Add legend
     _plot_axes.legend(loc='upper right', fontsize=9)
-    
-    # Check if best fitness individual is being excluded as outlier
-    best_fitness_idx = np.argmin(training_fitnesses)
-    best_is_outlier = best_fitness_idx in all_outlier_indices
-    
-    # Add outlier detection info as text
-    if outlier_nodes:
-        outlier_text = f"IQR 1.5x rule: {len(fitness_outlier_indices)} fitness outliers, {len(nodes_outlier_indices)} nodes outliers"
-        if best_is_outlier:
-            outlier_text += f"\n⚠️ ALERT: Best fitness individual excluded as outlier!"
-        _plot_axes.text(0.02, 0.98, outlier_text, transform=_plot_axes.transAxes, 
-                       fontsize=8, verticalalignment='top', 
-                       bbox=dict(boxstyle='round', facecolor='lightcoral' if best_is_outlier else 'lightgray', alpha=0.7))
-    
-    # Print warning if best fitness individual is excluded
-    if best_is_outlier and debug_outliers:
-        print(f"\n⚠️⚠️⚠️ CRITICAL: Generation {generation} - Best fitness individual (idx {best_fitness_idx}) excluded as outlier!")
-        print(f"    Best fitness: {training_fitnesses[best_fitness_idx]:.6f}")
-        print(f"    Best nodes: {nodes_counts[best_fitness_idx]}")
-        print(f"    Is in fitness outliers: {best_fitness_idx in fitness_outlier_indices}")
-        print(f"    Is in nodes outliers: {best_fitness_idx in nodes_outlier_indices}")
     
     # Detailed normalization information disabled for cleaner output
     # Uncomment the section below if you need to debug normalization issues

@@ -941,24 +941,18 @@ def get_population_outliers(population, remove_outliers=True, outlier_multiplier
     return outlier_info
 
 
-def select_best_normalized_individual(population, remove_outliers=True, outlier_multiplier=1.5):
+def select_best_normalized_individual(population):
     """
     Select the best individual from a population based on distance to ideal point
-    considering normalized fitness and size, with optional outlier removal.
+    considering normalized fitness and size.
     
     This function normalizes both fitness and size to [0,1] range across the
-    entire population, optionally removing only upper outliers (bad fitness = high error,
-    bad size = high nodes) before normalization, then selects the individual closest 
-    to the ideal point (0,0).
+    entire population, then selects the individual closest to the ideal point (0,0).
     
     Parameters
     ----------
     population : list
         List of individuals with 'fitness' and 'nodes_count' attributes.
-    remove_outliers : bool, optional
-        Whether to remove outliers before normalization using IQR rule (default: True).
-    outlier_multiplier : float, optional
-        IQR multiplier for outlier detection (default: 1.5).
         
     Returns
     -------
@@ -979,10 +973,9 @@ def select_best_normalized_individual(population, remove_outliers=True, outlier_
         copy_ind._original_index = population.index(ind)  # Keep track of original position
         pop_copy.append(copy_ind)
     
-    # Normalize fitness and size attributes on copies, with outlier removal
+    # Normalize fitness and size attributes on copies (no outlier removal)
     normalize_population_attributes(pop_copy, ['fitness', 'nodes_count'], 
-                                  remove_outliers=remove_outliers, 
-                                  outlier_multiplier=outlier_multiplier)
+                                  remove_outliers=False)
     
     # Find the individual closest to the ideal point (0,0) in normalized space
     # We want to minimize both normalized fitness and normalized size

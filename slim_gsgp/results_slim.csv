@@ -124,3 +124,6 @@ timestamp,dataset_name,training_rmse,validation_rmse,test_rmse,execution_type
 2025-10-05 10:57:18,concrete_strength,tensor(20.5171),tensor(19.2618),19.808128356933594,slim linear scaling
 2025-10-05 10:57:46,concrete_strength,tensor(27.9390),tensor(26.2741),27.630435943603516,slim linear scaling
 2025-10-05 10:59:27,airfoil,tensor(61.5682),tensor(61.3181),61.6630744934082,slim linear scaling
+2025-10-06 11:50:06,airfoil,5.549355983734131,5.5272369384765625,5.445015907287598,slim linear scaling
+2025-10-06 11:58:49,airfoil,tensor(61.5682),tensor(61.3181),61.6630744934082,slim linear scaling
+2025-10-06 12:28:41,airfoil,tensor(62.8020),tensor(62.5263),62.88002395629883,slim linear scaling
