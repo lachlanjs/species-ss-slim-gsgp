@@ -335,14 +335,11 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
     optimizer.elite.version = slim_version
     
     # Select best individual based on normalized fitness and size using Pareto dominance
-    # Step 1: Apply simplification to ENTIRE population first
     from slim_gsgp.utils.simplification import simplify_population
     from slim_gsgp.selection.selection_algorithms import calculate_non_dominated
     from slim_gsgp.utils.utils import select_best_normalized_individual
     
-    simplif_stats_all = simplify_population(optimizer.population.population, debug=False)
-    
-    # Step 2: Calculate non-dominated individuals (Pareto frontier) using simplified nodes_count
+    # Step 1: Calculate non-dominated individuals (Pareto frontier) WITHOUT simplification first
     non_dominated_idxs, _ = calculate_non_dominated(
         optimizer.population.population, 
         attrs=["fitness", "nodes_count"], 
@@ -352,11 +349,14 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
     # Create list of non-dominated individuals
     non_dominated_population = [optimizer.population.population[idx] for idx in non_dominated_idxs]
     
-    # Step 3: Apply normalization only to non-dominated individuals (already simplified)
+    # Step 2: Apply simplification ONLY to Pareto frontier for normalization
+    simplif_stats_pareto = simplify_population(non_dominated_population, debug=False)
+    
+    # Step 3: Apply normalization to simplified Pareto frontier
     best_normalized_individual = select_best_normalized_individual(non_dominated_population)
     best_normalized_individual.version = slim_version
     
-    # Step 4: Find the smallest individual from the entire population (already simplified)
+    # Step 4: Find the smallest individual from the entire population (without simplification)
     smallest_individual = min(optimizer.population.population, key=lambda ind: ind.nodes_count)
     smallest_individual.version = slim_version
 
