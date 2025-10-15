@@ -34,16 +34,41 @@ import os
 from datetime import datetime
 import traceback
 
-def save_results_to_file(dataset_name, training_rmse, validation_rmse, test_rmse, nodes_count, execution_type, filename="results_all_datasets.csv"):
+def initialize_results_file(filename="results_all_datasets.csv"):
     """
-    Save the results to a CSV file.
+    Initialize (or overwrite) the results CSV file with headers only.
+    
+    Args:
+        filename: Name of the output file
+    """
+    # Ensure filename includes log directory if not already present
+    if not filename.startswith("log"):
+        filename = os.path.join("log", filename)
+    
+    # Ensure log directory exists
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    
+    with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
+        fieldnames = ['timestamp', 'dataset_name', 'execution_type',
+                     'bf_train_rmse', 'bf_val_rmse', 'bf_test_rmse', 'bf_nodes', 'bf_depth',
+                     'bn_train_rmse', 'bn_val_rmse', 'bn_test_rmse', 'bn_nodes', 'bn_depth',
+                     'sm_train_rmse', 'sm_val_rmse', 'sm_test_rmse', 'sm_nodes', 'sm_depth']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+
+def save_results_to_file(dataset_name, 
+                        best_fitness_train, best_fitness_val, best_fitness_test, best_fitness_nodes, best_fitness_depth,
+                        best_norm_train, best_norm_val, best_norm_test, best_norm_nodes, best_norm_depth,
+                        smallest_train, smallest_val, smallest_test, smallest_nodes, smallest_depth,
+                        execution_type, filename="results_all_datasets.csv"):
+    """
+    Append results of all three individuals to a CSV file.
     
     Args:
         dataset_name: Name of the dataset used
-        training_rmse: Training fitness (RMSE)
-        validation_rmse: Validation fitness (RMSE)
-        test_rmse: Final test fitness (RMSE)
-        nodes_count: Number of nodes in the final tree
+        best_fitness_*: Metrics for best fitness individual
+        best_norm_*: Metrics for best normalized individual
+        smallest_*: Metrics for smallest size individual
         execution_type: Type of execution
         filename: Name of the output file
     """
@@ -51,29 +76,36 @@ def save_results_to_file(dataset_name, training_rmse, validation_rmse, test_rmse
     if not filename.startswith("log"):
         filename = os.path.join("log", filename)
     
-    # Check if file exists to determine if we need to write headers
-    file_exists = os.path.exists(filename)
-    
     # Get current timestamp
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     with open(filename, 'a', newline='', encoding='utf-8') as csvfile:
-        fieldnames = ['timestamp', 'dataset_name', 'training_rmse', 'validation_rmse', 'test_rmse', 'nodes_count', 'execution_type']
+        fieldnames = ['timestamp', 'dataset_name', 'execution_type',
+                     'bf_train_rmse', 'bf_val_rmse', 'bf_test_rmse', 'bf_nodes', 'bf_depth',
+                     'bn_train_rmse', 'bn_val_rmse', 'bn_test_rmse', 'bn_nodes', 'bn_depth',
+                     'sm_train_rmse', 'sm_val_rmse', 'sm_test_rmse', 'sm_nodes', 'sm_depth']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        
-        # Write header if file is new
-        if not file_exists:
-            writer.writeheader()
         
         # Write the results
         writer.writerow({
             'timestamp': timestamp,
             'dataset_name': dataset_name,
-            'training_rmse': training_rmse,
-            'validation_rmse': validation_rmse,
-            'test_rmse': test_rmse,
-            'nodes_count': nodes_count,
-            'execution_type': execution_type
+            'execution_type': execution_type,
+            'bf_train_rmse': best_fitness_train,
+            'bf_val_rmse': best_fitness_val,
+            'bf_test_rmse': best_fitness_test,
+            'bf_nodes': best_fitness_nodes,
+            'bf_depth': best_fitness_depth,
+            'bn_train_rmse': best_norm_train,
+            'bn_val_rmse': best_norm_val,
+            'bn_test_rmse': best_norm_test,
+            'bn_nodes': best_norm_nodes,
+            'bn_depth': best_norm_depth,
+            'sm_train_rmse': smallest_train,
+            'sm_val_rmse': smallest_val,
+            'sm_test_rmse': smallest_test,
+            'sm_nodes': smallest_nodes,
+            'sm_depth': smallest_depth
         })
 
 def save_simplification_to_txt(dataset_name, execution_type, individual_type, original_expr, simplified_expr, nodes_removed, original_nodes, simplified_nodes, txt_file="log/simplifications_all.txt"):
@@ -207,15 +239,48 @@ def run_algorithm(algorithm_name, dataset_name, X_train, y_train, X_val, y_val, 
             })
         
         # Run the algorithm
-        final_tree = slim(**algorithm_params)
+        results = slim(**algorithm_params)
         
-        # Evaluate the final tree on validation data
-        final_tree.calculate_semantics(X_val, testing=True)
-        final_tree.evaluate(rmse, y_val, testing=True, operator="sum")
+        # Extract all three individuals
+        best_fitness_individual = results.best_fitness
+        best_normalized_individual = results.best_normalized
+        smallest_individual = results.smallest
         
-        # Get the prediction on test set
-        predictions = final_tree.predict(X_test)
-        test_rmse = float(rmse(y_true=y_test, y_pred=predictions))
+        # === Process Best Fitness Individual ===
+        best_fitness_individual.calculate_semantics(X_val, testing=True)
+        best_fitness_individual.evaluate(rmse, y_val, testing=True, operator="sum")
+        predictions_bf = best_fitness_individual.predict(X_test)
+        test_rmse_bf = float(rmse(y_true=y_test, y_pred=predictions_bf))
+        
+        bf_train = round(float(best_fitness_individual.fitness) if hasattr(best_fitness_individual.fitness, 'item') else float(best_fitness_individual.fitness), 5)
+        bf_val = round(float(best_fitness_individual.test_fitness) if hasattr(best_fitness_individual.test_fitness, 'item') else float(best_fitness_individual.test_fitness), 5)
+        bf_test = round(test_rmse_bf, 5)
+        bf_nodes = best_fitness_individual.nodes_count
+        bf_depth = best_fitness_individual.depth
+        
+        # === Process Best Normalized Individual ===
+        best_normalized_individual.calculate_semantics(X_val, testing=True)
+        best_normalized_individual.evaluate(rmse, y_val, testing=True, operator="sum")
+        predictions_bn = best_normalized_individual.predict(X_test)
+        test_rmse_bn = float(rmse(y_true=y_test, y_pred=predictions_bn))
+        
+        bn_train = round(float(best_normalized_individual.fitness) if hasattr(best_normalized_individual.fitness, 'item') else float(best_normalized_individual.fitness), 5)
+        bn_val = round(float(best_normalized_individual.test_fitness) if hasattr(best_normalized_individual.test_fitness, 'item') else float(best_normalized_individual.test_fitness), 5)
+        bn_test = round(test_rmse_bn, 5)
+        bn_nodes = best_normalized_individual.nodes_count
+        bn_depth = best_normalized_individual.depth
+        
+        # === Process Smallest Individual ===
+        smallest_individual.calculate_semantics(X_val, testing=True)
+        smallest_individual.evaluate(rmse, y_val, testing=True, operator="sum")
+        predictions_sm = smallest_individual.predict(X_test)
+        test_rmse_sm = float(rmse(y_true=y_test, y_pred=predictions_sm))
+        
+        sm_train = round(float(smallest_individual.fitness) if hasattr(smallest_individual.fitness, 'item') else float(smallest_individual.fitness), 5)
+        sm_val = round(float(smallest_individual.test_fitness) if hasattr(smallest_individual.test_fitness, 'item') else float(smallest_individual.test_fitness), 5)
+        sm_test = round(test_rmse_sm, 5)
+        sm_nodes = smallest_individual.nodes_count
+        sm_depth = smallest_individual.depth
         
         # Try to simplify and save trees
         try:
@@ -269,7 +334,7 @@ def run_algorithm(algorithm_name, dataset_name, X_train, y_train, X_val, y_val, 
                 return 1 + sum(count_nodes(struct[i]) for i in range(1, len(struct)))
             
             # Process fitness individual
-            tree_struct, tree_dicts = convert_slim_individual_to_normal_tree(final_tree.best_fitness)
+            tree_struct, tree_dicts = convert_slim_individual_to_normal_tree(best_fitness_individual)
             if tree_struct and tree_dicts:
                 simplified_tree, nodes_removed = simplify_constant_operations(tree_struct, tree_dicts['CONSTANTS'])
                 original_expr = tree_to_expression(tree_struct)
@@ -289,45 +354,79 @@ def run_algorithm(algorithm_name, dataset_name, X_train, y_train, X_val, y_val, 
                         original_expr, node_count
                     )
             
-            # Process normalized individual if exists
-            if hasattr(final_tree, 'best_normalized') and final_tree.best_normalized:
-                tree_struct_norm, tree_dicts_norm = convert_slim_individual_to_normal_tree(final_tree.best_normalized)
-                if tree_struct_norm and tree_dicts_norm:
-                    simplified_tree_norm, nodes_removed_norm = simplify_constant_operations(tree_struct_norm, tree_dicts_norm['CONSTANTS'])
-                    original_expr_norm = tree_to_expression(tree_struct_norm)
-                    node_count_norm = count_nodes(tree_struct_norm)
-                    
-                    if nodes_removed_norm > 0:
-                        simplified_expr_norm = tree_to_expression(simplified_tree_norm)
-                        save_simplification_to_txt(
-                            dataset_name, execution_type, "normalized",
-                            original_expr_norm, simplified_expr_norm, nodes_removed_norm,
-                            node_count_norm, count_nodes(simplified_tree_norm)
-                        )
-                    else:
-                        # No simplification possible - save the tree with a message
-                        save_no_simplification_to_txt(
-                            dataset_name, execution_type, "normalized",
-                            original_expr_norm, node_count_norm
-                        )
+            # Process normalized individual
+            tree_struct_norm, tree_dicts_norm = convert_slim_individual_to_normal_tree(best_normalized_individual)
+            if tree_struct_norm and tree_dicts_norm:
+                simplified_tree_norm, nodes_removed_norm = simplify_constant_operations(tree_struct_norm, tree_dicts_norm['CONSTANTS'])
+                original_expr_norm = tree_to_expression(tree_struct_norm)
+                node_count_norm = count_nodes(tree_struct_norm)
+                
+                if nodes_removed_norm > 0:
+                    simplified_expr_norm = tree_to_expression(simplified_tree_norm)
+                    save_simplification_to_txt(
+                        dataset_name, execution_type, "normalized",
+                        original_expr_norm, simplified_expr_norm, nodes_removed_norm,
+                        node_count_norm, count_nodes(simplified_tree_norm)
+                    )
+                else:
+                    # No simplification possible - save the tree with a message
+                    save_no_simplification_to_txt(
+                        dataset_name, execution_type, "normalized",
+                        original_expr_norm, node_count_norm
+                    )
+            
+            # Process smallest individual
+            tree_struct_sm, tree_dicts_sm = convert_slim_individual_to_normal_tree(smallest_individual)
+            if tree_struct_sm and tree_dicts_sm:
+                simplified_tree_sm, nodes_removed_sm = simplify_constant_operations(tree_struct_sm, tree_dicts_sm['CONSTANTS'])
+                original_expr_sm = tree_to_expression(tree_struct_sm)
+                node_count_sm = count_nodes(tree_struct_sm)
+                
+                if nodes_removed_sm > 0:
+                    simplified_expr_sm = tree_to_expression(simplified_tree_sm)
+                    save_simplification_to_txt(
+                        dataset_name, execution_type, "smallest",
+                        original_expr_sm, simplified_expr_sm, nodes_removed_sm,
+                        node_count_sm, count_nodes(simplified_tree_sm)
+                    )
+                else:
+                    # No simplification possible - save the tree with a message
+                    save_no_simplification_to_txt(
+                        dataset_name, execution_type, "smallest",
+                        original_expr_sm, node_count_sm
+                    )
         except Exception as e:
             # Simplification is optional, don't fail the whole execution
             print(f"Warning: Error during simplification for {dataset_name}: {str(e)}")
             import traceback
             traceback.print_exc()
         
-        # Save results
+        # Save results of all three individuals
         save_results_to_file(
             dataset_name=dataset_name,
-            training_rmse=final_tree.fitness,
-            validation_rmse=final_tree.test_fitness,
-            test_rmse=test_rmse,
-            nodes_count=final_tree.nodes_count,
+            best_fitness_train=bf_train,
+            best_fitness_val=bf_val,
+            best_fitness_test=bf_test,
+            best_fitness_nodes=bf_nodes,
+            best_fitness_depth=bf_depth,
+            best_norm_train=bn_train,
+            best_norm_val=bn_val,
+            best_norm_test=bn_test,
+            best_norm_nodes=bn_nodes,
+            best_norm_depth=bn_depth,
+            smallest_train=sm_train,
+            smallest_val=sm_val,
+            smallest_test=sm_test,
+            smallest_nodes=sm_nodes,
+            smallest_depth=sm_depth,
             execution_type=execution_type,
             filename=output_filename
         )
         
-        print(f"    ✓ {execution_type} completed - Train: {final_tree.fitness:.6f}, Val: {final_tree.test_fitness:.6f}, Test: {test_rmse:.6f}, Nodes: {final_tree.nodes_count}")
+        print(f"    ✓ {execution_type} completed")
+        print(f"       Best Fitness    - Train: {bf_train:.5f}, Val: {bf_val:.5f}, Test: {bf_test:.5f}, Nodes: {bf_nodes}, Depth: {bf_depth}")
+        print(f"       Best Normalized - Train: {bn_train:.5f}, Val: {bn_val:.5f}, Test: {bn_test:.5f}, Nodes: {bn_nodes}, Depth: {bn_depth}")
+        print(f"       Smallest        - Train: {sm_train:.5f}, Val: {sm_val:.5f}, Test: {sm_test:.5f}, Nodes: {sm_nodes}, Depth: {sm_depth}")
         
     except Exception as e:
         print(f"    ✗ Error in {execution_type}: {str(e)}")
@@ -362,19 +461,37 @@ def get_valid_execution_configs(slim_version):
             (False, True)    # Pareto tournament only (without OMS)
         ]
 
-def run_all_datasets(slim_version='SLIM+SIG2', output_filename=None):
+def run_all_datasets(slim_version='SLIM+ABS', output_filename=None, 
+                     use_oms=True, use_linear_scaling=False, use_pareto_tournament=False):
     """
-    Run all datasets with all algorithm combinations.
+    Run all datasets with a single specified configuration.
     
     Args:
         slim_version: Version of SLIM to use (e.g., 'SLIM+SIG2', 'SLIM+ABS', 'SLIM*ABS')
-        output_filename: Custom filename for results CSV. If None, generates based on slim_version
+        output_filename: Custom filename for results CSV. If None, generates based on configuration
+        use_oms: Whether to use OMS (Operator Mutation Selection)
+        use_linear_scaling: Whether to use linear scaling
+        use_pareto_tournament: Whether to use Pareto tournament selection
     """
+    # Validate OMS usage
+    two_trees_versions = ["SLIM+SIG2", "SLIM*SIG2"]
+    if use_oms and slim_version not in two_trees_versions:
+        print(f"⚠️  WARNING: OMS requires two_trees=True (SLIM+SIG2 or SLIM*SIG2).")
+        print(f"   Current version: {slim_version}. OMS will be disabled.")
+        use_oms = False
+    
     # Generate filename if not provided
     if output_filename is None:
         # Convert version name to valid filename
         version_suffix = slim_version.replace('+', '_').replace('*', '_').replace(' ', '_').lower()
-        output_filename = os.path.join("log", f"results_all_datasets_{version_suffix}.csv")
+        config_suffix = ""
+        if use_linear_scaling:
+            config_suffix += "_ls"
+        if use_oms:
+            config_suffix += "_oms"
+        if use_pareto_tournament:
+            config_suffix += "_pareto"
+        output_filename = os.path.join("log", f"results_all_datasets_{version_suffix}{config_suffix}.csv")
     
     # Define all available datasets
     datasets = [
@@ -395,48 +512,36 @@ def run_all_datasets(slim_version='SLIM+SIG2', output_filename=None):
         ('resid_build_sale_price', load_resid_build_sale_price)
     ]
     
-    # Algorithm configurations - now we use linear_scaling parameter
-    linear_scaling_configs = [
-        (False, "slim"),                    # Standard SLIM
-        (True, "slim linear scaling")       # SLIM with Linear Scaling
-    ]
+    # Build execution type name
+    execution_type = "slim"
+    if use_linear_scaling:
+        execution_type += " linear scaling"
+    if use_oms:
+        execution_type += " oms"
+    if use_pareto_tournament:
+        execution_type += " pareto"
     
-    # Configuration combinations: (oms_enabled, use_pareto_tournament)
-    execution_configs = get_valid_execution_configs(slim_version)
-    
-    # Get readable names for execution types
-    def get_execution_type_name(oms_enabled, use_pareto_tournament, supports_oms):
-        if oms_enabled and use_pareto_tournament:
-            return "OMS + Pareto Tournament"
-        elif oms_enabled:
-            return "OMS only"
-        elif use_pareto_tournament:
-            return "Pareto Tournament only"
-        else:
-            return "Standard"
-    
-    supports_oms = slim_version in ["SLIM+SIG2", "SLIM*SIG2"]
-    execution_type_names = [get_execution_type_name(oms, pareto, supports_oms) 
-                           for oms, pareto in execution_configs]
+    # Initialize results file (this will overwrite any existing file)
+    initialize_results_file(output_filename)
     
     print("=" * 80)
-    print("RUNNING ALL DATASETS WITH ALL ALGORITHM COMBINATIONS")
+    print("RUNNING ALL DATASETS WITH SINGLE CONFIGURATION")
     print("=" * 80)
     print(f"SLIM Version: {slim_version}")
     print(f"Output file: {output_filename}")
     print(f"Simplifications file: log/simplifications_all.txt")
-    oms_msg = "Yes" if supports_oms else "No (requires two_trees=True)"
-    print(f"OMS Support: {oms_msg}")
+    print(f"\nConfiguration:")
+    print(f"  Linear Scaling: {'✓ Enabled' if use_linear_scaling else '✗ Disabled'}")
+    print(f"  OMS: {'✓ Enabled' if use_oms else '✗ Disabled'}")
+    print(f"  Pareto Tournament: {'✓ Enabled' if use_pareto_tournament else '✗ Disabled'}")
+    print(f"\nExecution type: {execution_type}")
     print(f"Total datasets: {len(datasets)}")
-    print(f"Total linear scaling configs: {len(linear_scaling_configs)}")
-    print(f"Total execution configurations: {len(execution_configs)}")
-    print(f"Total executions: {len(datasets) * len(linear_scaling_configs) * len(execution_configs)}")
-    print(f"Execution types: {', '.join(execution_type_names)}")
+    print(f"Total executions: {len(datasets)}")
     print("=" * 80)
     
     successful_runs = 0
     failed_runs = 0
-    total_runs = len(datasets) * len(linear_scaling_configs) * len(execution_configs)
+    total_runs = len(datasets)
     
     for dataset_idx, (dataset_name, load_function) in enumerate(datasets, 1):
         print(f"\n[{dataset_idx}/{len(datasets)}] Processing dataset: {dataset_name}")
@@ -451,21 +556,19 @@ def run_all_datasets(slim_version='SLIM+SIG2', output_filename=None):
             
             print(f"  Dataset loaded - Shape: {X.shape}, Target shape: {y.shape}")
             
-            # Run all algorithm combinations
-            for linear_scaling_enabled, algorithm_name in linear_scaling_configs:
-                for oms_enabled, use_pareto_tournament in execution_configs:
-                    run_algorithm(
-                        algorithm_name, dataset_name,
-                        X_train, y_train, X_val, y_val, X_test, y_test,
-                        oms_enabled, linear_scaling_enabled, use_pareto_tournament,
-                        slim_version, output_filename
-                    )
-                    successful_runs += 1
+            # Run the single specified configuration
+            run_algorithm(
+                "slim", dataset_name,
+                X_train, y_train, X_val, y_val, X_test, y_test,
+                use_oms, use_linear_scaling, use_pareto_tournament,
+                slim_version, output_filename
+            )
+            successful_runs += 1
                     
         except Exception as e:
             print(f"  ✗ Error loading dataset {dataset_name}: {str(e)}")
             print(f"  Traceback: {traceback.format_exc()}")
-            failed_runs += len(linear_scaling_configs) * len(execution_configs)
+            failed_runs += 1
             continue
     
     # Final summary
@@ -482,24 +585,52 @@ def run_all_datasets(slim_version='SLIM+SIG2', output_filename=None):
 if __name__ == "__main__":
     import sys
     
-    # Parse command line arguments
-    slim_version = 'SLIM+SIG2'  # Default
-    output_filename = None
+    # ============================================================================
+    # CONFIGURATION - Modify these variables to select the execution configuration
+    # ============================================================================
+    slim_version = 'SLIM+ABS'          # SLIM version: 'SLIM+ABS', 'SLIM+SIG2', 'SLIM*ABS', 'SLIM*SIG2'
+    use_oms = False                    # Enable OMS (Operator Mutation Selection) - requires SLIM+SIG2 or SLIM*SIG2
+    use_linear_scaling = False         # Enable Linear Scaling
+    use_pareto_tournament = False      # Enable Pareto Tournament Selection
+    output_filename = None             # Custom output filename (None = auto-generate)
+    # ============================================================================
     
+    # Parse command line arguments (optional - overrides above configuration)
     if len(sys.argv) > 1:
         slim_version = sys.argv[1]
     if len(sys.argv) > 2:
-        output_filename = sys.argv[2]
+        # Parse boolean arguments: python run_all_datasets.py SLIM+ABS oms=True ls=True pareto=False
+        for arg in sys.argv[2:]:
+            if '=' in arg:
+                key, value = arg.split('=')
+                value_bool = value.lower() in ['true', '1', 'yes']
+                if key.lower() in ['oms', 'use_oms']:
+                    use_oms = value_bool
+                elif key.lower() in ['ls', 'linear_scaling', 'use_linear_scaling']:
+                    use_linear_scaling = value_bool
+                elif key.lower() in ['pareto', 'pareto_tournament', 'use_pareto_tournament']:
+                    use_pareto_tournament = value_bool
+                elif key.lower() in ['output', 'output_filename']:
+                    output_filename = value
     
     print(f"Configuration:")
     print(f"  SLIM Version: {slim_version}")
+    print(f"  OMS: {use_oms}")
+    print(f"  Linear Scaling: {use_linear_scaling}")
+    print(f"  Pareto Tournament: {use_pareto_tournament}")
     print(f"  Output filename: {output_filename if output_filename else 'Auto-generated'}")
     print()
     
     start_time = datetime.now()
     print(f"Starting execution at: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
     
-    run_all_datasets(slim_version=slim_version, output_filename=output_filename)
+    run_all_datasets(
+        slim_version=slim_version, 
+        output_filename=output_filename,
+        use_oms=use_oms,
+        use_linear_scaling=use_linear_scaling,
+        use_pareto_tournament=use_pareto_tournament
+    )
     
     end_time = datetime.now()
     execution_time = end_time - start_time
