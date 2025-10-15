@@ -142,6 +142,66 @@ def save_statistics_summary(stats, dataset_name, execution_type, output_dir="log
     
     print(f"   Statistics summary saved to: {filename}")
 
+def save_formatted_table(stats, dataset_name, execution_type, output_dir="log"):
+    """
+    Save formatted table with Smallest Model, Optimal Compromise, and Best Fitness.
+    Creates three tables: Training, Test, and Size.
+    
+    Args:
+        stats: Dictionary with statistics for each metric
+        dataset_name: Name of the dataset
+        execution_type: Type of execution
+        output_dir: Output directory
+    """
+    filename = os.path.join(output_dir, f"summary_table_{dataset_name}_{execution_type.replace(' ', '_')}.csv")
+    
+    with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
+        writer = csv.writer(csvfile)
+        
+        # Helper function to format values
+        def format_median_iqr(stat):
+            return f"{stat['median']:.5f} ({stat['iqr']:.5f})"
+        
+        def format_mean_std(stat):
+            return f"{stat['mean']:.5f} ({stat['std']:.5f})"
+        
+        # === TRAINING TABLE ===
+        writer.writerow(['TRAINING RESULTS'])
+        writer.writerow(['Smallest Model', '', 'Optimal Compromise', '', 'Best Fitness', ''])
+        writer.writerow(['Median (IQR)', 'Mean (STD)', 'Median (IQR)', 'Mean (STD)', 'Median (IQR)', 'Mean (STD)'])
+        writer.writerow([format_median_iqr(stats['sm_train_rmse']),
+                        format_mean_std(stats['sm_train_rmse']),
+                        format_median_iqr(stats['bn_train_rmse']),
+                        format_mean_std(stats['bn_train_rmse']),
+                        format_median_iqr(stats['bf_train_rmse']),
+                        format_mean_std(stats['bf_train_rmse'])])
+        writer.writerow([])
+        
+        # === TEST TABLE ===
+        writer.writerow(['TEST RESULTS'])
+        writer.writerow(['Smallest Model', '', 'Optimal Compromise', '', 'Best Fitness', ''])
+        writer.writerow(['Median (IQR)', 'Mean (STD)', 'Median (IQR)', 'Mean (STD)', 'Median (IQR)', 'Mean (STD)'])
+        writer.writerow([format_median_iqr(stats['sm_test_rmse']),
+                        format_mean_std(stats['sm_test_rmse']),
+                        format_median_iqr(stats['bn_test_rmse']),
+                        format_mean_std(stats['bn_test_rmse']),
+                        format_median_iqr(stats['bf_test_rmse']),
+                        format_mean_std(stats['bf_test_rmse'])])
+        writer.writerow([])
+        
+        # === SIZE TABLE ===
+        writer.writerow(['SIZE (Number of Nodes)'])
+        writer.writerow(['Smallest Model', '', 'Optimal Compromise', '', 'Best Fitness', ''])
+        writer.writerow(['Median (IQR)', 'Mean (STD)', 'Median (IQR)', 'Mean (STD)', 'Median (IQR)', 'Mean (STD)'])
+        writer.writerow([format_median_iqr(stats['sm_nodes']),
+                        format_mean_std(stats['sm_nodes']),
+                        format_median_iqr(stats['bn_nodes']),
+                        format_mean_std(stats['bn_nodes']),
+                        format_median_iqr(stats['bf_nodes']),
+                        format_mean_std(stats['bf_nodes'])])
+    
+    print(f"   Formatted summary table saved to: {filename}")
+
 def run_single_dataset_multiple_times(dataset_name, num_runs=30, slim_version='SLIM+ABS', 
                                      use_oms=False, use_linear_scaling=False, 
                                      use_pareto_tournament=False, base_seed=None):
@@ -386,6 +446,7 @@ def run_single_dataset_multiple_times(dataset_name, num_runs=30, slim_version='S
     # Save results
     save_individual_runs(runs_data, dataset_name, execution_type)
     save_statistics_summary(stats, dataset_name, execution_type)
+    save_formatted_table(stats, dataset_name, execution_type)
     
     # Print summary table
     print("\n" + "=" * 80)
@@ -397,9 +458,9 @@ def run_single_dataset_multiple_times(dataset_name, num_runs=30, slim_version='S
         std = stats_dict['std']
         median = stats_dict['median']
         iqr = stats_dict['iqr']
-        print(f"{label:<25} {mean:>10.5f} ({std:<10.5f}) {median:>10.5f} ({iqr:<10.5f})")
+        print(f"{label:<25} {median:>10.5f} ({iqr:<10.5f}) {mean:>10.5f} ({std:<10.5f})")
     
-    print(f"\n{'Metric':<25} {'Mean (STD)':<25} {'Median (IQR)':<25}")
+    print(f"\n{'Metric':<25} {'Median (IQR)':<25} {'Mean (STD)':<25}")
     print("-" * 80)
     
     print("\n--- BEST FITNESS INDIVIDUAL ---")
