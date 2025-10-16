@@ -100,8 +100,8 @@ results = slim(X_train=X_train, y_train=y_train,
                X_test=X_val, y_test=y_val,
                dataset_name='airfoil', slim_version='SLIM+ABS', pop_size=100, n_iter=100,
                ms_lower=0, ms_upper=1, p_inflate=0.5, reconstruct=True, 
-               tournament_type="pareto", tournament_size=5, multi_obj_attrs=["fitness", "size"], 
-               oms=True, linear_scaling=True, enable_plotting=False, seed=42)
+               #tournament_type="pareto", tournament_size=5, multi_obj_attrs=["fitness", "size"], 
+               oms=True, linear_scaling=False, use_simplification=True, enable_plotting=False, seed=42)
 
 # Extract all three individuals
 best_fitness_individual = results.best_fitness

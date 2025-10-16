@@ -137,14 +137,24 @@ def simplify_constant_operations(tree_structure, constants_dict):
     1. Identity simplifications:
        - x - x → 0
        - x / x → 1
+       - x + 0 → x
+       - x - 0 → x
+       - x * 0 → 0
+       - x * 1 → x
+       - x / 1 → x
+       - 0 + x → x
+       - 0 * x → 0
+       - 1 * x → x
     2. Constant folding (all operations):
        - 5.0 + 3.0 → 8.0
        - 10.0 - 4.0 → 6.0
        - 2.0 * 3.0 → 6.0
        - 4.0 / 2.0 → 2.0
-    3. Nested simplifications:
-       - ('add', x, ('add', 5, 3)) → ('add', x, 8)
-       - ('multiply', 2, ('add', 3, 2)) → ('multiply', 2, 5)
+    3. Nested constant operations:
+       - c1 * x * c2 → (c1*c2) * x
+       - x * c1 * c2 → (c1*c2) * x
+       - x / c1 / c2 → x / (c1*c2)
+       - x / c1 * c2 → x * (c2/c1)
     
     Parameters
     ----------
@@ -217,46 +227,155 @@ def simplify_constant_operations(tree_structure, constants_dict):
         left_simplified = simplify_recursive(left)
         right_simplified = simplify_recursive(right)
         
-        # Simplification 1: x - x → 0
+        # === IDENTITY SIMPLIFICATIONS ===
+        
+        # x - x → 0
         if operator == 'subtract' and left_simplified == right_simplified:
-            nodes_removed += 2  # Removed operator node and one operand
+            nodes_removed += 2
             return '0.0'
         
-        # Simplification 2: x / x → 1
+        # x / x → 1
         if operator == 'divide' and left_simplified == right_simplified:
-            nodes_removed += 2  # Removed operator node and one operand
+            nodes_removed += 2
             return '1.0'
         
-        # Constant folding for all operations with two constants
+        # Get constant values if they exist
+        left_val = get_constant_value(left_simplified) if is_constant(left_simplified) else None
+        right_val = get_constant_value(right_simplified) if is_constant(right_simplified) else None
+        
+        # === ZERO IDENTITIES ===
+        
+        # x + 0 → x  or  0 + x → x
+        if operator == 'add':
+            if left_val is not None and left_val == 0:
+                nodes_removed += 1
+                return right_simplified
+            if right_val is not None and right_val == 0:
+                nodes_removed += 1
+                return left_simplified
+        
+        # x - 0 → x
+        if operator == 'subtract' and right_val is not None and right_val == 0:
+            nodes_removed += 1
+            return left_simplified
+        
+        # x * 0 → 0  or  0 * x → 0
+        if operator == 'multiply':
+            if (left_val is not None and left_val == 0) or (right_val is not None and right_val == 0):
+                nodes_removed += 2
+                return '0.0'
+        
+        # 0 / x → 0 (but not x / 0)
+        if operator == 'divide' and left_val is not None and left_val == 0:
+            nodes_removed += 1
+            return '0.0'
+        
+        # === ONE IDENTITIES ===
+        
+        # x * 1 → x  or  1 * x → x
+        if operator == 'multiply':
+            if left_val is not None and left_val == 1:
+                nodes_removed += 1
+                return right_simplified
+            if right_val is not None and right_val == 1:
+                nodes_removed += 1
+                return left_simplified
+        
+        # x / 1 → x
+        if operator == 'divide' and right_val is not None and right_val == 1:
+            nodes_removed += 1
+            return left_simplified
+        
+        # === CONSTANT FOLDING ===
+        
         if operator in ['add', 'subtract', 'multiply', 'divide']:
-            if is_constant(left_simplified) and is_constant(right_simplified):
-                left_val = get_constant_value(left_simplified)
-                right_val = get_constant_value(right_simplified)
+            if left_val is not None and right_val is not None:
+                if operator == 'add':
+                    result = left_val + right_val
+                elif operator == 'subtract':
+                    result = left_val - right_val
+                elif operator == 'multiply':
+                    result = left_val * right_val
+                elif operator == 'divide':
+                    if right_val != 0:
+                        result = left_val / right_val
+                    else:
+                        return (operator, left_simplified, right_simplified)
                 
-                if left_val is not None and right_val is not None:
-                    if operator == 'add':
-                        result = left_val + right_val
-                    elif operator == 'subtract':
-                        result = left_val - right_val
-                    elif operator == 'multiply':
-                        result = left_val * right_val
-                    elif operator == 'divide':
-                        # Avoid division by zero
-                        if right_val != 0:
-                            result = left_val / right_val
-                        else:
-                            # Cannot simplify division by zero, return as is
-                            return (operator, left_simplified, right_simplified)
+                nodes_removed += 2
+                return str(result)
+        
+        # === NESTED CONSTANT OPERATIONS ===
+        
+        # c1 * (c2 * x) → (c1*c2) * x
+        if operator == 'multiply' and left_val is not None:
+            if isinstance(right_simplified, tuple) and len(right_simplified) == 3:
+                if right_simplified[0] == 'multiply':
+                    right_left = right_simplified[1]
+                    right_right = right_simplified[2]
+                    right_left_val = get_constant_value(right_left) if is_constant(right_left) else None
                     
-                    # Convert result to string for consistency
-                    nodes_removed += 2  # Removed operator node and one constant
-                    return str(result)
+                    if right_left_val is not None:
+                        # c1 * (c2 * x) → (c1*c2) * x
+                        new_const = left_val * right_left_val
+                        nodes_removed += 1
+                        return ('multiply', str(new_const), right_right)
+        
+        # (x * c1) * c2 → x * (c1*c2)
+        if operator == 'multiply' and right_val is not None:
+            if isinstance(left_simplified, tuple) and len(left_simplified) == 3:
+                if left_simplified[0] == 'multiply':
+                    left_left = left_simplified[1]
+                    left_right = left_simplified[2]
+                    left_right_val = get_constant_value(left_right) if is_constant(left_right) else None
+                    
+                    if left_right_val is not None:
+                        # (x * c1) * c2 → x * (c1*c2)
+                        new_const = left_right_val * right_val
+                        nodes_removed += 1
+                        return ('multiply', left_left, str(new_const))
+                    
+                    # (c1 * x) * c2 → (c1*c2) * x
+                    left_left_val = get_constant_value(left_left) if is_constant(left_left) else None
+                    if left_left_val is not None:
+                        new_const = left_left_val * right_val
+                        nodes_removed += 1
+                        return ('multiply', str(new_const), left_right)
+        
+        # x / c1 / c2 → x / (c1*c2)
+        if operator == 'divide' and right_val is not None and right_val != 0:
+            if isinstance(left_simplified, tuple) and len(left_simplified) == 3:
+                if left_simplified[0] == 'divide':
+                    left_left = left_simplified[1]
+                    left_right = left_simplified[2]
+                    left_right_val = get_constant_value(left_right) if is_constant(left_right) else None
+                    
+                    if left_right_val is not None and left_right_val != 0:
+                        # x / c1 / c2 → x / (c1*c2)
+                        new_const = left_right_val * right_val
+                        nodes_removed += 1
+                        return ('divide', left_left, str(new_const))
+        
+        # x / c1 * c2 → x * (c2/c1)  or  x * (c1/c2)
+        if operator == 'multiply' and right_val is not None:
+            if isinstance(left_simplified, tuple) and len(left_simplified) == 3:
+                if left_simplified[0] == 'divide':
+                    left_left = left_simplified[1]
+                    left_right = left_simplified[2]
+                    left_right_val = get_constant_value(left_right) if is_constant(left_right) else None
+                    
+                    if left_right_val is not None and left_right_val != 0:
+                        # x / c1 * c2 → x * (c2/c1)
+                        new_const = right_val / left_right_val
+                        nodes_removed += 1
+                        return ('multiply', left_left, str(new_const))
         
         # If no simplification occurred, return the structure with simplified children
         return (operator, left_simplified, right_simplified)
     
     simplified_tree = simplify_recursive(tree_structure)
     return simplified_tree, nodes_removed
+
 
 
 def simplify_population(population, debug=False):

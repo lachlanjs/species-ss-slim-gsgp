@@ -72,6 +72,7 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
          test_elite: bool = slim_gsgp_solve_parameters["test_elite"],
          oms: bool = False,
          linear_scaling: bool = False,
+         use_simplification: bool = True,
          enable_plotting: bool = False,
          **kwargs):
 
@@ -335,11 +336,33 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
     optimizer.elite.version = slim_version
     
     # Select best individual based on normalized fitness and size using Pareto dominance
-    from slim_gsgp.utils.simplification import simplify_population
+    from slim_gsgp.utils.simplification import simplify_population, convert_slim_individual_to_normal_tree
     from slim_gsgp.selection.selection_algorithms import calculate_non_dominated
     from slim_gsgp.utils.utils import select_best_normalized_individual
     
-    # Step 1: Calculate non-dominated individuals (Pareto frontier) WITHOUT simplification first
+    # Helper function to count nodes in a tree structure
+    def count_tree_nodes(tree_structure):
+        """Count actual nodes in converted tree structure."""
+        if not isinstance(tree_structure, tuple):
+            return 1
+        if len(tree_structure) == 2:  # Unary operator
+            return 1 + count_tree_nodes(tree_structure[1])
+        elif len(tree_structure) == 3:  # Binary operator
+            return 1 + count_tree_nodes(tree_structure[1]) + count_tree_nodes(tree_structure[2])
+        return 1
+    
+    # Update nodes_count for all individuals to reflect actual tree size
+    print("\nUpdating node counts to reflect actual tree sizes...")
+    for individual in optimizer.population.population:
+        try:
+            tree_structure, _ = convert_slim_individual_to_normal_tree(individual)
+            if tree_structure:
+                actual_count = count_tree_nodes(tree_structure)
+                individual.nodes_count = actual_count
+        except:
+            pass  # Keep original count if conversion fails
+    
+    # Step 1: Calculate non-dominated individuals (Pareto frontier) with updated node counts
     non_dominated_idxs, _ = calculate_non_dominated(
         optimizer.population.population, 
         attrs=["fitness", "nodes_count"], 
@@ -349,14 +372,15 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
     # Create list of non-dominated individuals
     non_dominated_population = [optimizer.population.population[idx] for idx in non_dominated_idxs]
     
-    # Step 2: Apply simplification ONLY to Pareto frontier for normalization
-    simplif_stats_pareto = simplify_population(non_dominated_population, debug=False)
+    # Step 2: Apply simplification ONLY to Pareto frontier for normalization (if enabled)
+    if use_simplification:
+        simplif_stats_pareto = simplify_population(non_dominated_population, debug=False)
     
-    # Step 3: Apply normalization to simplified Pareto frontier
+    # Step 3: Apply normalization to Pareto frontier (simplified or not, depending on flag)
     best_normalized_individual = select_best_normalized_individual(non_dominated_population)
     best_normalized_individual.version = slim_version
     
-    # Step 4: Find the smallest individual from the entire population (without simplification)
+    # Step 4: Find the smallest individual from the entire population (with updated node counts)
     smallest_individual = min(optimizer.population.population, key=lambda ind: ind.nodes_count)
     smallest_individual.version = slim_version
 

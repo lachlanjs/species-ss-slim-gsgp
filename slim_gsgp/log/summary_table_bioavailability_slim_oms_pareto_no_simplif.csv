@@ -1,0 +1,14 @@
+TRAINING RESULTS
+Smallest Model,,Optimal Compromise,,Best Fitness,
+Median (IQR),Mean (STD),Median (IQR),Mean (STD),Median (IQR),Mean (STD)
+53.74363 (12.15895),53.56065 (10.28995),30.41609 (1.58025),30.41357 (1.46811),27.32072 (1.37235),27.28930 (0.87455)
+
+TEST RESULTS
+Smallest Model,,Optimal Compromise,,Best Fitness,
+Median (IQR),Mean (STD),Median (IQR),Mean (STD),Median (IQR),Mean (STD)
+52.70855 (12.12593),53.11999 (10.36298),30.12928 (2.85185),30.63411 (2.17454),29.38319 (2.59558),29.28927 (1.96953)
+
+SIZE (Number of Nodes)
+Smallest Model,,Optimal Compromise,,Best Fitness,
+Median (IQR),Mean (STD),Median (IQR),Mean (STD),Median (IQR),Mean (STD)
+3.00000 (1.50000),7.50000 (10.98824),28.50000 (26.00000),30.66667 (16.45754),120.00000 (1.50000),122.10000 (6.29367)
