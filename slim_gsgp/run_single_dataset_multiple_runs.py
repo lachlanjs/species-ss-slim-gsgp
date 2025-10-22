@@ -510,9 +510,9 @@ if __name__ == "__main__":
     dataset_name = 'airfoil'           # Dataset to run
     num_runs = 30                      # Number of runs (default: 30)
     slim_version = 'SLIM+ABS'          # SLIM version
-    use_oms = True                     # Enable OMS
-    use_linear_scaling = False         # Enable Linear Scaling
-    use_pareto_tournament = False      # Enable Pareto Tournament
+    use_oms = False                     # Enable OMS
+    use_linear_scaling = True         # Enable Linear Scaling
+    use_pareto_tournament = True      # Enable Pareto Tournament
     base_seed = 42                     # Base seed for reproducibility (None = random)
     # ============================================================================
     

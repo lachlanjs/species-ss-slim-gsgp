@@ -16,10 +16,10 @@ SLIM_VERSION = "SLIM+ABS"          # Options: SLIM+ABS, SLIM+SIG2, SLIM*ABS, SLI
 BASE_SEED = 42                     # Base seed (not used anymore, each run is random)
 
 # Feature flags - Set to True to enable
-USE_OMS = True                     # Enable OMS (only works with SLIM+ABS or SLIM+SIG2)
-USE_LINEAR_SCALING = False         # Enable Linear Scaling
-USE_PARETO_TOURNAMENT = False       # Enable Pareto Tournament
-USE_SIMPLIFICATION = False         # Enable simplification when selecting best_normalized
+USE_OMS = False                     # Enable OMS (only works with SLIM+ABS or SLIM+SIG2)
+USE_LINEAR_SCALING = True         # Enable Linear Scaling
+USE_PARETO_TOURNAMENT = True       # Enable Pareto Tournament
+USE_SIMPLIFICATION = True         # Enable simplification when selecting best_normalized
 # ============================================================================
 
 # List of all datasets

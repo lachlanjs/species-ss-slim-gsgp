@@ -1,10 +1,25 @@
 
-slim_gsgp/log/TESTING_GSGP.csv
-slim_gsgp/log/TEST_slim_postgrid_resid_build_sale_price-size.csv
-slim_gsgp/log/TESTING_GSGP_settings.csv
-slim_gsgp/log/slim_postgrid_resid_build_sale_price-size.csv_test_ignore
-slim_gsgp/log/slim_postgrid_resid_build_sale_price-size.csv_test_ignore
-.DS_Store
-.idea/.name
-*.pyc
+# CSV files
+*.csv
+
+# Logs
 /log
+slim_gsgp/log/
+
+# Python cache
+*.pyc
+__pycache__/
+
+# IDE
+.DS_Store
+.idea/
+.vscode/
+
+# Virtual environment
+.venv/
+venv/
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
