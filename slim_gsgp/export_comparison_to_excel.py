@@ -25,9 +25,10 @@ import numpy as np
 import os
 import re
 from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, PatternFill, Border, Side, numbers
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side, numbers, Color
 from openpyxl.utils import get_column_letter
 import locale
+import colorsys
 
 def extract_mean_value(mean_str):
     """
@@ -238,6 +239,52 @@ def get_all_variants(df):
     sorted_variants = sorted(variants, key=variant_sort_key)
     return sorted_variants
 
+def get_color_for_comparison(value, baseline_value, max_improvement_pct=50):
+    """
+    Get color fill based on comparison with baseline (VARIANT 20).
+    
+    Args:
+        value: Current variant value
+        baseline_value: VARIANT 20 baseline value
+        max_improvement_pct: Maximum improvement percentage for full color intensity
+        
+    Returns:
+        PatternFill: Color fill object (green if better, red if worse)
+    """
+    if value is None or baseline_value is None or baseline_value == 0:
+        return None
+    
+    # Calculate percentage difference: negative = improvement (lower error), positive = worse
+    diff_pct = ((value - baseline_value) / abs(baseline_value)) * 100
+    
+    # Normalize to 0-1 scale
+    # Cap the intensity at max_improvement_pct in either direction
+    intensity = min(abs(diff_pct) / max_improvement_pct, 1.0)
+    
+    if diff_pct < 0:  # Improvement (lower error) - GREEN
+        # Green scale: from white (no improvement) to dark green (max improvement)
+        # RGB for green: (0, 255, 0) in full intensity
+        # We'll use a lighter green for better visibility
+        r = int(144 + (255 - 144) * (1 - intensity))  # 144 to 255
+        g = int(238 + (255 - 238) * (1 - intensity))  # 238 to 255
+        b = int(144 + (255 - 144) * (1 - intensity))  # 144 to 255
+        
+        # Convert to hex
+        color_hex = f"{r:02X}{g:02X}{b:02X}"
+        return PatternFill(start_color=color_hex, end_color=color_hex, fill_type="solid")
+        
+    elif diff_pct > 0:  # Worse (higher error) - RED
+        # Red scale: from white (no change) to dark red (max worse)
+        r = int(255)
+        g = int(255 - int(255 * intensity * 0.7))  # Keep some lightness
+        b = int(255 - int(255 * intensity * 0.7))
+        
+        # Convert to hex
+        color_hex = f"{r:02X}{g:02X}{b:02X}"
+        return PatternFill(start_color=color_hex, end_color=color_hex, fill_type="solid")
+    
+    return None  # No difference
+
 def create_comparison_excel(df, output_file='comparison_results.xlsx'):
     """
     Create an Excel file with all variants.
@@ -347,6 +394,10 @@ def create_comparison_excel(df, output_file='comparison_results.xlsx'):
             ws[f'A{current_row}'].alignment = left_alignment
             ws[f'A{current_row}'].border = thin_border
             
+            # Get baseline value (VARIANT 20, which is the first in all_variants)
+            baseline_variant = all_variants[0]  # VARIANT 20 is first
+            baseline_val = variants_data[baseline_variant].get(model_type_key, {}).get(dataset_num)
+            
             # Write values for each variant
             for idx, variant in enumerate(all_variants):
                 col_letter = get_column_letter(idx + 2)  # Start from column B
@@ -356,6 +407,12 @@ def create_comparison_excel(df, output_file='comparison_results.xlsx'):
                     ws[f'{col_letter}{current_row}'] = round(variant_val, 6)
                     # Force number format with dot as decimal separator
                     ws[f'{col_letter}{current_row}'].number_format = '0.000000'
+                    
+                    # Apply color only if not the baseline variant (VARIANT 20)
+                    if idx > 0 and baseline_val is not None:
+                        color_fill = get_color_for_comparison(variant_val, baseline_val)
+                        if color_fill:
+                            ws[f'{col_letter}{current_row}'].fill = color_fill
                 else:
                     ws[f'{col_letter}{current_row}'] = "N/A"
                 
