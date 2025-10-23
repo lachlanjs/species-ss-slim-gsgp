@@ -57,28 +57,28 @@ def extract_mean_value(mean_str):
 
 def load_excel_data(excel_file="results_test_fitness_size.xlsx", sheet_name=0):
     """
-    Load the results from Excel file.
+    Load the results from Excel file - both TEST FITNESS and MODEL SIZE tables.
     
     Args:
         excel_file: Path to the Excel file with results
         sheet_name: Sheet name or index to read (0 for first sheet)
         
     Returns:
-        pandas.DataFrame: DataFrame with the results
+        tuple: (df_fitness, df_size) - DataFrames for fitness and size tables
     """
     if not os.path.exists(excel_file):
         raise FileNotFoundError(f"Results file '{excel_file}' not found.")
     
     try:
         # Read the first sheet with multi-level headers
-        df = pd.read_excel(excel_file, sheet_name=sheet_name, header=[0, 1])
+        df_full = pd.read_excel(excel_file, sheet_name=sheet_name, header=[0, 1])
         print(f"Loaded Excel file: {excel_file}")
         print(f"Sheet: {sheet_name if isinstance(sheet_name, str) else 'First sheet'}")
-        print(f"Shape: {df.shape}")
+        print(f"Shape: {df_full.shape}")
         
         # The Excel has multiple tables. We need to find where the first table ends
         # Look for rows where the first column contains "PERFORMANCE - MODEL SIZE"
-        first_col = df.iloc[:, 0]
+        first_col = df_full.iloc[:, 0]
         
         # Find the row index where the second table starts
         model_size_idx = None
@@ -88,24 +88,28 @@ def load_excel_data(excel_file="results_test_fitness_size.xlsx", sheet_name=0):
                 print(f"Found 'PERFORMANCE - MODEL SIZE' table starting at row {idx}")
                 break
         
-        # Keep only rows before the second table (TEST FITNESS table)
+        # Split into two tables
         if model_size_idx is not None:
-            df = df.iloc[:model_size_idx].copy()
-            print(f"Filtered to TEST FITNESS table only, new shape: {df.shape}")
+            df_fitness = df_full.iloc[:model_size_idx].copy()
+            df_size = df_full.iloc[model_size_idx:].copy()
+            print(f"TEST FITNESS table shape: {df_fitness.shape}")
+            print(f"MODEL SIZE table shape: {df_size.shape}")
+        else:
+            df_fitness = df_full.copy()
+            df_size = None
+            print("Warning: MODEL SIZE table not found")
         
-        # The first row contains the actual statistic names (Median (IQR), Mean (STD))
-        # We need to skip this row and use it to rename columns
-        if len(df) > 0:
-            first_row = df.iloc[0]
-            
-            # Drop the first row (which was the statistic names)
-            df = df.iloc[1:].reset_index(drop=True)
-            
-            print(f"Updated shape after removing header row: {df.shape}")
+        # Process FITNESS table - drop header row
+        if len(df_fitness) > 0:
+            df_fitness = df_fitness.iloc[1:].reset_index(drop=True)
+            print(f"Fitness table after removing header row: {df_fitness.shape}")
         
-        print(f"Sample columns: {df.columns[:10].tolist()}")
+        # Process SIZE table - drop first 3 rows (separator + header rows)
+        if df_size is not None and len(df_size) > 3:
+            df_size = df_size.iloc[3:].reset_index(drop=True)
+            print(f"Size table after removing header rows: {df_size.shape}")
         
-        return df
+        return df_fitness, df_size
     except Exception as e:
         print(f"Error loading Excel file: {e}")
         raise
@@ -285,24 +289,34 @@ def get_color_for_comparison(value, baseline_value, max_improvement_pct=50):
     
     return None  # No difference
 
-def create_comparison_excel(df, output_file='comparison_results.xlsx'):
+def create_comparison_excel(df_fitness, df_size, output_file='comparison_results.xlsx'):
     """
-    Create an Excel file with all variants.
+    Create an Excel file with all variants - both FITNESS and SIZE tables.
     
     Args:
-        df: DataFrame with the data
+        df_fitness: DataFrame with the TEST FITNESS data
+        df_size: DataFrame with the MODEL SIZE data
         output_file: Output Excel filename
     """
     # Get all variants
-    print("\nDetecting all variants in the data...")
-    all_variants = get_all_variants(df)
+    print("\nDetecting all variants in the FITNESS data...")
+    all_variants = get_all_variants(df_fitness)
     print(f"Found {len(all_variants)} variants: {', '.join(all_variants)}")
     
-    # Extract data for all variants
-    variants_data = {}
+    # Extract data for all variants - FITNESS
+    print("\n--- Extracting FITNESS data ---")
+    variants_fitness_data = {}
     for variant in all_variants:
-        print(f"Extracting data for {variant}...")
-        variants_data[variant] = extract_variant_means(df, variant)
+        print(f"Extracting FITNESS data for {variant}...")
+        variants_fitness_data[variant] = extract_variant_means(df_fitness, variant)
+    
+    # Extract data for all variants - SIZE
+    print("\n--- Extracting SIZE data ---")
+    variants_size_data = {}
+    if df_size is not None:
+        for variant in all_variants:
+            print(f"Extracting SIZE data for {variant}...")
+            variants_size_data[variant] = extract_variant_means(df_size, variant)
     
     # Create a new workbook
     wb = Workbook()
@@ -312,6 +326,8 @@ def create_comparison_excel(df, output_file='comparison_results.xlsx'):
     # Define styles
     header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
     header_font = Font(bold=True, color="FFFFFF", size=12)
+    section_fill = PatternFill(start_color="FFC000", end_color="FFC000", fill_type="solid")
+    section_font = Font(bold=True, size=13)
     dataset_fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
     dataset_font = Font(bold=True, size=11)
     model_font = Font(size=10)
@@ -365,10 +381,22 @@ def create_comparison_excel(df, output_file='comparison_results.xlsx'):
     
     current_row = 2
     
-    # Iterate through datasets
+    # ========== TABLE 1: TEST FITNESS ==========
+    # Write section header
+    ws[f'A{current_row}'] = "PERFORMANCE - TEST FITNESS"
+    ws[f'A{current_row}'].fill = section_fill
+    ws[f'A{current_row}'].font = section_font
+    ws[f'A{current_row}'].alignment = left_alignment
+    ws[f'A{current_row}'].border = thin_border
+    for idx in range(len(all_variants)):
+        col_letter = get_column_letter(idx + 2)
+        ws[f'{col_letter}{current_row}'].border = thin_border
+    current_row += 1
+    
+    # Iterate through datasets for FITNESS
     for dataset_num, dataset_name in dataset_configs:
         # Get actual dataset name from dataframe if available
-        actual_name = get_dataset_name(df, dataset_num)
+        actual_name = get_dataset_name(df_fitness, dataset_num)
         if not actual_name:
             actual_name = dataset_name
         
@@ -387,7 +415,7 @@ def create_comparison_excel(df, output_file='comparison_results.xlsx'):
         
         current_row += 1
         
-        # Write model types and their values
+        # Write model types and their values (FITNESS)
         for model_type_key, model_type_display in model_types_display.items():
             ws[f'A{current_row}'] = model_type_display
             ws[f'A{current_row}'].font = model_font
@@ -396,12 +424,12 @@ def create_comparison_excel(df, output_file='comparison_results.xlsx'):
             
             # Get baseline value (VARIANT 20, which is the first in all_variants)
             baseline_variant = all_variants[0]  # VARIANT 20 is first
-            baseline_val = variants_data[baseline_variant].get(model_type_key, {}).get(dataset_num)
+            baseline_val = variants_fitness_data[baseline_variant].get(model_type_key, {}).get(dataset_num)
             
             # Write values for each variant
             for idx, variant in enumerate(all_variants):
                 col_letter = get_column_letter(idx + 2)  # Start from column B
-                variant_val = variants_data[variant].get(model_type_key, {}).get(dataset_num)
+                variant_val = variants_fitness_data[variant].get(model_type_key, {}).get(dataset_num)
                 
                 if variant_val is not None:
                     ws[f'{col_letter}{current_row}'] = round(variant_val, 6)
@@ -420,6 +448,91 @@ def create_comparison_excel(df, output_file='comparison_results.xlsx'):
                 ws[f'{col_letter}{current_row}'].border = thin_border
             
             current_row += 1
+    
+    # Add spacing between tables
+    current_row += 2
+    
+    # ========== TABLE 2: MODEL SIZE ==========
+    if df_size is not None and variants_size_data:
+        # Write section header
+        ws[f'A{current_row}'] = "PERFORMANCE - MODEL SIZE"
+        ws[f'A{current_row}'].fill = section_fill
+        ws[f'A{current_row}'].font = section_font
+        ws[f'A{current_row}'].alignment = left_alignment
+        ws[f'A{current_row}'].border = thin_border
+        for idx in range(len(all_variants)):
+            col_letter = get_column_letter(idx + 2)
+            ws[f'{col_letter}{current_row}'].border = thin_border
+        current_row += 1
+        
+        # Write variant names header row for SIZE table
+        ws[f'A{current_row}'] = ""
+        for idx, variant in enumerate(all_variants):
+            col_letter = get_column_letter(idx + 2)
+            ws[f'{col_letter}{current_row}'] = variant
+            ws[f'{col_letter}{current_row}'].fill = header_fill
+            ws[f'{col_letter}{current_row}'].font = header_font
+            ws[f'{col_letter}{current_row}'].alignment = center_alignment
+            ws[f'{col_letter}{current_row}'].border = thin_border
+        ws[f'A{current_row}'].border = thin_border
+        current_row += 1
+        
+        # Iterate through datasets for SIZE
+        for dataset_num, dataset_name in dataset_configs:
+            # Get actual dataset name from dataframe if available
+            actual_name = get_dataset_name(df_size, dataset_num)
+            if not actual_name:
+                actual_name = dataset_name
+            
+            # Write dataset header
+            dataset_label = f"Dataset {dataset_num} {actual_name}"
+            ws[f'A{current_row}'] = dataset_label
+            ws[f'A{current_row}'].fill = dataset_fill
+            ws[f'A{current_row}'].font = dataset_font
+            ws[f'A{current_row}'].alignment = left_alignment
+            ws[f'A{current_row}'].border = thin_border
+            
+            # Apply border to all variant columns for this row
+            for idx in range(len(all_variants)):
+                col_letter = get_column_letter(idx + 2)
+                ws[f'{col_letter}{current_row}'].border = thin_border
+            
+            current_row += 1
+            
+            # Write model types and their values (SIZE) - WITH COLOR (smaller is better)
+            for model_type_key, model_type_display in model_types_display.items():
+                ws[f'A{current_row}'] = model_type_display
+                ws[f'A{current_row}'].font = model_font
+                ws[f'A{current_row}'].alignment = left_alignment
+                ws[f'A{current_row}'].border = thin_border
+                
+                # Get baseline value (VARIANT 20, which is the first in all_variants)
+                baseline_variant = all_variants[0]  # VARIANT 20 is first
+                baseline_val = variants_size_data[baseline_variant].get(model_type_key, {}).get(dataset_num)
+                
+                # Write values for each variant (SIZE - with color, 1 decimal)
+                for idx, variant in enumerate(all_variants):
+                    col_letter = get_column_letter(idx + 2)  # Start from column B
+                    variant_val = variants_size_data[variant].get(model_type_key, {}).get(dataset_num)
+                    
+                    if variant_val is not None:
+                        ws[f'{col_letter}{current_row}'] = round(variant_val, 1)
+                        # Force number format with 1 decimal place
+                        ws[f'{col_letter}{current_row}'].number_format = '0.0'
+                        
+                        # Apply color only if not the baseline variant (VARIANT 20)
+                        # Smaller size is better (like fitness)
+                        if idx > 0 and baseline_val is not None:
+                            color_fill = get_color_for_comparison(variant_val, baseline_val)
+                            if color_fill:
+                                ws[f'{col_letter}{current_row}'].fill = color_fill
+                    else:
+                        ws[f'{col_letter}{current_row}'] = "N/A"
+                    
+                    ws[f'{col_letter}{current_row}'].alignment = center_alignment
+                    ws[f'{col_letter}{current_row}'].border = thin_border
+                
+                current_row += 1
     
     # Adjust column widths
     ws.column_dimensions['A'].width = 35
@@ -450,11 +563,11 @@ def main(input_excel="results_test_fitness_size.xlsx",
         print(f"  Input file: {input_excel}")
         print(f"  Output file: {output_excel}")
         
-        # Load data
-        df = load_excel_data(input_excel)
+        # Load data (both fitness and size tables)
+        df_fitness, df_size = load_excel_data(input_excel)
         
         # Create comparison Excel with all variants
-        create_comparison_excel(df, output_file=output_excel)
+        create_comparison_excel(df_fitness, df_size, output_file=output_excel)
         
         print("\n" + "="*80)
         print("PROCESS COMPLETED SUCCESSFULLY")
