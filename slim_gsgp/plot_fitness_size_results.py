@@ -51,13 +51,14 @@ def extract_mean_value(mean_str):
     
     return None
 
-def load_excel_data(excel_file="results_test_fitness_size.xlsx", sheet_name=0):
+def load_excel_data(excel_file="results_test_fitness_size.xlsx", sheet_name=0, table_type='fitness'):
     """
     Load the results from Excel file.
     
     Args:
         excel_file: Path to the Excel file with results
         sheet_name: Sheet name or index to read (0 for first sheet)
+        table_type: 'fitness' or 'size' - which table to load
         
     Returns:
         pandas.DataFrame: DataFrame with the results
@@ -71,6 +72,7 @@ def load_excel_data(excel_file="results_test_fitness_size.xlsx", sheet_name=0):
         print(f"Loaded Excel file: {excel_file}")
         print(f"Sheet: {sheet_name if isinstance(sheet_name, str) else 'First sheet'}")
         print(f"Shape: {df.shape}")
+        print(f"Table type: {table_type.upper()}")
         
         # The Excel has multiple tables. We need to find where the first table ends
         # Look for rows where the first column contains "PERFORMANCE - MODEL SIZE"
@@ -84,21 +86,27 @@ def load_excel_data(excel_file="results_test_fitness_size.xlsx", sheet_name=0):
                 print(f"Found 'PERFORMANCE - MODEL SIZE' table starting at row {idx}")
                 break
         
-        # Keep only rows before the second table (TEST FITNESS table)
-        if model_size_idx is not None:
-            df = df.iloc[:model_size_idx].copy()
-            print(f"Filtered to TEST FITNESS table only, new shape: {df.shape}")
+        # Select the appropriate table based on table_type
+        if table_type.lower() == 'size':
+            # Load SIZE table
+            if model_size_idx is not None:
+                df = df.iloc[model_size_idx:].copy()
+                print(f"Selected MODEL SIZE table, shape: {df.shape}")
+                # Skip first 3 rows (header rows)
+                if len(df) > 3:
+                    df = df.iloc[3:].reset_index(drop=True)
+            else:
+                raise ValueError("MODEL SIZE table not found in the Excel file")
+        else:
+            # Load FITNESS table (default)
+            if model_size_idx is not None:
+                df = df.iloc[:model_size_idx].copy()
+                print(f"Selected TEST FITNESS table, shape: {df.shape}")
+            # Skip first row (statistic names row)
+            if len(df) > 0:
+                df = df.iloc[1:].reset_index(drop=True)
         
-        # The first row contains the actual statistic names (Median (IQR), Mean (STD))
-        # We need to skip this row and use it to rename columns
-        if len(df) > 0:
-            first_row = df.iloc[0]
-            
-            # Drop the first row (which was the statistic names)
-            df = df.iloc[1:].reset_index(drop=True)
-            
-            print(f"Updated shape after removing header row: {df.shape}")
-        
+        print(f"Final shape after processing: {df.shape}")
         print(f"Sample columns: {df.columns[:10].tolist()}")
         
         return df
@@ -226,8 +234,13 @@ def create_variant_20_plot(plot_data):
         'Best Fitness': 'D'
     }
 
-    # Dictionary to store means for each dataset across all models
-    dataset_means = {}
+    # Plot each model type and add individual annotations with different offsets
+    # to avoid overlapping when values are close
+    offsets = {
+        'Smallest Model': 25,      # Offset más alto
+        'Optimal Compromise': 5,   # Offset medio
+        'Best Fitness': -20        # Offset más bajo
+    }
     
     for model_type in ['Smallest Model', 'Optimal Compromise', 'Best Fitness']:
         if plot_data[model_type]['datasets']:
@@ -244,28 +257,23 @@ def create_variant_20_plot(plot_data):
                      label=model_type,
                      alpha=0.8)
             
-            # Store means for averaging
+            # Add individual value annotations for each point on this line
+            # Use different vertical offsets for each model type to avoid overlap
+            y_offset = offsets[model_type]
             for ds, mean in zip(datasets_sorted, means_sorted):
-                if ds not in dataset_means:
-                    dataset_means[ds] = []
-                dataset_means[ds].append(mean)
-    
-    # Add average value annotations for each dataset
-    for ds_num in sorted(dataset_means.keys()):
-        means_for_ds = dataset_means[ds_num]
-        if means_for_ds:
-            avg_mean = sum(means_for_ds) / len(means_for_ds)
-            # Position the annotation above the highest point
-            y_position = max(means_for_ds)
-            plt.annotate(f'{avg_mean:.2f}', 
-                       xy=(ds_num, y_position), 
-                       xytext=(0, 10),
-                       textcoords='offset points',
-                       ha='center',
-                       fontsize=9,
-                       fontweight='bold',
-                       color='black',
-                       bbox=dict(boxstyle='round,pad=0.3', facecolor='yellow', alpha=0.5))
+                plt.annotate(f'{mean:.2f}', 
+                           xy=(ds, mean), 
+                           xytext=(0, y_offset),
+                           textcoords='offset points',
+                           ha='center',
+                           fontsize=7,
+                           fontweight='bold',
+                           color=colors[model_type],
+                           bbox=dict(boxstyle='round,pad=0.2', 
+                                   facecolor='white', 
+                                   edgecolor=colors[model_type],
+                                   alpha=0.8,
+                                   linewidth=1.5))
 
     plt.xlabel('Dataset Number', fontsize=12, fontweight='bold')
     plt.ylabel('Mean Value', fontsize=12, fontweight='bold')
@@ -308,8 +316,12 @@ def create_compare_plot(df, compare_variant='VARIANT 1', baseline_variant='VARIA
 
     any_data = False
     
-    # Dictionary to store deltas for each dataset across all models
-    dataset_deltas = {}
+    # Different offsets for each model type to avoid overlapping annotations
+    offsets = {
+        'Smallest Model': 25,      # Offset más alto
+        'Optimal Compromise': 5,   # Offset medio
+        'Best Fitness': -20        # Offset más bajo (pero se ajusta según el signo)
+    }
     
     for model in model_types:
         ds = []
@@ -323,11 +335,6 @@ def create_compare_plot(df, compare_variant='VARIANT 1', baseline_variant='VARIA
             ds.append(i)
             delta = c - b
             deltas.append(delta)
-            
-            # Store delta for averaging
-            if i not in dataset_deltas:
-                dataset_deltas[i] = []
-            dataset_deltas[i].append(delta)
 
         if ds:
             any_data = True
@@ -338,23 +345,30 @@ def create_compare_plot(df, compare_variant='VARIANT 1', baseline_variant='VARIA
                      markersize=8,
                      label=f"{model} ({compare_variant} - {baseline_variant})",
                      alpha=0.85)
-    
-    # Add average value annotations for each dataset
-    for ds_num in sorted(dataset_deltas.keys()):
-        deltas_for_ds = dataset_deltas[ds_num]
-        if deltas_for_ds:
-            avg_delta = sum(deltas_for_ds) / len(deltas_for_ds)
-            # Position the annotation above the highest point or below the lowest
-            y_position = max(deltas_for_ds) if avg_delta >= 0 else min(deltas_for_ds)
-            plt.annotate(f'{avg_delta:.2f}', 
-                       xy=(ds_num, y_position), 
-                       xytext=(0, 10 if avg_delta >= 0 else -15),
-                       textcoords='offset points',
-                       ha='center',
-                       fontsize=9,
-                       fontweight='bold',
-                       color='black',
-                       bbox=dict(boxstyle='round,pad=0.3', facecolor='yellow', alpha=0.5))
+            
+            # Add individual value annotations for each point on this line
+            # Use different vertical offsets for each model type to avoid overlap
+            base_offset = offsets[model]
+            for ds_num, delta in zip(ds, deltas):
+                # Adjust offset based on sign of delta
+                if delta >= 0:
+                    y_offset = base_offset
+                else:
+                    y_offset = -base_offset
+                    
+                plt.annotate(f'{delta:.2f}', 
+                           xy=(ds_num, delta), 
+                           xytext=(0, y_offset),
+                           textcoords='offset points',
+                           ha='center',
+                           fontsize=7,
+                           fontweight='bold',
+                           color=colors[model],
+                           bbox=dict(boxstyle='round,pad=0.2', 
+                                   facecolor='white', 
+                                   edgecolor=colors[model],
+                                   alpha=0.8,
+                                   linewidth=1.5))
 
     if not any_data:
         print("Warning: No overlapping data found between variants for comparison.")
@@ -433,25 +447,26 @@ def print_summary_statistics(plot_data):
         else:
             print(f"\n{model_type}: No data found")
 
-def main(excel_file="results_test_fitness_size.xlsx", output_plot=None):
+def main(excel_file="results_test_fitness_size.xlsx", output_plot=None, table_type='fitness'):
     """
     Main function to generate the VARIANT 20 plot.
     
     Args:
         excel_file: Path to the Excel file with results
         output_plot: Custom output filename for the plot. If None, auto-generates
+        table_type: 'fitness' or 'size' - which table to plot
     """
     try:
         # Load data
         print(f"Loading results data from: {excel_file}")
-        df = load_excel_data(excel_file)
+        df = load_excel_data(excel_file, table_type=table_type)
 
         # Filter for VARIANT 20
         print("\nFiltering for VARIANT 20...")
         df_variant_20 = filter_variant_20(df)
 
         # Prepare plot data
-        print("\nPreparing plot data for VARIANT 20 (baseline)...")
+        print(f"\nPreparing plot data for VARIANT 20 (baseline) - {table_type.upper()}...")
         plot_data = prepare_plot_data(df_variant_20)
 
         # Print detailed values for verification
@@ -461,12 +476,12 @@ def main(excel_file="results_test_fitness_size.xlsx", output_plot=None):
         print_summary_statistics(plot_data)
 
         # By default create baseline plot
-        print("\nCreating VARIANT 20 plot...")
+        print(f"\nCreating VARIANT 20 {table_type.upper()} plot...")
         fig = create_variant_20_plot(plot_data)
 
         # Generate output filename if not provided
         if output_plot is None:
-            output_plot = "variant_20_plot.png"
+            output_plot = f"variant_20_{table_type}_plot.png"
 
         # Save the plot
         fig.savefig(output_plot, dpi=300, bbox_inches='tight')
@@ -492,26 +507,30 @@ if __name__ == "__main__":
     # Parse command line arguments
     excel_file = "results_test_fitness_size.xlsx"  # Default
     output_plot = None
-    
     compare_variant = None
+    table_type = 'fitness'  # Default: fitness
+    
     if len(sys.argv) > 1:
         excel_file = sys.argv[1]
     if len(sys.argv) > 2:
         output_plot = sys.argv[2]
     if len(sys.argv) > 3:
         compare_variant = sys.argv[3]  # e.g., 'VARIANT 1'
+    if len(sys.argv) > 4:
+        table_type = sys.argv[4]  # 'fitness' or 'size'
     
     print(f"Configuration:")
     print(f"  Excel file: {excel_file}")
-    print(f"  Output plot: {output_plot if output_plot else 'Auto-generated (variant_20_plot.png)'}")
+    print(f"  Output plot: {output_plot if output_plot else 'Auto-generated'}")
+    print(f"  Table type: {table_type.upper()}")
     print()
     
     if compare_variant:
-        print(f"Will compare {compare_variant} against baseline VARIANT 20")
+        print(f"Will compare {compare_variant} against baseline VARIANT 20 using {table_type.upper()} data")
         # Load df and call compare plot directly to avoid re-reading inside main
-        df = load_excel_data(excel_file)
+        df = load_excel_data(excel_file, table_type=table_type)
         plt_obj = create_compare_plot(df, compare_variant=compare_variant, baseline_variant='VARIANT 20')
-        out = output_plot if output_plot else f"compare_{compare_variant.replace(' ', '_')}_vs_VARIANT_20.png"
+        out = output_plot if output_plot else f"compare_{compare_variant.replace(' ', '_')}_vs_VARIANT_20_{table_type}.png"
         plt_obj.savefig(out, dpi=300, bbox_inches='tight')
         print(f"Comparison plot saved as: {out}")
         try:
@@ -519,4 +538,4 @@ if __name__ == "__main__":
         except Exception:
             pass
     else:
-        main(excel_file=excel_file, output_plot=output_plot)
+        main(excel_file=excel_file, output_plot=output_plot, table_type=table_type)
