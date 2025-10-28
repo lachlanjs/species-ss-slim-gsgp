@@ -29,6 +29,7 @@ from datasets.data_loader import (
 )
 from evaluators.fitness_functions import rmse
 from utils.utils import train_test_split
+from utils.naming_utils import build_execution_type
 import csv
 import os
 import numpy as np
@@ -234,16 +235,13 @@ def run_single_dataset_multiple_times(dataset_name, num_runs=30, slim_version='S
         print(f"   Current version: {slim_version}. OMS will be disabled.")
         use_oms = False
     
-    # Build execution type name
-    execution_type = "slim"
-    if use_linear_scaling:
-        execution_type += "_linear_scaling"
-    if use_oms:
-        execution_type += "_oms"
-    if use_pareto_tournament:
-        execution_type += "_pareto"
-    if not use_simplification:
-        execution_type += "_no_simplif"
+    # Build execution type name using utility function
+    execution_type = build_execution_type(
+        use_linear_scaling=use_linear_scaling,
+        use_oms=use_oms,
+        use_pareto_tournament=use_pareto_tournament,
+        use_simplification=use_simplification
+    )
     
     print("=" * 80)
     print(f"RUNNING DATASET '{dataset_name.upper()}' - {num_runs} RUNS")
@@ -504,40 +502,28 @@ def run_single_dataset_multiple_times(dataset_name, num_runs=30, slim_version='S
 if __name__ == "__main__":
     import sys
     
-    # ============================================================================
-    # CONFIGURATION - Modify these variables
-    # ============================================================================
-    dataset_name = 'airfoil'           # Dataset to run
-    num_runs = 30                      # Number of runs (default: 30)
-    slim_version = 'SLIM+ABS'          # SLIM version
-    use_oms = False                     # Enable OMS
-    use_linear_scaling = True         # Enable Linear Scaling
-    use_pareto_tournament = True      # Enable Pareto Tournament
-    base_seed = 42                     # Base seed for reproducibility (None = random)
-    # ============================================================================
-    
     # Parse command line arguments using argparse
     parser = argparse.ArgumentParser(description='Run SLIM-GSGP multiple times on a single dataset')
-    parser.add_argument('--dataset', type=str, default=dataset_name,
+    parser.add_argument('--dataset', type=str, default='airfoil',
                         help='Dataset name to run')
-    parser.add_argument('--num_runs', type=int, default=num_runs,
+    parser.add_argument('--num_runs', type=int, default=30,
                         help='Number of runs to execute')
-    parser.add_argument('--slim_version', type=str, default=slim_version,
+    parser.add_argument('--slim_version', type=str, default='SLIM+ABS',
                         help='SLIM version to use (e.g., SLIM+ABS, SLIM+SIG2)')
-    parser.add_argument('--base_seed', type=int, default=base_seed,
+    parser.add_argument('--base_seed', type=int, default=42,
                         help='Base seed for reproducibility')
-    parser.add_argument('--oms', '--use_oms', action='store_true', default=use_oms,
+    parser.add_argument('--oms', '--use_oms', action='store_true', default=False,
                         help='Enable OMS')
     parser.add_argument('--linear_scaling', '--use_linear_scaling', action='store_true', 
-                        default=use_linear_scaling, help='Enable Linear Scaling')
+                        default=False, help='Enable Linear Scaling')
     parser.add_argument('--pareto_tournament', '--use_pareto_tournament', action='store_true',
-                        default=use_pareto_tournament, help='Enable Pareto Tournament')
+                        default=False, help='Enable Pareto Tournament')
     parser.add_argument('--no_simplification', action='store_true', default=False,
                         help='Disable simplification when selecting best_normalized')
     
     args = parser.parse_args()
     
-    # Update variables from parsed arguments
+    # Get variables from parsed arguments
     dataset_name = args.dataset
     num_runs = args.num_runs
     slim_version = args.slim_version

@@ -7,6 +7,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+from utils.naming_utils import build_execution_type, build_variant_name
 
 # ============================================================================
 # CONFIGURATION - Modify these variables
@@ -173,26 +174,21 @@ def main():
         print("GENERATING CONSOLIDATED EXCEL FILE")
         print("=" * 80)
         
-        # Build execution type name
-        execution_type = "slim"
-        if USE_LINEAR_SCALING:
-            execution_type += "_linear_scaling"
-        if USE_OMS:
-            execution_type += "_oms"
-        if USE_PARETO_TOURNAMENT:
-            execution_type += "_pareto"
-        if not USE_SIMPLIFICATION:
-            execution_type += "_no_simplif"
+        # Build execution type name using utility function
+        execution_type = build_execution_type(
+            use_linear_scaling=USE_LINEAR_SCALING,
+            use_oms=USE_OMS,
+            use_pareto_tournament=USE_PARETO_TOURNAMENT,
+            use_simplification=USE_SIMPLIFICATION
+        )
         
-        # Build variant name
-        variant_parts = [SLIM_VERSION]
-        if USE_OMS:
-            variant_parts.append("OMS")
-        if USE_LINEAR_SCALING:
-            variant_parts.append("LS")
-        if USE_PARETO_TOURNAMENT:
-            variant_parts.append("Pareto")
-        variant_name = " + ".join(variant_parts)
+        # Build variant name using utility function
+        variant_name = build_variant_name(
+            slim_version=SLIM_VERSION,
+            use_oms=USE_OMS,
+            use_linear_scaling=USE_LINEAR_SCALING,
+            use_pareto_tournament=USE_PARETO_TOURNAMENT
+        )
         
         excel_filename = f"consolidated_results_{execution_type}.xlsx"
         
