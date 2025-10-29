@@ -185,7 +185,7 @@ def save_no_simplification_to_txt(dataset_name, execution_type, individual_type,
         f.write(f"\nTree expression:\n  {original_expr}\n")
         f.write("-"*100 + "\n\n")
 
-def run_algorithm(algorithm_name, dataset_name, X_train, y_train, X_val, y_val, X_test, y_test, oms_enabled, linear_scaling_enabled, use_pareto_tournament=False, slim_version='SLIM+SIG2', output_filename="results_all_datasets.csv"):
+def run_algorithm(algorithm_name, dataset_name, X_train, y_train, X_val, y_val, X_test, y_test, oms_enabled, linear_scaling_enabled, use_pareto_tournament=False, use_simplification=True, slim_version='SLIM+SIG2', output_filename="results_all_datasets.csv"):
     """
     Run a specific algorithm with given parameters.
     
@@ -198,6 +198,7 @@ def run_algorithm(algorithm_name, dataset_name, X_train, y_train, X_val, y_val, 
         oms_enabled: Whether to use OMS
         linear_scaling_enabled: Whether to use linear scaling
         use_pareto_tournament: Whether to use Pareto tournament selection
+        use_simplification: Whether to use simplification during evolution
         slim_version: Version of SLIM to use (e.g., 'SLIM+SIG2', 'SLIM+ABS', 'SLIM*ABS')
         output_filename: Name of the output CSV file
     
@@ -208,7 +209,8 @@ def run_algorithm(algorithm_name, dataset_name, X_train, y_train, X_val, y_val, 
         oms_suffix = " oms" if oms_enabled else ""
         linear_suffix = " linear scaling" if linear_scaling_enabled else ""
         pareto_suffix = " pareto" if use_pareto_tournament else ""
-        execution_type = f"slim{linear_suffix}{oms_suffix}{pareto_suffix}"
+        simplification_suffix = " no_simplif" if not use_simplification else ""
+        execution_type = f"slim{linear_suffix}{oms_suffix}{pareto_suffix}{simplification_suffix}"
         
         print(f"  Running {execution_type}...")
         
@@ -227,7 +229,8 @@ def run_algorithm(algorithm_name, dataset_name, X_train, y_train, X_val, y_val, 
             'p_inflate': 0.5,
             'reconstruct': True,
             'oms': oms_enabled,
-            'linear_scaling': linear_scaling_enabled
+            'linear_scaling': linear_scaling_enabled,
+            'use_simplification': use_simplification
         }
         
         # Add Pareto tournament parameters if enabled
@@ -462,7 +465,7 @@ def get_valid_execution_configs(slim_version):
         ]
 
 def run_all_datasets(slim_version='SLIM+ABS', output_filename=None, 
-                     use_oms=True, use_linear_scaling=False, use_pareto_tournament=False):
+                     use_oms=True, use_linear_scaling=False, use_pareto_tournament=False, use_simplification=True):
     """
     Run all datasets with a single specified configuration.
     
@@ -472,6 +475,7 @@ def run_all_datasets(slim_version='SLIM+ABS', output_filename=None,
         use_oms: Whether to use OMS (Operator Mutation Selection)
         use_linear_scaling: Whether to use linear scaling
         use_pareto_tournament: Whether to use Pareto tournament selection
+        use_simplification: Whether to use simplification during evolution
     """
     # Validate OMS usage
     two_trees_versions = ["SLIM+SIG2", "SLIM*SIG2"]
@@ -491,6 +495,8 @@ def run_all_datasets(slim_version='SLIM+ABS', output_filename=None,
             config_suffix += "_oms"
         if use_pareto_tournament:
             config_suffix += "_pareto"
+        if not use_simplification:
+            config_suffix += "_no_simplif"
         output_filename = os.path.join("log", f"results_all_datasets_{version_suffix}{config_suffix}.csv")
     
     # Define all available datasets
@@ -520,6 +526,8 @@ def run_all_datasets(slim_version='SLIM+ABS', output_filename=None,
         execution_type += " oms"
     if use_pareto_tournament:
         execution_type += " pareto"
+    if not use_simplification:
+        execution_type += " no_simplif"
     
     # Initialize results file (this will overwrite any existing file)
     initialize_results_file(output_filename)
@@ -534,6 +542,7 @@ def run_all_datasets(slim_version='SLIM+ABS', output_filename=None,
     print(f"  Linear Scaling: {'✓ Enabled' if use_linear_scaling else '✗ Disabled'}")
     print(f"  OMS: {'✓ Enabled' if use_oms else '✗ Disabled'}")
     print(f"  Pareto Tournament: {'✓ Enabled' if use_pareto_tournament else '✗ Disabled'}")
+    print(f"  Simplification: {'✓ Enabled' if use_simplification else '✗ Disabled'}")
     print(f"\nExecution type: {execution_type}")
     print(f"Total datasets: {len(datasets)}")
     print(f"Total executions: {len(datasets)}")
@@ -560,7 +569,7 @@ def run_all_datasets(slim_version='SLIM+ABS', output_filename=None,
             run_algorithm(
                 "slim", dataset_name,
                 X_train, y_train, X_val, y_val, X_test, y_test,
-                use_oms, use_linear_scaling, use_pareto_tournament,
+                use_oms, use_linear_scaling, use_pareto_tournament, use_simplification,
                 slim_version, output_filename
             )
             successful_runs += 1
@@ -592,6 +601,7 @@ if __name__ == "__main__":
     use_oms = False                    # Enable OMS (Operator Mutation Selection) - requires SLIM+SIG2 or SLIM*SIG2
     use_linear_scaling = False         # Enable Linear Scaling
     use_pareto_tournament = False      # Enable Pareto Tournament Selection
+    use_simplification = True          # Enable Simplification during evolution
     output_filename = None             # Custom output filename (None = auto-generate)
     # ============================================================================
     
@@ -599,7 +609,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         slim_version = sys.argv[1]
     if len(sys.argv) > 2:
-        # Parse boolean arguments: python run_all_datasets.py SLIM+ABS oms=True ls=True pareto=False
+        # Parse boolean arguments: python run_all_datasets.py SLIM+ABS oms=True ls=True pareto=False simplif=False
         for arg in sys.argv[2:]:
             if '=' in arg:
                 key, value = arg.split('=')
@@ -610,6 +620,8 @@ if __name__ == "__main__":
                     use_linear_scaling = value_bool
                 elif key.lower() in ['pareto', 'pareto_tournament', 'use_pareto_tournament']:
                     use_pareto_tournament = value_bool
+                elif key.lower() in ['simplif', 'simplification', 'use_simplification']:
+                    use_simplification = value_bool
                 elif key.lower() in ['output', 'output_filename']:
                     output_filename = value
     
@@ -618,6 +630,7 @@ if __name__ == "__main__":
     print(f"  OMS: {use_oms}")
     print(f"  Linear Scaling: {use_linear_scaling}")
     print(f"  Pareto Tournament: {use_pareto_tournament}")
+    print(f"  Simplification: {use_simplification}")
     print(f"  Output filename: {output_filename if output_filename else 'Auto-generated'}")
     print()
     
@@ -629,7 +642,8 @@ if __name__ == "__main__":
         output_filename=output_filename,
         use_oms=use_oms,
         use_linear_scaling=use_linear_scaling,
-        use_pareto_tournament=use_pareto_tournament
+        use_pareto_tournament=use_pareto_tournament,
+        use_simplification=use_simplification
     )
     
     end_time = datetime.now()
