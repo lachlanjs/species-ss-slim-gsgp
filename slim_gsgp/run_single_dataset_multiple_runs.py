@@ -450,8 +450,8 @@ def run_single_dataset_multiple_times(dataset_name, num_runs=30, slim_version='S
     }
     
     # Save results
-    save_individual_runs(runs_data, dataset_name, execution_type)
-    # save_statistics_summary(stats, dataset_name, execution_type)  # Disabled: not generating statistics CSV
+    # save_individual_runs(runs_data, dataset_name, execution_type)  # Disabled: not needed for consolidated Excel
+    save_statistics_summary(stats, dataset_name, execution_type)  # Disabled: not generating statistics CSV
     save_formatted_table(stats, dataset_name, execution_type)
     
     # Print summary table

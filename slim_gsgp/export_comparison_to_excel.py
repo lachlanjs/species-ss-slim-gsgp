@@ -30,25 +30,25 @@ from openpyxl.utils import get_column_letter
 import locale
 import colorsys
 
-def extract_mean_value(mean_str):
+def extract_median_value(median_str):
     """
-    Extract the main mean value (not the one in parentheses).
+    Extract the main median value (not the one in parentheses).
     
     Args:
-        mean_str: String containing mean value, possibly with value in parentheses
+        median_str: String containing median value, possibly with value in parentheses
         
     Returns:
-        float: The extracted mean value
+        float: The extracted median value
     """
-    if pd.isna(mean_str):
+    if pd.isna(median_str):
         return None
     
     # Convert to string if not already
-    mean_str = str(mean_str)
+    median_str = str(median_str)
     
     # Extract the first number (before any parentheses)
     # Pattern matches numbers with optional decimal point and digits
-    match = re.match(r'^\s*([-+]?[0-9]*\.?[0-9]+)', mean_str)
+    match = re.match(r'^\s*([-+]?[0-9]*\.?[0-9]+)', median_str)
     
     if match:
         return float(match.group(1))
@@ -114,16 +114,16 @@ def load_excel_data(excel_file="results_test_fitness_size.xlsx", sheet_name=0):
         print(f"Error loading Excel file: {e}")
         raise
 
-def extract_variant_means(df, variant_name):
+def extract_variant_medians(df, variant_name):
     """
-    Extract mean values for each dataset and model type for a given variant.
+    Extract median values for each dataset and model type for a given variant.
 
     Args:
         df: DataFrame with multi-index columns (variant, statistic)
         variant_name: string like 'VARIANT 20'
 
     Returns:
-        dict: { 'Smallest Model': {dataset_num: mean, ...}, ... }
+        dict: { 'Smallest Model': {dataset_num: median, ...}, ... }
     """
     model_types = ['Smallest Model', 'Optimal Compromise', 'Best Fitness']
     results = {m: {} for m in model_types}
@@ -132,25 +132,26 @@ def extract_variant_means(df, variant_name):
     if not isinstance(cols, pd.MultiIndex):
         raise ValueError("Expected MultiIndex columns in the Excel sheet")
 
-    # Map model types to mean column under given variant
-    mean_col_map = {}
+    # Map model types to median column under given variant
+    median_col_map = {}
     for model in model_types:
         # Look for columns where:
         # - level0 == variant_name 
-        # - level1 contains the model name AND has .1 suffix (indicating it's the Mean column)
+        # - level1 contains the model name AND does NOT have .1 suffix (Median column is the first one)
         candidates = [c for c in cols 
                      if str(c[0]).strip() == variant_name 
                      and model in str(c[1]) 
-                     and ('.1' in str(c[1]) or 'Mean' in str(c[1]))]
+                     and '.1' not in str(c[1]) 
+                     and 'Mean' not in str(c[1])]
         
         if candidates:
-            mean_col_map[model] = candidates[0]
-            print(f"  Found Mean column for {model}: {candidates[0]}")
+            median_col_map[model] = candidates[0]
+            print(f"  Found Median column for {model}: {candidates[0]}")
         else:
-            print(f"  Warning: No Mean column found for {model} in {variant_name}")
-            mean_col_map[model] = None
+            print(f"  Warning: No Median column found for {model} in {variant_name}")
+            median_col_map[model] = None
 
-    # Iterate rows and extract dataset number and means
+    # Iterate rows and extract dataset number and medians
     for idx, row in df.iterrows():
         first_cell = row.iloc[0]
         if pd.isna(first_cell):
@@ -167,14 +168,14 @@ def extract_variant_means(df, variant_name):
         ds_num = int(m.group(1))
 
         for model in model_types:
-            col = mean_col_map.get(model)
+            col = median_col_map.get(model)
             if col is None:
                 continue
             raw = row[col]
-            mean_val = extract_mean_value(raw)
-            if mean_val is None:
+            median_val = extract_median_value(raw)
+            if median_val is None:
                 continue
-            results[model][ds_num] = mean_val
+            results[model][ds_num] = median_val
 
     return results
 
@@ -308,7 +309,7 @@ def create_comparison_excel(df_fitness, df_size, output_file='comparison_results
     variants_fitness_data = {}
     for variant in all_variants:
         print(f"Extracting FITNESS data for {variant}...")
-        variants_fitness_data[variant] = extract_variant_means(df_fitness, variant)
+        variants_fitness_data[variant] = extract_variant_medians(df_fitness, variant)
     
     # Extract data for all variants - SIZE
     print("\n--- Extracting SIZE data ---")
@@ -316,7 +317,7 @@ def create_comparison_excel(df_fitness, df_size, output_file='comparison_results
     if df_size is not None:
         for variant in all_variants:
             print(f"Extracting SIZE data for {variant}...")
-            variants_size_data[variant] = extract_variant_means(df_size, variant)
+            variants_size_data[variant] = extract_variant_medians(df_size, variant)
     
     # Create a new workbook
     wb = Workbook()
@@ -546,7 +547,7 @@ def create_comparison_excel(df_fitness, df_size, output_file='comparison_results
     print(f"  Total variants: {len(all_variants)}")
     print(f"  Total datasets: {len(dataset_configs)}")
 
-def main(input_excel="results_test_fitness_size.xlsx", 
+def main(input_excel="manual_set_results_test_fitness_size.xlsx", 
          output_excel="comparison_results.xlsx"):
     """
     Main function to generate comparison Excel with all variants.
@@ -584,7 +585,7 @@ if __name__ == "__main__":
     import sys
     
     # Parse command line arguments
-    input_excel = "results_test_fitness_size.xlsx"
+    input_excel = "manual_set_results_test_fitness_size.xlsx"
     output_excel = "comparison_results.xlsx"
     
     if len(sys.argv) > 1:
