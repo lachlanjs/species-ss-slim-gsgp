@@ -1,2 +1,0 @@
-timestamp,dataset_name,training_rmse,validation_rmse,test_rmse,nodes_count,execution_type
-2025-10-15 10:02:31,airfoil,tensor(61.7228),tensor(59.8017),59.707359313964844,117,slim
