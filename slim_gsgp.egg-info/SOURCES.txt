@@ -6,11 +6,16 @@ slim_gsgp/__init__.py
 slim_gsgp/example_gp.py
 slim_gsgp/example_gsgp.py
 slim_gsgp/example_slim.py
+slim_gsgp/export_comparison_to_excel.py
+slim_gsgp/generate_consolidated_excel.py
 slim_gsgp/main_gp.py
 slim_gsgp/main_gsgp.py
 slim_gsgp/main_slim.py
+slim_gsgp/plot_fitness_size_results.py
 slim_gsgp/plot_results.py
 slim_gsgp/run_all_datasets.py
+slim_gsgp/run_all_datasets_sequential.py
+slim_gsgp/run_single_dataset_multiple_runs.py
 slim_gsgp.egg-info/PKG-INFO
 slim_gsgp.egg-info/SOURCES.txt
 slim_gsgp.egg-info/dependency_links.txt
@@ -79,6 +84,7 @@ slim_gsgp/selection/selection_algorithms.py
 slim_gsgp/utils/__init__.py
 slim_gsgp/utils/diversity.py
 slim_gsgp/utils/logger.py
+slim_gsgp/utils/naming_utils.py
 slim_gsgp/utils/simplification.py
 slim_gsgp/utils/tree_to_png.py
 slim_gsgp/utils/utils.py

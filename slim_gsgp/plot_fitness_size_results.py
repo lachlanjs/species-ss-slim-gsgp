@@ -28,13 +28,13 @@ import re
 
 def extract_mean_value(mean_str):
     """
-    Extract the main mean value (not the one in parentheses).
+    Extract the main value (median or mean) from a cell (not the one in parentheses).
     
     Args:
-        mean_str: String containing mean value, possibly with value in parentheses
+        mean_str: String containing value, possibly with value in parentheses
         
     Returns:
-        float: The extracted mean value
+        float: The extracted value
     """
     if pd.isna(mean_str):
         return None
@@ -51,7 +51,7 @@ def extract_mean_value(mean_str):
     
     return None
 
-def load_excel_data(excel_file="results_test_fitness_size.xlsx", sheet_name=0, table_type='fitness'):
+def load_excel_data(excel_file="manual_set_results_test_fitness_size.xlsx", sheet_name=0, table_type='fitness'):
     """
     Load the results from Excel file.
     
@@ -67,8 +67,8 @@ def load_excel_data(excel_file="results_test_fitness_size.xlsx", sheet_name=0, t
         raise FileNotFoundError(f"Results file '{excel_file}' not found.")
     
     try:
-        # Read the first sheet with multi-level headers
-        df = pd.read_excel(excel_file, sheet_name=sheet_name, header=[0, 1])
+        # Read with 3 levels of headers: title row, variant+model row, median/mean row
+        df = pd.read_excel(excel_file, sheet_name=sheet_name, header=[0, 1, 2])
         print(f"Loaded Excel file: {excel_file}")
         print(f"Sheet: {sheet_name if isinstance(sheet_name, str) else 'First sheet'}")
         print(f"Shape: {df.shape}")
@@ -92,9 +92,6 @@ def load_excel_data(excel_file="results_test_fitness_size.xlsx", sheet_name=0, t
             if model_size_idx is not None:
                 df = df.iloc[model_size_idx:].copy()
                 print(f"Selected MODEL SIZE table, shape: {df.shape}")
-                # Skip first 3 rows (header rows)
-                if len(df) > 3:
-                    df = df.iloc[3:].reset_index(drop=True)
             else:
                 raise ValueError("MODEL SIZE table not found in the Excel file")
         else:
@@ -102,12 +99,9 @@ def load_excel_data(excel_file="results_test_fitness_size.xlsx", sheet_name=0, t
             if model_size_idx is not None:
                 df = df.iloc[:model_size_idx].copy()
                 print(f"Selected TEST FITNESS table, shape: {df.shape}")
-            # Skip first row (statistic names row)
-            if len(df) > 0:
-                df = df.iloc[1:].reset_index(drop=True)
         
         print(f"Final shape after processing: {df.shape}")
-        print(f"Sample columns: {df.columns[:10].tolist()}")
+        print(f"Sample columns (first 10): {df.columns[:10].tolist()}")
         
         return df
     except Exception as e:
@@ -133,14 +127,14 @@ def filter_variant_20(df):
 
 def extract_variant_means(df, variant_name):
     """
-    Extract mean values for each dataset and model type for a given variant.
+    Extract median values for each dataset and model type for a given variant.
 
     Args:
-        df: DataFrame with multi-index columns (variant, statistic)
+        df: DataFrame with 3-level multi-index columns (title, variant+model, median/mean)
         variant_name: string like 'VARIANT 20'
 
     Returns:
-        dict: { 'Smallest Model': {dataset_num: mean, ...}, ... }
+        dict: { 'Smallest Model': {dataset_num: median, ...}, ... }
     """
     model_types = ['Smallest Model', 'Optimal Compromise', 'Best Fitness']
     results = {m: {} for m in model_types}
@@ -149,25 +143,27 @@ def extract_variant_means(df, variant_name):
     if not isinstance(cols, pd.MultiIndex):
         raise ValueError("Expected MultiIndex columns in the Excel sheet")
 
-    # Map model types to mean column under given variant
-    mean_col_map = {}
+    # Map model types to median column under given variant
+    median_col_map = {}
     for model in model_types:
         # Look for columns where:
-        # - level0 == variant_name 
-        # - level1 contains the model name AND has .1 suffix (indicating it's the Mean column)
+        # - level 0 (variant) == variant_name
+        # - level 1 (model) == model name
+        # - level 2 (statistic) contains "Median"
         candidates = [c for c in cols 
                      if str(c[0]).strip() == variant_name 
-                     and model in str(c[1]) 
-                     and ('.1' in str(c[1]) or 'Mean' in str(c[1]))]
+                     and str(c[1]).strip() == model
+                     and 'Median' in str(c[2])]
         
         if candidates:
-            mean_col_map[model] = candidates[0]
-            print(f"  Found Mean column for {model}: {candidates[0]}")
+            median_col_map[model] = candidates[0]
+            print(f"  Found Median column for {model}: {candidates[0]}")
         else:
-            print(f"  Warning: No Mean column found for {model} in {variant_name}")
-            mean_col_map[model] = None
+            print(f"  Warning: No Median column found for {model} in {variant_name}")
+            print(f"  Looking for: variant='{variant_name}', model='{model}', statistic contains 'Median'")
+            median_col_map[model] = None
 
-    # Iterate rows and extract dataset number and means
+    # Iterate rows and extract dataset number and medians
     for idx, row in df.iterrows():
         first_cell = row.iloc[0]
         if pd.isna(first_cell):
@@ -179,14 +175,14 @@ def extract_variant_means(df, variant_name):
         ds_num = int(m.group(1))
 
         for model in model_types:
-            col = mean_col_map.get(model)
+            col = median_col_map.get(model)
             if col is None:
                 continue
             raw = row[col]
-            mean_val = extract_mean_value(raw)
-            if mean_val is None:
+            median_val = extract_mean_value(raw)
+            if median_val is None:
                 continue
-            results[model][ds_num] = mean_val
+            results[model][ds_num] = median_val
 
     return results
 
@@ -194,7 +190,7 @@ def extract_variant_means(df, variant_name):
 def prepare_plot_data(df):
     """
     Prepare data for plotting from the filtered DataFrame (VARIANT 20).
-    Returns the same format as earlier: { model: {'datasets':[], 'means':[]} }
+    Returns the same format as earlier: { model: {'datasets':[], 'medians':[]} }
     """
     variant_name = 'VARIANT 20'
     extracted = extract_variant_means(df, variant_name)
@@ -203,8 +199,8 @@ def prepare_plot_data(df):
     for model, mapping in extracted.items():
         ds_sorted = sorted(mapping.items())
         if ds_sorted:
-            datasets, means = zip(*ds_sorted)
-            plot_data[model] = {'datasets': list(datasets), 'means': list(means)}
+            datasets, medians = zip(*ds_sorted)
+            plot_data[model] = {'datasets': list(datasets), 'means': list(medians)}
         else:
             plot_data[model] = {'datasets': [], 'means': []}
 
@@ -218,7 +214,7 @@ def prepare_plot_data(df):
 
 def create_variant_20_plot(plot_data):
     """
-    Create a plot showing mean values for VARIANT 20 by model type.
+    Create a plot showing median values for VARIANT 20 by model type.
     """
     plt.figure(figsize=(14, 8))
 
@@ -245,11 +241,11 @@ def create_variant_20_plot(plot_data):
     for model_type in ['Smallest Model', 'Optimal Compromise', 'Best Fitness']:
         if plot_data[model_type]['datasets']:
             datasets = plot_data[model_type]['datasets']
-            means = plot_data[model_type]['means']
-            sorted_pairs = sorted(zip(datasets, means))
-            datasets_sorted, means_sorted = zip(*sorted_pairs)
+            medians = plot_data[model_type]['means']
+            sorted_pairs = sorted(zip(datasets, medians))
+            datasets_sorted, medians_sorted = zip(*sorted_pairs)
 
-            plt.plot(datasets_sorted, means_sorted,
+            plt.plot(datasets_sorted, medians_sorted,
                      color=colors[model_type],
                      marker=markers[model_type],
                      linewidth=2,
@@ -260,9 +256,9 @@ def create_variant_20_plot(plot_data):
             # Add individual value annotations for each point on this line
             # Use different vertical offsets for each model type to avoid overlap
             y_offset = offsets[model_type]
-            for ds, mean in zip(datasets_sorted, means_sorted):
-                plt.annotate(f'{mean:.2f}', 
-                           xy=(ds, mean), 
+            for ds, median in zip(datasets_sorted, medians_sorted):
+                plt.annotate(f'{median:.2f}', 
+                           xy=(ds, median), 
                            xytext=(0, y_offset),
                            textcoords='offset points',
                            ha='center',
@@ -276,7 +272,7 @@ def create_variant_20_plot(plot_data):
                                    linewidth=1.5))
 
     plt.xlabel('Dataset Number', fontsize=12, fontweight='bold')
-    plt.ylabel('Mean Value', fontsize=12, fontweight='bold')
+    plt.ylabel('Median Value', fontsize=12, fontweight='bold')
     plt.title('Original SLIM GSGP (baseline)', fontsize=14, fontweight='bold')
     plt.xticks(range(1, 16))
     plt.xlim(0.5, 15.5)
@@ -374,7 +370,7 @@ def create_compare_plot(df, compare_variant='VARIANT 1', baseline_variant='VARIA
         print("Warning: No overlapping data found between variants for comparison.")
 
     plt.xlabel('Dataset Number', fontsize=12, fontweight='bold')
-    plt.ylabel(f'Mean difference ({compare_variant} - {baseline_variant})', fontsize=12, fontweight='bold')
+    plt.ylabel(f'Median difference ({compare_variant} - {baseline_variant})', fontsize=12, fontweight='bold')
     plt.title(f'{compare_variant} improvement over original SLIM GSGP', fontsize=14, fontweight='bold')
     plt.xticks(range(1, 16))
     plt.xlim(0.5, 15.5)
@@ -435,19 +431,19 @@ def print_summary_statistics(plot_data):
     print("="*80)
     
     for model_type in ['Smallest Model', 'Optimal Compromise', 'Best Fitness']:
-        means = plot_data[model_type]['means']
+        medians = plot_data[model_type]['means']
         
-        if means:
+        if medians:
             print(f"\n{model_type}:")
-            print(f"  Number of datasets: {len(means)}")
-            print(f"  Mean of means: {np.mean(means):.4f}")
-            print(f"  Std deviation: {np.std(means):.4f}")
-            print(f"  Min value: {np.min(means):.4f}")
-            print(f"  Max value: {np.max(means):.4f}")
+            print(f"  Number of datasets: {len(medians)}")
+            print(f"  Mean of medians: {np.mean(medians):.4f}")
+            print(f"  Std deviation: {np.std(medians):.4f}")
+            print(f"  Min value: {np.min(medians):.4f}")
+            print(f"  Max value: {np.max(medians):.4f}")
         else:
             print(f"\n{model_type}: No data found")
 
-def main(excel_file="results_test_fitness_size.xlsx", output_plot=None, table_type='fitness'):
+def main(excel_file="manual_set_results_test_fitness_size.xlsx", output_plot=None, table_type='fitness'):
     """
     Main function to generate the VARIANT 20 plot.
     
@@ -504,38 +500,65 @@ def main(excel_file="results_test_fitness_size.xlsx", output_plot=None, table_ty
 if __name__ == "__main__":
     import sys
     
-    # Parse command line arguments
-    excel_file = "results_test_fitness_size.xlsx"  # Default
-    output_plot = None
+    # Fixed Excel file - always the same
+    excel_file = "manual_set_results_test_fitness_size.xlsx"
+    
+    # Parse command line arguments: [COMPARE_VARIANT] [TABLE_TYPE]
     compare_variant = None
     table_type = 'fitness'  # Default: fitness
     
-    if len(sys.argv) > 1:
-        excel_file = sys.argv[1]
-    if len(sys.argv) > 2:
-        output_plot = sys.argv[2]
-    if len(sys.argv) > 3:
-        compare_variant = sys.argv[3]  # e.g., 'VARIANT 1'
-    if len(sys.argv) > 4:
-        table_type = sys.argv[4]  # 'fitness' or 'size'
+    # Show help message
+    if len(sys.argv) > 1 and sys.argv[1] in ['-h', '--help', 'help']:
+        print("Usage: python plot_fitness_size_results.py [COMPARE_VARIANT] [TABLE_TYPE]")
+        print()
+        print("Parameters:")
+        print("  COMPARE_VARIANT  - Variant to compare against VARIANT 20, e.g., 'VARIANT 1' (optional)")
+        print("  TABLE_TYPE       - 'fitness' or 'size' (default: fitness)")
+        print()
+        print("Examples:")
+        print("  python plot_fitness_size_results.py")
+        print("    → Baseline plot for VARIANT 20 (fitness)")
+        print("    → Output: variant_20_fitness_plot.png")
+        print()
+        print("  python plot_fitness_size_results.py 'VARIANT 1'")
+        print("    → Compare VARIANT 1 vs VARIANT 20 (fitness)")
+        print("    → Output: compare_VARIANT_1_vs_VARIANT_20_fitness.png")
+        print()
+        print("  python plot_fitness_size_results.py 'VARIANT 1' size")
+        print("    → Compare VARIANT 1 vs VARIANT 20 (size)")
+        print("    → Output: compare_VARIANT_1_vs_VARIANT_20_size.png")
+        print()
+        print("  python plot_fitness_size_results.py '' size")
+        print("    → Baseline plot for VARIANT 20 (size)")
+        print("    → Output: variant_20_size_plot.png")
+        sys.exit(0)
     
-    print(f"Configuration:")
-    print(f"  Excel file: {excel_file}")
-    print(f"  Output plot: {output_plot if output_plot else 'Auto-generated'}")
-    print(f"  Table type: {table_type.upper()}")
-    print()
+    if len(sys.argv) > 1 and sys.argv[1]:
+        compare_variant = sys.argv[1]  # e.g., 'VARIANT 1'
+    if len(sys.argv) > 2 and sys.argv[2]:
+        table_type = sys.argv[2]  # 'fitness' or 'size'
     
+    # Handle comparison mode vs baseline mode
     if compare_variant:
+        print(f"Configuration:")
+        print(f"  Excel file: {excel_file}")
+        print(f"  Compare variant: {compare_variant}")
+        print(f"  Table type: {table_type.upper()}")
+        print()
         print(f"Will compare {compare_variant} against baseline VARIANT 20 using {table_type.upper()} data")
         # Load df and call compare plot directly to avoid re-reading inside main
         df = load_excel_data(excel_file, table_type=table_type)
         plt_obj = create_compare_plot(df, compare_variant=compare_variant, baseline_variant='VARIANT 20')
-        out = output_plot if output_plot else f"compare_{compare_variant.replace(' ', '_')}_vs_VARIANT_20_{table_type}.png"
-        plt_obj.savefig(out, dpi=300, bbox_inches='tight')
-        print(f"Comparison plot saved as: {out}")
+        output_plot = f"compare_{compare_variant.replace(' ', '_')}_vs_VARIANT_20_{table_type}.png"
+        plt_obj.savefig(output_plot, dpi=300, bbox_inches='tight')
+        print(f"Comparison plot saved as: {output_plot}")
         try:
             plt_obj.show()
         except Exception:
             pass
     else:
-        main(excel_file=excel_file, output_plot=output_plot, table_type=table_type)
+        print(f"Configuration:")
+        print(f"  Excel file: {excel_file}")
+        print(f"  Table type: {table_type.upper()}")
+        print()
+        main(excel_file=excel_file, output_plot=None, table_type=table_type)
