@@ -19,8 +19,8 @@ BASE_SEED = 42                     # Base seed (not used anymore, each run is ra
 # Feature flags - Set to True to enable
 USE_OMS = True                     # Enable OMS (only works with SLIM+ABS or SLIM+SIG2)
 USE_LINEAR_SCALING = False         # Enable Linear Scaling
-USE_PARETO_TOURNAMENT = False       # Enable Pareto Tournament
-USE_SIMPLIFICATION = False         # Enable simplification when selecting best_normalized
+USE_PARETO_TOURNAMENT = True       # Enable Pareto Tournament
+USE_SIMPLIFICATION = True         # Enable simplification when selecting best_normalized
 # ============================================================================
 
 # List of all datasets
@@ -171,7 +171,7 @@ def main():
     if success_count > 0:
         print("\n")
         print("=" * 80)
-        print("GENERATING CONSOLIDATED EXCEL FILE")
+        print("GENERATING EXCEL FILE")
         print("=" * 80)
         
         # Build execution type name using utility function
@@ -190,15 +190,15 @@ def main():
             use_pareto_tournament=USE_PARETO_TOURNAMENT
         )
         
-        excel_filename = f"consolidated_results_{execution_type}.xlsx"
+        excel_filename = f"results_{execution_type}.xlsx"
         
         try:
             import generate_consolidated_excel
             generate_consolidated_excel.OUTPUT_FILE = excel_filename
             generate_consolidated_excel.create_consolidated_excel(execution_type, variant_name)
-            print(f"✓ Consolidated Excel file created: {excel_filename}")
+            print(f"✓ Excel file created: {excel_filename}")
         except Exception as e:
-            print(f"⚠ Error generating consolidated Excel: {e}")
+            print(f"⚠ Error generating Excel: {e}")
             print("  You can generate it manually with:")
             print(f"  python generate_consolidated_excel.py --execution_type {execution_type} --variant_name \"{variant_name}\" --output {excel_filename}")
     

@@ -290,7 +290,7 @@ def get_color_for_comparison(value, baseline_value, max_improvement_pct=50):
     
     return None  # No difference
 
-def create_comparison_excel(df_fitness, df_size, output_file='comparison_results.xlsx'):
+def create_comparison_excel(df_fitness, df_size, output_file='median_results.xlsx'):
     """
     Create an Excel file with all variants - both FITNESS and SIZE tables.
     
@@ -548,7 +548,7 @@ def create_comparison_excel(df_fitness, df_size, output_file='comparison_results
     print(f"  Total datasets: {len(dataset_configs)}")
 
 def main(input_excel="manual_set_results_test_fitness_size.xlsx", 
-         output_excel="comparison_results.xlsx"):
+         output_excel="median_results.xlsx"):
     """
     Main function to generate comparison Excel with all variants.
     
@@ -586,7 +586,7 @@ if __name__ == "__main__":
     
     # Parse command line arguments
     input_excel = "manual_set_results_test_fitness_size.xlsx"
-    output_excel = "comparison_results.xlsx"
+    output_excel = "median_results.xlsx"
     
     if len(sys.argv) > 1:
         input_excel = sys.argv[1]
