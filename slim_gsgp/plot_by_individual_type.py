@@ -26,6 +26,15 @@ import numpy as np
 import os
 import re
 
+# Try to import tikzplotlib for LaTeX export
+try:
+    import tikzplotlib
+    TIKZ_AVAILABLE = True
+except ImportError:
+    TIKZ_AVAILABLE = False
+    print("Warning: tikzplotlib not installed. Install with: pip install tikzplotlib")
+    print("TikZ/LaTeX export will be skipped.\n")
+
 def extract_mean_value(mean_str):
     """
     Extract the main value (median or mean) from a cell (not the one in parentheses).
@@ -351,16 +360,36 @@ def main(excel_file="manual_set_results_test_fitness_size.xlsx", output_dir="plo
                 if fig is not None:
                     # Generate filename
                     model_type_short = model_type.replace(' ', '_').lower()
-                    output_file = os.path.join(output_dir, f"{model_type_short}_{table_type}_comparison.png")
+                    output_file_png = os.path.join(output_dir, f"{model_type_short}_{table_type}_comparison.png")
+                    output_file_tex = os.path.join(output_dir, f"{model_type_short}_{table_type}_comparison.tex")
                     
-                    fig.savefig(output_file, dpi=300, bbox_inches='tight')
-                    print(f"\nPlot saved: {output_file}")
+                    # Save as PNG
+                    fig.savefig(output_file_png, dpi=300, bbox_inches='tight')
+                    print(f"\nPlot saved: {output_file_png}")
+                    
+                    # Save as TikZ/LaTeX if available
+                    if TIKZ_AVAILABLE:
+                        try:
+                            tikzplotlib.save(output_file_tex,
+                                           figureheight='8cm',
+                                           figurewidth='14cm',
+                                           strict=False)
+                            print(f"TikZ saved: {output_file_tex}")
+                        except Exception as e:
+                            print(f"Warning: Could not save TikZ file: {e}")
+                    
                     plt.close(fig)
                     
                     plot_count += 1
         
         print(f"\n{'='*100}")
         print(f"SUCCESS! Generated {plot_count} plots in '{output_dir}' directory")
+        if TIKZ_AVAILABLE:
+            print(f"  - {plot_count} PNG files (.png)")
+            print(f"  - {plot_count} TikZ/LaTeX files (.tex)")
+        else:
+            print(f"  - {plot_count} PNG files (.png)")
+            print(f"  - Install tikzplotlib for TikZ/LaTeX export: pip install tikzplotlib")
         print(f"{'='*100}")
         
     except FileNotFoundError as e:
