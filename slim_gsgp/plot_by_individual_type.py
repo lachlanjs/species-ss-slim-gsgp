@@ -202,7 +202,11 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
             
             if baseline_val is not None and variant_val is not None:
                 datasets.append(ds_num)
-                diff = variant_val - baseline_val
+                # For size, calculate percentage difference; for fitness, absolute difference
+                if table_type.lower() == 'size':
+                    diff = ((variant_val - baseline_val) / baseline_val) * 100
+                else:
+                    diff = variant_val - baseline_val
                 differences.append(diff)
         
         if datasets:
@@ -216,36 +220,22 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
                     label=variant_name,
                     alpha=0.85)
             
-            # Add value annotations with smart positioning
-            for ds, diff in zip(datasets, differences):
-                # Alternate offset direction to reduce overlap
-                y_offset = 15 if variant_idx % 2 == 0 else -15
-                if diff < 0:
-                    y_offset = -y_offset
-                
-                plt.annotate(f'{diff:.2f}', 
-                           xy=(ds, diff), 
-                           xytext=(0, y_offset),
-                           textcoords='offset points',
-                           ha='center',
-                           fontsize=6,
-                           color=color,
-                           bbox=dict(boxstyle='round,pad=0.2', 
-                                   facecolor='white', 
-                                   edgecolor=color,
-                                   alpha=0.7,
-                                   linewidth=1))
-            
             variant_idx += 1
     
     plt.xlabel('Dataset Number', fontsize=12, fontweight='bold')
     
-    # Use "RMSE" instead of "fitness" in labels
-    metric_name = "RMSE" if table_type.lower() == 'fitness' else table_type.upper()
-    plt.ylabel(f'Difference from {baseline_variant} ({metric_name})', fontsize=12, fontweight='bold')
+    # Use "RMSE" instead of "fitness" in labels, and "%" for size
+    if table_type.lower() == 'fitness':
+        metric_name = "RMSE"
+        ylabel = f'Difference from {baseline_variant} ({metric_name})'
+        title_metric = metric_name
+    else:
+        ylabel = f'% Difference from {baseline_variant} (Size)'
+        title_metric = "Size %"
+    plt.ylabel(ylabel, fontsize=12, fontweight='bold')
     
     model_type_short = model_type.replace(' ', '_').lower()
-    plt.title(f'{model_type} - All Variants Comparison ({metric_name})', 
+    plt.title(f'{model_type} - All Variants Comparison ({title_metric})', 
              fontsize=14, fontweight='bold')
     
     plt.xticks(range(1, 16))
@@ -258,12 +248,12 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
     
     return plt.gcf()  # Return current figure instead of plt module
 
-def print_summary_table(all_variants_data, model_type, baseline_variant='VARIANT 20'):
+def print_summary_table(all_variants_data, model_type, table_type='fitness', baseline_variant='VARIANT 20'):
     """
     Print a summary table showing values for all variants and datasets.
     """
     print("\n" + "="*100)
-    print(f"SUMMARY TABLE - {model_type}")
+    print(f"SUMMARY TABLE - {model_type} ({table_type.upper()})")
     print("="*100)
     
     # Get all datasets
@@ -298,8 +288,14 @@ def print_summary_table(all_variants_data, model_type, baseline_variant='VARIANT
                     # Show difference from baseline
                     baseline_val = baseline_data.get(ds_num, None)
                     if baseline_val is not None:
-                        diff = val - baseline_val
-                        row += f"{val:.4f}({diff:+.2f})"[:15].ljust(15)
+                        if table_type.lower() == 'size':
+                            # Show percentage difference for size
+                            diff_pct = ((val - baseline_val) / baseline_val) * 100
+                            row += f"{val:.1f}({diff_pct:+.1f}%)"[:15].ljust(15)
+                        else:
+                            # Show absolute difference for fitness
+                            diff = val - baseline_val
+                            row += f"{val:.4f}({diff:+.2f})"[:15].ljust(15)
                     else:
                         row += f"{val:<15.4f}"
             else:
@@ -347,7 +343,7 @@ def main(excel_file="manual_set_results_test_fitness_size.xlsx", output_dir="plo
                     continue
                 
                 # Print summary table
-                print_summary_table(all_variants_data, model_type)
+                print_summary_table(all_variants_data, model_type, table_type)
                 
                 # Create and save plot
                 fig = create_individual_comparison_plot(all_variants_data, model_type, table_type)
