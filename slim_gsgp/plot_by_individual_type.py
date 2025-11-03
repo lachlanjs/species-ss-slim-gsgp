@@ -178,6 +178,22 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
         table_type: 'fitness' or 'size'
         baseline_variant: The baseline variant (default: 'VARIANT 20')
     """
+    # Mapping of variant names for legend
+    variant_labels = {
+        'VARIANT 20': 'SLIM-GSGP (Baseline)',
+        'VARIANT 1': 'OMS',
+        'VARIANT 1b': 'OMS (OMS=0)',
+        'VARIANT 2': 'LS',
+        'VARIANT 3': 'OMS + LS',
+        'VARIANT 3b': 'OMS + LS (OMS=0)',
+        'VARIANT 4': 'OMS + PT',
+        'VARIANT 4b': 'OMS + PT (OMS=0)',
+        'VARIANT 5': 'LS + PT',
+        'VARIANT 6': 'OMS + PT + AS',
+        'VARIANT 6b': 'OMS + PT + AS (OMS=0)',
+        'VARIANT 7': 'LS + PT + AS'
+    }
+    
     plt.figure(figsize=(14, 8))
     
     # Define colors for different variants (cycle through if more variants)
@@ -190,13 +206,21 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
         return None
     
     # Draw zero reference line (baseline)
-    plt.axhline(0, color='black', linestyle='--', linewidth=2, alpha=0.7, label=f'{baseline_variant} (baseline)')
+    baseline_label = variant_labels.get(baseline_variant, baseline_variant)
+    plt.axhline(0, color='black', linestyle='--', linewidth=2, alpha=0.7, label=baseline_label)
+    
+    # Filter to show only original 7 variants (1-7, excluding 'b' variants)
+    variants_to_show = ['VARIANT 1', 'VARIANT 2', 'VARIANT 3', 'VARIANT 4', 'VARIANT 5', 'VARIANT 6', 'VARIANT 7']
     
     # Plot each variant (except baseline) as difference from baseline
     variant_idx = 0
     for variant_name in sorted(all_variants_data.keys(), 
                                key=lambda x: int(re.search(r'\d+', x).group()) if re.search(r'\d+', x) else 0):
         if variant_name == baseline_variant:
+            continue
+        
+        # Skip variants not in the filter list
+        if variant_name not in variants_to_show:
             continue
         
         variant_data = all_variants_data[variant_name]
@@ -219,40 +243,42 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
                 differences.append(diff)
         
         if datasets:
+            # Use default color palette
             color = color_palette[variant_idx % len(color_palette)]
+            
+            variant_label = variant_labels.get(variant_name, variant_name)
             
             plt.plot(datasets, differences,
                     color=color,
                     marker='o',
                     linewidth=2,
                     markersize=6,
-                    label=variant_name,
+                    label=variant_label,
                     alpha=0.85)
             
             variant_idx += 1
     
     plt.xlabel('Dataset Number', fontsize=12, fontweight='bold')
     
-    # Use "RMSE" instead of "fitness" in labels, and "%" for size
+    # Use "RMSE" for fitness labels, and "Reduction in size (%)" for size
     if table_type.lower() == 'fitness':
-        metric_name = "RMSE"
-        ylabel = f'Difference from {baseline_variant} ({metric_name})'
-        title_metric = metric_name
+        ylabel = 'RMSE'
+        title_metric = "RMSE"
     else:
-        ylabel = f'% Difference from {baseline_variant} (Size)'
+        ylabel = 'Reduction in size (%)'
         title_metric = "Size %"
     plt.ylabel(ylabel, fontsize=12, fontweight='bold')
     
     model_type_short = model_type.replace(' ', '_').lower()
-    plt.title(f'{model_type} - All Variants Comparison ({title_metric})', 
-             fontsize=14, fontweight='bold')
+    # plt.title(f'{model_type} - All Variants Comparison ({title_metric})', 
+    #          fontsize=14, fontweight='bold')
     
-    plt.xticks(range(1, 16))
+    plt.xticks(range(1, 16), weight='bold')
     plt.xlim(0.5, 15.5)
     plt.grid(True, alpha=0.3)
     
-    # Place legend outside the plot area
-    plt.legend(loc='center left', bbox_to_anchor=(1, 0.5), fontsize=9)
+    # Place legend inside the plot area with bold text
+    plt.legend(loc='best', fontsize=9, prop={'weight': 'bold'})
     plt.tight_layout()
     
     return plt.gcf()  # Return current figure instead of plt module

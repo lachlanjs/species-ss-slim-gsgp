@@ -230,16 +230,21 @@ def get_all_variants(df):
             'TEST FITNESS' not in variant_name.upper()):
             variants.add(variant_name)
     
-    # Sort variants: VARIANT 20 first, then others numerically
+    # Sort variants: VARIANT 20 first, then others numerically (with support for 1b, 3b, etc.)
     def variant_sort_key(v):
-        match = re.search(r'VARIANT\s*(\d+)', v, re.IGNORECASE)
+        match = re.search(r'VARIANT\s*(\d+)([a-z]?)', v, re.IGNORECASE)
         if match:
             num = int(match.group(1))
+            suffix = match.group(2).lower() if match.group(2) else ''
+            
             # Put VARIANT 20 first (use -1), then sort others numerically
             if num == 20:
-                return -1
-            return num
-        return 999
+                return (-1, '')
+            
+            # Return tuple: (number, suffix) for proper sorting
+            # This will sort: 1, 1b, 2, 3, 3b, 4, 4b, etc.
+            return (num, suffix)
+        return (999, '')
     
     sorted_variants = sorted(variants, key=variant_sort_key)
     return sorted_variants
