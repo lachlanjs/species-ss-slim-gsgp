@@ -2,6 +2,9 @@
 # CSV files
 *.csv
 
+# Excel files
+*.xlsx
+
 # Logs
 /log
 slim_gsgp/log/
