@@ -21,19 +21,24 @@
 # SOFTWARE.
 
 import pandas as pd
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 import re
 
-# Try to import tikzplotlib for LaTeX export
-try:
-    import tikzplotlib
-    TIKZ_AVAILABLE = True
-except ImportError:
-    TIKZ_AVAILABLE = False
-    print("Warning: tikzplotlib not installed. Install with: pip install tikzplotlib")
-    print("TikZ/LaTeX export will be skipped.\n")
+# Configure matplotlib PGF backend for LaTeX export
+# This configuration allows PGF export without requiring LaTeX to be installed
+matplotlib.rcParams.update({
+    "pgf.texsystem": "pdflatex",  # Use pdflatex (most common)
+    "pgf.rcfonts": False,          # Don't setup fonts from rc parameters
+    "pgf.preamble": "\n".join([
+        r"\usepackage[utf8x]{inputenc}",
+        r"\usepackage[T1]{fontenc}",
+    ])
+})
+
+LATEX_EXPORT_AVAILABLE = True
 
 def extract_mean_value(mean_str):
     """
@@ -387,22 +392,25 @@ def main(excel_file="manual_set_results_test_fitness_size.xlsx", output_dir="plo
                     # Generate filename
                     model_type_short = model_type.replace(' ', '_').lower()
                     output_file_png = os.path.join(output_dir, f"{model_type_short}_{table_type}_comparison.png")
-                    output_file_tex = os.path.join(output_dir, f"{model_type_short}_{table_type}_comparison.tex")
+                    output_file_pgf = os.path.join(output_dir, f"{model_type_short}_{table_type}_comparison.pgf")
                     
                     # Save as PNG
                     fig.savefig(output_file_png, dpi=300, bbox_inches='tight')
                     print(f"\nPlot saved: {output_file_png}")
                     
-                    # Save as TikZ/LaTeX if available
-                    if TIKZ_AVAILABLE:
+                    # Save as PDF (vector format, works without LaTeX and can be used in LaTeX documents)
+                    output_file_pdf = os.path.join(output_dir, f"{model_type_short}_{table_type}_comparison.pdf")
+                    fig.savefig(output_file_pdf, format='pdf', bbox_inches='tight')
+                    print(f"PDF (vector) saved: {output_file_pdf}")
+                    
+                    # Try to save as PGF for LaTeX (requires LaTeX installation)
+                    if LATEX_EXPORT_AVAILABLE:
                         try:
-                            tikzplotlib.save(output_file_tex,
-                                           figureheight='8cm',
-                                           figurewidth='14cm',
-                                           strict=False)
-                            print(f"TikZ saved: {output_file_tex}")
+                            fig.savefig(output_file_pgf, format='pgf', bbox_inches='tight')
+                            print(f"LaTeX/PGF saved: {output_file_pgf}")
                         except Exception as e:
-                            print(f"Warning: Could not save TikZ file: {e}")
+                            print(f"Note: PGF format not available (requires LaTeX in PATH)")
+                            print(f"  → Use the PDF file instead: {output_file_pdf}")
                     
                     plt.close(fig)
                     
@@ -410,12 +418,11 @@ def main(excel_file="manual_set_results_test_fitness_size.xlsx", output_dir="plo
         
         print(f"\n{'='*100}")
         print(f"SUCCESS! Generated {plot_count} plots in '{output_dir}' directory")
-        if TIKZ_AVAILABLE:
-            print(f"  - {plot_count} PNG files (.png)")
-            print(f"  - {plot_count} TikZ/LaTeX files (.tex)")
-        else:
-            print(f"  - {plot_count} PNG files (.png)")
-            print(f"  - Install tikzplotlib for TikZ/LaTeX export: pip install tikzplotlib")
+        print(f"  - {plot_count} PNG files (.png) - for presentations/documents")
+        print(f"  - {plot_count} PDF files (.pdf) - vector format for LaTeX")
+        print(f"\nTo use in LaTeX:")
+        print(f"  \\usepackage{{graphicx}}")
+        print(f"  \\includegraphics[width=\\textwidth]{{filename.pdf}}")
         print(f"{'='*100}")
         
     except FileNotFoundError as e:
