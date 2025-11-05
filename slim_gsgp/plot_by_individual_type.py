@@ -187,22 +187,40 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
     variant_labels = {
         'VARIANT 20': 'SLIM-GSGP (Baseline)',
         'VARIANT 1': 'OMS',
-        'VARIANT 1b': 'OMS (OMS=0)',
+        'VARIANT 1b': 'OMS',
+        'VARIANT 1c': 'OMS 0.5',
+        'VARIANT 1d': 'OMS 1',
         'VARIANT 2': 'LS',
         'VARIANT 3': 'OMS + LS',
-        'VARIANT 3b': 'OMS + LS (OMS=0)',
+        'VARIANT 3b': 'OMS + LS',
         'VARIANT 4': 'OMS + PT',
-        'VARIANT 4b': 'OMS + PT (OMS=0)',
+        'VARIANT 4b': 'OMS + PT',
         'VARIANT 5': 'LS + PT',
         'VARIANT 6': 'OMS + PT + AS',
-        'VARIANT 6b': 'OMS + PT + AS (OMS=0)',
+        'VARIANT 6b': 'OMS + PT + AS',
         'VARIANT 7': 'LS + PT + AS'
     }
     
     plt.figure(figsize=(14, 8))
     
-    # Define colors for different variants (cycle through if more variants)
-    color_palette = plt.cm.tab20.colors
+    # Define fixed colors for each variant
+    # Blue tones for OMS variants, Orange tones for LS variants, Green for OMS+LS
+    # Darker colors for variants with more elements
+    variant_colors = {
+        'VARIANT 1': '#3399FF',    # OMS (1 element) - Light Blue
+        'VARIANT 1b': '#3399FF',   # OMS 0.1 (1 element) - Light Blue
+        'VARIANT 1c': '#3399FF',   # OMS 0.5 (1 element) - Light Blue
+        'VARIANT 1d': '#3399FF',   # OMS 1 (1 element) - Light Blue
+        'VARIANT 2': '#FF9944',    # LS (1 element) - Light Orange
+        'VARIANT 3': '#66CC66',    # OMS + LS (2 elements) - Light Green
+        'VARIANT 3b': '#66CC66',   # OMS + LS (OMS=0) (2 elements) - Light Green
+        'VARIANT 4': '#0066CC',    # OMS + PT (2 elements) - Medium Blue
+        'VARIANT 4b': '#0066CC',   # OMS + PT (OMS=0) (2 elements) - Medium Blue
+        'VARIANT 5': '#FF6600',    # LS + PT (2 elements) - Medium Orange
+        'VARIANT 6': '#003366',    # OMS + PT + AS (3 elements) - Dark Blue
+        'VARIANT 6b': '#003366',   # OMS + PT + AS (OMS=0) (3 elements) - Dark Blue
+        'VARIANT 7': '#CC4400',    # LS + PT + AS (3 elements) - Dark Orange
+    }
     
     baseline_data = all_variants_data.get(baseline_variant, {})
     
@@ -215,7 +233,7 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
     plt.axhline(0, color='black', linestyle='--', linewidth=2, alpha=0.7, label=baseline_label)
     
     # Filter to show only original 7 variants (1-7, excluding 'b' variants)
-    variants_to_show = ['VARIANT 1', 'VARIANT 2', 'VARIANT 3', 'VARIANT 4', 'VARIANT 5', 'VARIANT 6', 'VARIANT 7']
+    variants_to_show = ['VARIANT 1b', 'VARIANT 2', 'VARIANT 3b', 'VARIANT 4b', 'VARIANT 5', 'VARIANT 6b', 'VARIANT 7']
     
     # Plot each variant (except baseline) as difference from baseline
     variant_idx = 0
@@ -248,8 +266,8 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
                 differences.append(diff)
         
         if datasets:
-            # Use default color palette
-            color = color_palette[variant_idx % len(color_palette)]
+            # Use fixed color for each variant
+            color = variant_colors.get(variant_name, '#000000')  # Default to black if not defined
             
             variant_label = variant_labels.get(variant_name, variant_name)
             

@@ -230,23 +230,19 @@ def get_all_variants(df):
             'TEST FITNESS' not in variant_name.upper()):
             variants.add(variant_name)
     
-    # Sort variants: VARIANT 20 first, then others numerically (with support for 1b, 3b, etc.)
-    def variant_sort_key(v):
-        match = re.search(r'VARIANT\s*(\d+)([a-z]?)', v, re.IGNORECASE)
-        if match:
-            num = int(match.group(1))
-            suffix = match.group(2).lower() if match.group(2) else ''
-            
-            # Put VARIANT 20 first (use -1), then sort others numerically
-            if num == 20:
-                return (-1, '')
-            
-            # Return tuple: (number, suffix) for proper sorting
-            # This will sort: 1, 1b, 2, 3, 3b, 4, 4b, etc.
-            return (num, suffix)
-        return (999, '')
+    # Filter to show only specific variants
+    variants_to_show = ['VARIANT 20', 'VARIANT 1b', 'VARIANT 2', 'VARIANT 3b', 'VARIANT 4b', 'VARIANT 5', 'VARIANT 6b', 'VARIANT 7']
     
-    sorted_variants = sorted(variants, key=variant_sort_key)
+    # Keep only variants that are in the filter list
+    filtered_variants = [v for v in variants if v in variants_to_show]
+    
+    # Sort variants: VARIANT 20 first, then in the order specified
+    def variant_sort_key(v):
+        if v in variants_to_show:
+            return variants_to_show.index(v)
+        return 999
+    
+    sorted_variants = sorted(filtered_variants, key=variant_sort_key)
     return sorted_variants
 
 def get_color_for_comparison(value, baseline_value, max_improvement_pct=50):
@@ -295,6 +291,34 @@ def get_color_for_comparison(value, baseline_value, max_improvement_pct=50):
     
     return None  # No difference
 
+def get_variant_display_name(variant_name):
+    """
+    Get the display name for a variant in the Excel output.
+    
+    Args:
+        variant_name: Original variant name (e.g., 'VARIANT 1b')
+        
+    Returns:
+        str: Display name for the variant
+    """
+    variant_labels = {
+        'VARIANT 20': 'SLIM-GSGP',
+        'VARIANT 1': 'OMS',
+        'VARIANT 1b': 'OMS',
+        'VARIANT 1c': 'OMS 0.5',
+        'VARIANT 1d': 'OMS 1',
+        'VARIANT 2': 'LS',
+        'VARIANT 3': 'OMS + LS',
+        'VARIANT 3b': 'OMS + LS',
+        'VARIANT 4': 'OMS + PT',
+        'VARIANT 4b': 'OMS + PT',
+        'VARIANT 5': 'LS + PT',
+        'VARIANT 6': 'OMS + PT + AS',
+        'VARIANT 6b': 'OMS + PT + AS',
+        'VARIANT 7': 'LS + PT + AS'
+    }
+    return variant_labels.get(variant_name, variant_name)
+
 def create_comparison_excel(df_fitness, df_size, output_file='median_results.xlsx'):
     """
     Create an Excel file with all variants - both FITNESS and SIZE tables.
@@ -304,10 +328,10 @@ def create_comparison_excel(df_fitness, df_size, output_file='median_results.xls
         df_size: DataFrame with the MODEL SIZE data
         output_file: Output Excel filename
     """
-    # Get all variants
+    # Get all variants (filtered)
     print("\nDetecting all variants in the FITNESS data...")
     all_variants = get_all_variants(df_fitness)
-    print(f"Found {len(all_variants)} variants: {', '.join(all_variants)}")
+    print(f"Found {len(all_variants)} variants to include: {', '.join(all_variants)}")
     
     # Extract data for all variants - FITNESS
     print("\n--- Extracting FITNESS data ---")
@@ -350,7 +374,7 @@ def create_comparison_excel(df_fitness, df_size, output_file='median_results.xls
     ws['A1'] = ""
     for idx, variant in enumerate(all_variants):
         col_letter = get_column_letter(idx + 2)  # Start from column B
-        ws[f'{col_letter}1'] = variant
+        ws[f'{col_letter}1'] = get_variant_display_name(variant)
     
     # Apply header styling to all columns
     for idx in range(len(all_variants) + 1):
@@ -389,7 +413,7 @@ def create_comparison_excel(df_fitness, df_size, output_file='median_results.xls
     
     # ========== TABLE 1: TEST FITNESS ==========
     # Write section header
-    ws[f'A{current_row}'] = "PERFORMANCE - TEST FITNESS"
+    ws[f'A{current_row}'] = "TEST RMSE"
     ws[f'A{current_row}'].fill = section_fill
     ws[f'A{current_row}'].font = section_font
     ws[f'A{current_row}'].alignment = left_alignment
@@ -461,7 +485,7 @@ def create_comparison_excel(df_fitness, df_size, output_file='median_results.xls
     # ========== TABLE 2: MODEL SIZE ==========
     if df_size is not None and variants_size_data:
         # Write section header
-        ws[f'A{current_row}'] = "PERFORMANCE - MODEL SIZE"
+        ws[f'A{current_row}'] = "TEST SIZE (NODES)"
         ws[f'A{current_row}'].fill = section_fill
         ws[f'A{current_row}'].font = section_font
         ws[f'A{current_row}'].alignment = left_alignment
@@ -475,7 +499,7 @@ def create_comparison_excel(df_fitness, df_size, output_file='median_results.xls
         ws[f'A{current_row}'] = ""
         for idx, variant in enumerate(all_variants):
             col_letter = get_column_letter(idx + 2)
-            ws[f'{col_letter}{current_row}'] = variant
+            ws[f'{col_letter}{current_row}'] = get_variant_display_name(variant)
             ws[f'{col_letter}{current_row}'].fill = header_fill
             ws[f'{col_letter}{current_row}'].font = header_font
             ws[f'{col_letter}{current_row}'].alignment = center_alignment

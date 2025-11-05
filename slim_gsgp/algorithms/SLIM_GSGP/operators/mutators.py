@@ -30,6 +30,19 @@ from slim_gsgp.algorithms.GSGP.representations.tree import Tree
 from slim_gsgp.algorithms.SLIM_GSGP.representations.individual import Individual
 from slim_gsgp.utils.utils import get_random_tree
 
+# Global counter for OMS transformations (ms < 0.1 -> 0)
+_oms_zero_transformations_count = 0
+
+def reset_oms_counter():
+    """Reset the OMS zero transformations counter."""
+    global _oms_zero_transformations_count
+    _oms_zero_transformations_count = 0
+
+def get_oms_counter():
+    """Get the current OMS zero transformations count."""
+    global _oms_zero_transformations_count
+    return _oms_zero_transformations_count
+
 # two tree function
 def two_trees_delta(operator="sum"):
     """
@@ -415,7 +428,9 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
             ms = torch.clamp(ms, -100.0, 100.0)  
             
             # Convert near-zero mutation steps to 0 to prevent overfitting and bloat
-            if torch.abs(ms) < 0.1:
+            if torch.abs(ms) < 1:
+                global _oms_zero_transformations_count
+                _oms_zero_transformations_count += 1
                 ms = torch.tensor(0.0)
             
 
