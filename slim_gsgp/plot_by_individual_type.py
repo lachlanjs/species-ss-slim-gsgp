@@ -233,19 +233,19 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
         datasets = []
         differences = []
         
-        # Calculate differences for datasets 1-14 (dataset 12 excluded)
-        # NOTE: Dataset 12 'istanbul' is excluded. To re-enable, change range to (1, 16) and uncomment dataset 12 in data loader files
-        for ds_num in range(1, 15):
+        # Calculate differences for datasets 1-15, excluding dataset 12 (istanbul)
+        # NOTE: Dataset 12 'istanbul' is excluded. To re-enable, remove the 'if ds_num == 12: continue' line
+        for ds_num in range(1, 16):
+            if ds_num == 12:  # Skip dataset 12 (istanbul)
+                continue
+            
             baseline_val = baseline_data.get(ds_num, None)
             variant_val = variant_data.get(ds_num, None)
             
             if baseline_val is not None and variant_val is not None:
                 datasets.append(ds_num)
-                # For size, calculate percentage difference; for fitness, absolute difference
-                if table_type.lower() == 'size':
-                    diff = ((variant_val - baseline_val) / baseline_val) * 100
-                else:
-                    diff = variant_val - baseline_val
+                # Calculate percentage difference for both size and fitness
+                diff = ((variant_val - baseline_val) / baseline_val) * 100
                 differences.append(diff)
         
         if datasets:
@@ -266,12 +266,11 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
     
     plt.xlabel('Dataset Number', fontsize=12, fontweight='bold')
     
-    # Use "RMSE" for fitness labels, and "Reduction in size (%)" for size
+    # Use percentage for both fitness and size
+    ylabel = 'Reduction (%)'
     if table_type.lower() == 'fitness':
-        ylabel = 'RMSE'
-        title_metric = "RMSE"
+        title_metric = "RMSE %"
     else:
-        ylabel = 'Reduction in size (%)'
         title_metric = "Size %"
     plt.ylabel(ylabel, fontsize=12, fontweight='bold')
     
@@ -279,10 +278,11 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
     # plt.title(f'{model_type} - All Variants Comparison ({title_metric})', 
     #          fontsize=14, fontweight='bold')
     
-    # Adjust x-axis to show only datasets 1-14 (dataset 12 excluded)
-    # NOTE: To re-enable dataset 12, change to range(1, 16) and xlim to (0.5, 15.5)
-    plt.xticks(range(1, 15), weight='bold')
-    plt.xlim(0.5, 14.5)
+    # Adjust x-axis to show datasets 1-15 excluding dataset 12 (istanbul)
+    # NOTE: To re-enable dataset 12, change back to range(1, 16) and remove the list comprehension filter
+    dataset_labels = [i for i in range(1, 16) if i != 12]  # [1,2,3,4,5,6,7,8,9,10,11,13,14,15]
+    plt.xticks(dataset_labels, weight='bold')
+    plt.xlim(0.5, 15.5)
     plt.grid(True, alpha=0.3)
     
     # Place legend inside the plot area with bold text
@@ -328,17 +328,11 @@ def print_summary_table(all_variants_data, model_type, table_type='fitness', bas
                 if variant == baseline_variant:
                     row += f"{val:<15.4f}"
                 else:
-                    # Show difference from baseline
+                    # Show percentage difference for both fitness and size
                     baseline_val = baseline_data.get(ds_num, None)
                     if baseline_val is not None:
-                        if table_type.lower() == 'size':
-                            # Show percentage difference for size
-                            diff_pct = ((val - baseline_val) / baseline_val) * 100
-                            row += f"{val:.1f}({diff_pct:+.1f}%)"[:15].ljust(15)
-                        else:
-                            # Show absolute difference for fitness
-                            diff = val - baseline_val
-                            row += f"{val:.4f}({diff:+.2f})"[:15].ljust(15)
+                        diff_pct = ((val - baseline_val) / baseline_val) * 100
+                        row += f"{val:.4f}({diff_pct:+.1f}%)"[:15].ljust(15)
                     else:
                         row += f"{val:<15.4f}"
             else:
