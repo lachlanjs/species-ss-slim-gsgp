@@ -191,17 +191,19 @@ def calculate_non_dominated(pop, attrs: list[str], minimization: bool):
     A candidate is non-dominated if there is no other candidate which is better than it in terms of all attributes
 
     Parameters
-        ----------
-        pop : list[Individual]
-            The population from which individuals are drawn.
+    ----------
+    pop : list[Individual]
+        The population from which individuals are drawn.
+    attrs : list[str]
+        The attributes by which the non-dominated set will be calculated (i.e. fitness, size, depth, loss, etc.)
+    minimization : bool
+        If True, lower values are better. If False, higher values are better.
 
-        attrs : list[str]
-            The attributes by which the non-dominated set will be calculated (i.e. fitness, size, depth, loss, etc.)            
-
-        Returns
-        -------
-        list[int]
-            The indices of the individuals in the non-dominated set
+    Returns
+    -------
+    tuple
+        - np.array: The indices of the individuals in the non-dominated set
+        - list[str]: List of degenerate attributes (where all non-dominated individuals have same value)
     """
 
     # Extract attribute values for all individuals

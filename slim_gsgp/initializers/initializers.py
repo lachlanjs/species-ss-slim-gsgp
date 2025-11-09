@@ -28,7 +28,7 @@ from slim_gsgp.algorithms.GP.representations.tree_utils import (create_full_rand
 
 def grow(init_pop_size, init_depth, FUNCTIONS, TERMINALS, CONSTANTS, p_c=0.3):
     """
-    Generates a list of individuals with random trees for a GM4OS population using the Grow method.
+    Generates a list of individuals with random trees for a population using the Grow method.
 
     Parameters
     ----------

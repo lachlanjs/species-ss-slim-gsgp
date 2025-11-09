@@ -212,7 +212,7 @@ Specific for *slim*
 Additional Notes
 --------------------------------------------------
 
-If a user wishes to use their own dataset rather than one of the sixteen benchmarking datasets included with the ``slim`` library, they can load their data into a Pandas DataFrame,
+If a user wishes to use their own dataset rather than one of the fifteen benchmarking datasets included with the ``slim`` library (dataset 12 'istanbul' is currently excluded), they can load their data into a Pandas DataFrame,
 ensuring that the target variable is the last column. They can then call the ``load_pandas_df`` function from ``datasets.data_loader`` as follows:
 
 .. code-block:: python

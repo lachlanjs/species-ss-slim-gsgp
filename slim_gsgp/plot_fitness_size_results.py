@@ -274,8 +274,10 @@ def create_variant_20_plot(plot_data):
     plt.xlabel('Dataset Number', fontsize=12, fontweight='bold')
     plt.ylabel('Median Value', fontsize=12, fontweight='bold')
     plt.title('Original SLIM GSGP (baseline)', fontsize=14, fontweight='bold')
-    plt.xticks(range(1, 16))
-    plt.xlim(0.5, 15.5)
+    # Adjust x-axis to show only datasets 1-14 (dataset 12 excluded)
+    # NOTE: To re-enable dataset 12, change to range(1, 16) and xlim to (0.5, 15.5)
+    plt.xticks(range(1, 15))
+    plt.xlim(0.5, 14.5)
     plt.grid(True, alpha=0.3)
     plt.legend(loc='best', fontsize=10)
     plt.tight_layout()
@@ -322,8 +324,9 @@ def create_compare_plot(df, compare_variant='VARIANT 1', baseline_variant='VARIA
     for model in model_types:
         ds = []
         deltas = []
-        # consider datasets 1..15 to keep consistent x-axis
-        for i in range(1, 16):
+        # Consider datasets 1-14 (dataset 12 excluded)
+        # NOTE: To re-enable dataset 12, change to range(1, 16)
+        for i in range(1, 15):
             b = baseline.get(model, {}).get(i, None)
             c = compare.get(model, {}).get(i, None)
             if b is None or c is None:
@@ -372,8 +375,10 @@ def create_compare_plot(df, compare_variant='VARIANT 1', baseline_variant='VARIA
     plt.xlabel('Dataset Number', fontsize=12, fontweight='bold')
     plt.ylabel(f'Median difference ({compare_variant} - {baseline_variant})', fontsize=12, fontweight='bold')
     plt.title(f'{compare_variant} improvement over original SLIM GSGP', fontsize=14, fontweight='bold')
-    plt.xticks(range(1, 16))
-    plt.xlim(0.5, 15.5)
+    # Adjust x-axis to show only datasets 1-14 (dataset 12 excluded)
+    # NOTE: To re-enable dataset 12, change to range(1, 16) and xlim to (0.5, 15.5)
+    plt.xticks(range(1, 15))
+    plt.xlim(0.5, 14.5)
     plt.grid(True, alpha=0.3)
     plt.legend(loc='best', fontsize=10)
     plt.tight_layout()

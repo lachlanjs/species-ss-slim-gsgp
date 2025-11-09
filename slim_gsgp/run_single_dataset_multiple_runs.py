@@ -39,22 +39,24 @@ import argparse
 import sys
 
 # Dictionary mapping dataset names to their loader functions
+# NOTE: Dataset numbering goes from 1 to 14 (dataset 12 'istanbul' is commented out)
+# To re-enable dataset 12, uncomment the 'istanbul' line below
 DATASET_LOADERS = {
-    'airfoil': load_airfoil,
-    'bike_sharing': load_bike_sharing,
-    'bioavailability': load_bioav,
-    'boston': load_boston,
-    'breast_cancer': load_breast_cancer,
-    'concrete_slump': load_concrete_slump,
-    'concrete_strength': load_concrete_strength,
-    'diabetes': load_diabetes,
-    'efficiency_cooling': load_efficiency_cooling,
-    'efficiency_heating': load_efficiency_heating,
-    'forest_fires': load_forest_fires,
-    'istanbul': load_istanbul,
-    'parkinson_updrs': load_parkinson_updrs,
-    'ppb': load_ppb,
-    'resid_build_sale_price': load_resid_build_sale_price
+    'airfoil': load_airfoil,                    # Dataset 1
+    'bike_sharing': load_bike_sharing,          # Dataset 2
+    'bioavailability': load_bioav,              # Dataset 3
+    'boston': load_boston,                      # Dataset 4
+    'breast_cancer': load_breast_cancer,        # Dataset 5
+    'concrete_slump': load_concrete_slump,      # Dataset 6
+    'concrete_strength': load_concrete_strength,# Dataset 7
+    'diabetes': load_diabetes,                  # Dataset 8
+    'efficiency_cooling': load_efficiency_cooling,  # Dataset 9
+    'efficiency_heating': load_efficiency_heating,  # Dataset 10
+    'forest_fires': load_forest_fires,          # Dataset 11
+    # 'istanbul': load_istanbul,                # Dataset 12 - COMMENTED OUT (uncomment to re-enable)
+    'parkinson_updrs': load_parkinson_updrs,    # Dataset 13
+    'ppb': load_ppb,                            # Dataset 14
+    'resid_build_sale_price': load_resid_build_sale_price  # Dataset 15
 }
 
 def calculate_statistics(values):

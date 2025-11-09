@@ -397,7 +397,7 @@ def create_comparison_excel(df_fitness, df_size, output_file='median_results.xls
         (9, 'efficiency_cooling'),
         (10, 'efficiency_heating'),
         (11, 'forest_fires'),
-        (12, 'istanbul'),
+        # (12, 'istanbul'),              # Dataset 12 - COMMENTED OUT (uncomment to re-enable)
         (13, 'parkinson_updrs'),
         (14, 'ppb'),
         (15, 'resid_build_sale_price')

@@ -380,20 +380,20 @@ def simplify_constant_operations(tree_structure, constants_dict):
 
 def simplify_population(population, debug=False):
     """
-    Apply simplification to ALL individuals in a population.
+    Apply simplification to all individuals in a population.
     
     This function converts each SLIM individual to a tree structure, applies constant
     folding and identity simplifications, then updates the individual's nodes_count
     to reflect the simplified tree size.
     
-    This is applied systematically to the entire population in each generation,
-    BEFORE Pareto frontier calculation and normalization, so that all selection
-    is based on simplified tree sizes.
+    This is typically applied to the Pareto frontier (non-dominated individuals)
+    at the end of evolution, before selecting the final solution based on 
+    normalized fitness and size.
     
     Parameters
     ----------
     population : list[Individual]
-        List of all individuals in the population
+        List of individuals to simplify (typically the Pareto frontier)
     debug : bool
         If True, print debug information for first failed individual
         
