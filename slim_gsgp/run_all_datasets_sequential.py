@@ -24,22 +24,24 @@ USE_SIMPLIFICATION = True         # Enable simplification when selecting best_no
 # ============================================================================
 
 # List of all datasets
+# NOTE: Dataset numbering goes from 1 to 14 (dataset 12 'istanbul' is commented out)
+# To re-enable dataset 12, uncomment the 'istanbul' line below
 DATASETS = [
-    "airfoil",
-    "bike_sharing", 
-    "bioavailability",
-    "boston",
-    "breast_cancer",
-    "concrete_slump",
-    "concrete_strength",
-    "diabetes",
-    "efficiency_cooling",
-    "efficiency_heating",
-    "forest_fires",
-    "istanbul",
-    "parkinson_updrs",
-    "ppb",
-    "resid_build_sale_price"
+    "airfoil",              # Dataset 1
+    "bike_sharing",         # Dataset 2
+    "bioavailability",      # Dataset 3
+    "boston",               # Dataset 4
+    "breast_cancer",        # Dataset 5
+    "concrete_slump",       # Dataset 6
+    "concrete_strength",    # Dataset 7
+    "diabetes",             # Dataset 8
+    "efficiency_cooling",   # Dataset 9
+    "efficiency_heating",   # Dataset 10
+    "forest_fires",         # Dataset 11
+    # "istanbul",           # Dataset 12 - COMMENTED OUT (uncomment to re-enable)
+    "parkinson_updrs",      # Dataset 13
+    "ppb",                  # Dataset 14
+    "resid_build_sale_price"  # Dataset 15
 ]
 
 def run_dataset(dataset_name, num_runs, slim_version, base_seed, use_oms=False, 

@@ -169,7 +169,7 @@ print(float(rmse(y_true=y_test, y_pred=predictions)))
 
 ## Additional Notes
 
-If a user wishes to use their own dataset rather than one of the sixteen benchmarking datasets included with the `slim` library, they can load their data into a Pandas DataFrame, ensuring that the target variable is the last column. They can then call the `load_pandas_df` function from `datasets.data_loader` as follows:
+If a user wishes to use their own dataset rather than one of the fifteen benchmarking datasets included with the `slim` library (dataset 12 'istanbul' is currently excluded), they can load their data into a Pandas DataFrame, ensuring that the target variable is the last column. They can then call the `load_pandas_df` function from `datasets.data_loader` as follows:
 
 ```python
 from slim_gsgp.datasets.data_loader import load_pandas_df  # import the loader for the dataset PPB

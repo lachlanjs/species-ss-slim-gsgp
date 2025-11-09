@@ -233,8 +233,9 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
         datasets = []
         differences = []
         
-        # Calculate differences for datasets 1-15
-        for ds_num in range(1, 16):
+        # Calculate differences for datasets 1-14 (dataset 12 excluded)
+        # NOTE: Dataset 12 'istanbul' is excluded. To re-enable, change range to (1, 16) and uncomment dataset 12 in data loader files
+        for ds_num in range(1, 15):
             baseline_val = baseline_data.get(ds_num, None)
             variant_val = variant_data.get(ds_num, None)
             
@@ -278,8 +279,10 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
     # plt.title(f'{model_type} - All Variants Comparison ({title_metric})', 
     #          fontsize=14, fontweight='bold')
     
-    plt.xticks(range(1, 16), weight='bold')
-    plt.xlim(0.5, 15.5)
+    # Adjust x-axis to show only datasets 1-14 (dataset 12 excluded)
+    # NOTE: To re-enable dataset 12, change to range(1, 16) and xlim to (0.5, 15.5)
+    plt.xticks(range(1, 15), weight='bold')
+    plt.xlim(0.5, 14.5)
     plt.grid(True, alpha=0.3)
     
     # Place legend inside the plot area with bold text
