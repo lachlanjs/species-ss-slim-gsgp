@@ -297,7 +297,7 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
         X_test=None,
         grow_probability=1,
         reconstruct=True,
-        y_train=None, # TODO: add notes
+        y_train=None,
         y_test=None,
     ):
         """

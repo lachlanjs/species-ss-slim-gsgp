@@ -148,11 +148,20 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
     linear_scaling : bool, optional
         Whether to use linear scaling for fitness evaluation. When enabled, applies optimal linear 
         transformation y_scaled = a + y_raw * b to improve fitness. (Default is False)
+    use_simplification : bool, optional
+        Whether to apply algebraic simplification to the Pareto frontier individuals at the end 
+        of evolution before selecting the final solution. (Default is True)
+    enable_plotting : bool, optional
+        Whether to enable live plotting of fitness evolution during the run. (Default is False)
 
     Returns
     -------
-        Individual
-            Returns the best individual at the last generation.
+        SlimResults
+            Object containing three individuals:
+            - best_fitness: Best fitness individual from final population
+            - best_normalized: Best normalized individual from Pareto frontier
+            - smallest: Smallest individual from final population
+            For backward compatibility, can be accessed as Individual (returns best_fitness)
     """
 
     # ================================
