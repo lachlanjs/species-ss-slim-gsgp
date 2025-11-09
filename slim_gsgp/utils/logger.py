@@ -156,3 +156,54 @@ def drop_experiment_from_logger(experiment_id: str or int, log_path: str) -> Non
     to_keep = logger_data[logger_data.iloc[:, 1] != experiment_id]
     # Save the new excluded dataset
     to_keep.to_csv(log_path, index=False, header=None)
+
+
+def log_oms_transformations(
+    path: str,
+    generation: int,
+    oms_count: int,
+    run_info: list = None,
+    seed: int = 0,
+) -> None:
+    """
+    Logs OMS transformations (|ms| < 0.1 -> 0) count per generation into a CSV file.
+
+    Parameters
+    ----------
+    path : str
+        Path to the CSV file.
+    generation : int
+        Current generation number.
+    oms_count : int
+        Number of OMS transformations in this generation.
+    run_info : list, optional
+        Information about the run. Defaults to None.
+    seed : int, optional
+        The seed used in random, numpy, and torch libraries. Defaults to 0.
+
+    Returns
+    -------
+    None
+    """
+    # Create log directory if it doesn't exist
+    if not os.path.isdir(os.path.dirname(path)):
+        os.mkdir(os.path.dirname(path))
+    
+    # Check if file exists to write header
+    file_exists = os.path.isfile(path)
+    
+    with open(path, "a", newline="") as file:
+        writer = csv.writer(file)
+        
+        # Write header if file is new
+        if not file_exists:
+            header = []
+            if run_info is not None:
+                header.extend(["dataset", "experiment_id"])
+            header.extend(["seed", "generation", "oms_transformations"])
+            writer.writerow(header)
+        
+        # Write data row
+        infos = copy(run_info) if run_info is not None else []
+        infos.extend([seed, generation, oms_count])
+        writer.writerow(infos)

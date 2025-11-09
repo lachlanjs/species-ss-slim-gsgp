@@ -298,8 +298,8 @@ print(f"Tree depth: {best_normalized_individual.depth}")
 # Save results to file
 dataset_name = 'airfoil'
 # Determine execution type based on OMS and linear scaling usage
-oms_used = False  # Change this to match the oms parameter above
-linear_scaling_used = True  # Change this to match the linear_scaling parameter above
+oms_used = True  # Change this to match the oms parameter above
+linear_scaling_used = False  # Change this to match the linear_scaling parameter above
 
 if linear_scaling_used and oms_used:
     execution_type = 'slim linear scaling oms'

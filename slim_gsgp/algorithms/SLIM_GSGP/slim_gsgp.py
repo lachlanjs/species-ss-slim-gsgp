@@ -34,8 +34,9 @@ from slim_gsgp.algorithms.GP.representations.tree import Tree as GP_Tree
 from slim_gsgp.algorithms.GSGP.representations.tree import Tree
 from slim_gsgp.algorithms.SLIM_GSGP.representations.individual import Individual
 from slim_gsgp.algorithms.SLIM_GSGP.representations.population import Population
+from slim_gsgp.algorithms.SLIM_GSGP.operators.mutators import reset_oms_counter, get_oms_counter
 from slim_gsgp.utils.diversity import gsgp_pop_div_from_vectors
-from slim_gsgp.utils.logger import logger
+from slim_gsgp.utils.logger import logger, log_oms_transformations
 from slim_gsgp.utils.utils import verbose_reporter, select_best_normalized_individual
 
 # Global variable to store the figure for persistent plotting
@@ -570,6 +571,9 @@ class SLIM_GSGP:
 
         # begining the evolution process
         for it in range(1, n_iter + 1, 1):
+            # Reset OMS counter at the start of each generation
+            reset_oms_counter()
+            
             # starting an empty offspring population
             offs_pop, start = [], time.time()
 
@@ -865,6 +869,17 @@ class SLIM_GSGP:
                     run_info=run_info,
                     seed=self.seed,
                 )
+                
+                # Log OMS transformations if log_path is provided
+                if log_path is not None:
+                    oms_log_path = log_path.replace('.csv', '_oms_transformations.csv')
+                    log_oms_transformations(
+                        oms_log_path,
+                        it,
+                        get_oms_counter(),
+                        run_info=run_info,
+                        seed=self.seed,
+                    )
 
             # displaying the results on console if verbose level is more than 0
             if verbose != 0:
@@ -876,6 +891,11 @@ class SLIM_GSGP:
                     end - start,
                     self.elite.nodes_count,
                 )
+                
+                # Display OMS transformations count for this generation
+                oms_count = get_oms_counter()
+                if oms_count > 0:
+                    print(f"  🔄 OMS transformations (|ms| < 0.1 → 0): {oms_count}")
             
             # Plot current generation if plotting is enabled (no simplification during evolution)
             if self.enable_plotting:
