@@ -198,7 +198,8 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
         'VARIANT 5': 'LS + PT',
         'VARIANT 6': 'OMS + PT + AS',
         'VARIANT 6b': 'OMS + PT + AS',
-        'VARIANT 7': 'LS + PT + AS'
+        'VARIANT 7': 'LS + PT + AS',
+        'VARIANT 8': 'OMS + LS + PT + AS'
     }
     
     plt.figure(figsize=(14, 8))
@@ -220,6 +221,7 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
         'VARIANT 6': '#003366',    # OMS + PT + AS (3 elements) - Dark Blue
         'VARIANT 6b': '#003366',   # OMS + PT + AS (OMS=0) (3 elements) - Dark Blue
         'VARIANT 7': '#CC4400',    # LS + PT + AS (3 elements) - Dark Orange
+        'VARIANT 8': '#006633',    # OMS + LS + PT + AS (4 elements) - Dark Green
     }
     
     # Define different markers for each variant (for better B&W printing)
@@ -238,6 +240,7 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
         'VARIANT 6': 'p',      # OMS + PT + AS - Pentagon (rounded)
         'VARIANT 6b': 'p',     # OMS + PT + AS - Pentagon (rounded)
         'VARIANT 7': 'd',      # LS + PT + AS - Thin diamond (triangular)
+        'VARIANT 8': 'H',      # OMS + LS + PT + AS - Hexagon (all features)
     }
     
     baseline_data = all_variants_data.get(baseline_variant, {})
@@ -251,7 +254,7 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
     plt.axhline(0, color='black', linestyle='--', linewidth=2, alpha=0.7, label=baseline_label)
     
     # Filter to show only original 7 variants (1-7, excluding 'b' variants)
-    variants_to_show = ['VARIANT 1b', 'VARIANT 2', 'VARIANT 3b', 'VARIANT 4b', 'VARIANT 5', 'VARIANT 6b', 'VARIANT 7']
+    variants_to_show = ['VARIANT 1b', 'VARIANT 2', 'VARIANT 3b', 'VARIANT 4b', 'VARIANT 5', 'VARIANT 6b', 'VARIANT 7', 'VARIANT 8']
     
     # Plot each variant (except baseline) as difference from baseline
     variant_idx = 0
@@ -303,11 +306,12 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
     
     plt.xlabel('Dataset Number', fontsize=12, fontweight='bold')
     
-    # Use percentage for both fitness and size
-    ylabel = 'Reduction (%)'
+    # Use specific ylabel for fitness and size
     if table_type.lower() == 'fitness':
+        ylabel = 'Reduction RMSE (%)'
         title_metric = "RMSE %"
     else:
+        ylabel = 'Reduction size (%)'
         title_metric = "Size %"
     plt.ylabel(ylabel, fontsize=12, fontweight='bold')
     

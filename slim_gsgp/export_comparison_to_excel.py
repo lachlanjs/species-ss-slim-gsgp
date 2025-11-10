@@ -231,7 +231,7 @@ def get_all_variants(df):
             variants.add(variant_name)
     
     # Filter to show only specific variants
-    variants_to_show = ['VARIANT 20', 'VARIANT 1b', 'VARIANT 2', 'VARIANT 3b', 'VARIANT 4b', 'VARIANT 5', 'VARIANT 6b', 'VARIANT 7']
+    variants_to_show = ['VARIANT 20', 'VARIANT 1b', 'VARIANT 2', 'VARIANT 3b', 'VARIANT 4b', 'VARIANT 5', 'VARIANT 6b', 'VARIANT 7', 'VARIANT 8']
     
     # Keep only variants that are in the filter list
     filtered_variants = [v for v in variants if v in variants_to_show]
@@ -315,7 +315,8 @@ def get_variant_display_name(variant_name):
         'VARIANT 5': 'LS + PT',
         'VARIANT 6': 'OMS + PT + AS',
         'VARIANT 6b': 'OMS + PT + AS',
-        'VARIANT 7': 'LS + PT + AS'
+        'VARIANT 7': 'LS + PT + AS',
+        'VARIANT 8': 'OMS + LS + PT + AS'
     }
     return variant_labels.get(variant_name, variant_name)
 
