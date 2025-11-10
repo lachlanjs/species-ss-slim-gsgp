@@ -602,8 +602,8 @@ if __name__ == "__main__":
     slim_version = 'SLIM+ABS'          # SLIM version: 'SLIM+ABS', 'SLIM+SIG2', 'SLIM*ABS', 'SLIM*SIG2'
     use_oms = False                    # Enable OMS (Operator Mutation Selection) - requires SLIM+SIG2 or SLIM*SIG2
     use_linear_scaling = False         # Enable Linear Scaling
-    use_pareto_tournament = False      # Enable Pareto Tournament Selection
-    use_simplification = True          # Enable Simplification during evolution
+    use_pareto_tournament = True      # Enable Pareto Tournament Selection
+    use_simplification = False          # Enable Simplification during evolution
     output_filename = None             # Custom output filename (None = auto-generate)
     # ============================================================================
     
