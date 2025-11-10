@@ -428,7 +428,7 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
             ms = torch.clamp(ms, -100.0, 100.0)  
             
             # Convert near-zero mutation steps to 0 to prevent overfitting and bloat
-            if torch.abs(ms) < 1:
+            if torch.abs(ms) < 0.1:
                 global _oms_zero_transformations_count
                 _oms_zero_transformations_count += 1
                 ms = torch.tensor(0.0)
