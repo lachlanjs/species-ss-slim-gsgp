@@ -222,6 +222,24 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
         'VARIANT 7': '#CC4400',    # LS + PT + AS (3 elements) - Dark Orange
     }
     
+    # Define different markers for each variant (for better B&W printing)
+    # Rounded shapes for OMS variants, Triangular shapes for LS variants, Star for OMS+LS
+    variant_markers = {
+        'VARIANT 1': 'o',      # OMS - Circle (rounded)
+        'VARIANT 1b': 'o',     # OMS - Circle (rounded)
+        'VARIANT 1c': 'o',     # OMS - Circle (rounded)
+        'VARIANT 1d': 'o',     # OMS - Circle (rounded)
+        'VARIANT 2': '^',      # LS - Triangle up (triangular)
+        'VARIANT 3': '*',      # OMS + LS - Star (combination symbol)
+        'VARIANT 3b': '*',     # OMS + LS - Star (combination symbol)
+        'VARIANT 4': 's',      # OMS + PT - Square (rounded corners)
+        'VARIANT 4b': 's',     # OMS + PT - Square (rounded corners)
+        'VARIANT 5': 'v',      # LS + PT - Triangle down (triangular)
+        'VARIANT 6': 'p',      # OMS + PT + AS - Pentagon (rounded)
+        'VARIANT 6b': 'p',     # OMS + PT + AS - Pentagon (rounded)
+        'VARIANT 7': 'd',      # LS + PT + AS - Thin diamond (triangular)
+    }
+    
     baseline_data = all_variants_data.get(baseline_variant, {})
     
     if not baseline_data:
@@ -267,16 +285,17 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
                 differences.append(diff)
         
         if datasets:
-            # Use fixed color for each variant
+            # Use fixed color and marker for each variant
             color = variant_colors.get(variant_name, '#000000')  # Default to black if not defined
+            marker = variant_markers.get(variant_name, 'o')  # Default to circle if not defined
             
             variant_label = variant_labels.get(variant_name, variant_name)
             
             plt.plot(datasets, differences,
                     color=color,
-                    marker='o',
+                    marker=marker,
                     linewidth=2,
-                    markersize=6,
+                    markersize=8,
                     label=variant_label,
                     alpha=0.85)
             
