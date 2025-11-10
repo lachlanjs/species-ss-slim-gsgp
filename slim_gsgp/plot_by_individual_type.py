@@ -240,7 +240,7 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
         'VARIANT 6': 'p',      # OMS + PT + AS - Pentagon (rounded)
         'VARIANT 6b': 'p',     # OMS + PT + AS - Pentagon (rounded)
         'VARIANT 7': 'd',      # LS + PT + AS - Thin diamond (triangular)
-        'VARIANT 8': 'H',      # OMS + LS + PT + AS - Hexagon (all features)
+        'VARIANT 8': '*',      # OMS + LS + PT + AS - Large star (all features)
     }
     
     baseline_data = all_variants_data.get(baseline_variant, {})
@@ -269,11 +269,13 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
         
         variant_data = all_variants_data[variant_name]
         
-        datasets = []
+        x_positions = []
         differences = []
         
         # Calculate differences for datasets 1-15, excluding dataset 12 (istanbul)
+        # Use consecutive positions (1-14) but keep track of actual dataset numbers
         # NOTE: Dataset 12 'istanbul' is excluded. To re-enable, remove the 'if ds_num == 12: continue' line
+        position = 1
         for ds_num in range(1, 16):
             if ds_num == 12:  # Skip dataset 12 (istanbul)
                 continue
@@ -282,23 +284,28 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
             variant_val = variant_data.get(ds_num, None)
             
             if baseline_val is not None and variant_val is not None:
-                datasets.append(ds_num)
+                x_positions.append(position)
                 # Calculate percentage difference for both size and fitness
                 diff = ((variant_val - baseline_val) / baseline_val) * 100
                 differences.append(diff)
+            
+            position += 1
         
-        if datasets:
+        if x_positions:
             # Use fixed color and marker for each variant
             color = variant_colors.get(variant_name, '#000000')  # Default to black if not defined
             marker = variant_markers.get(variant_name, 'o')  # Default to circle if not defined
             
+            # Use larger marker size for VARIANT 8 (asterisk)
+            marker_size = 12 if variant_name == 'VARIANT 8' else 8
+            
             variant_label = variant_labels.get(variant_name, variant_name)
             
-            plt.plot(datasets, differences,
+            plt.plot(x_positions, differences,
                     color=color,
                     marker=marker,
                     linewidth=2,
-                    markersize=8,
+                    markersize=marker_size,
                     label=variant_label,
                     alpha=0.85)
             
@@ -319,11 +326,13 @@ def create_individual_comparison_plot(all_variants_data, model_type, table_type,
     # plt.title(f'{model_type} - All Variants Comparison ({title_metric})', 
     #          fontsize=14, fontweight='bold')
     
-    # Adjust x-axis to show datasets 1-15 excluding dataset 12 (istanbul)
-    # NOTE: To re-enable dataset 12, change back to range(1, 16) and remove the list comprehension filter
-    dataset_labels = [i for i in range(1, 16) if i != 12]  # [1,2,3,4,5,6,7,8,9,10,11,13,14,15]
-    plt.xticks(dataset_labels, weight='bold')
-    plt.xlim(0.5, 15.5)
+    # Adjust x-axis to show consecutive positions 1-14 with renumbered dataset labels
+    # Dataset 12 (istanbul) is excluded, so datasets are renumbered: 1-11, then 13→12, 14→13, 15→14
+    # NOTE: To re-enable dataset 12, restore original numbering
+    x_positions = list(range(1, 15))  # [1,2,3,4,5,6,7,8,9,10,11,12,13,14]
+    dataset_labels = list(range(1, 15))  # [1,2,3,4,5,6,7,8,9,10,11,12,13,14]
+    plt.xticks(x_positions, dataset_labels, weight='bold')
+    plt.xlim(0.5, 14.5)
     plt.grid(True, alpha=0.3)
     
     # Place legend inside the plot area with bold text
