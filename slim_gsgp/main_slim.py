@@ -361,7 +361,7 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
         return 1
     
     # Update nodes_count for all individuals to reflect actual tree size
-    print("\nUpdating node counts to reflect actual tree sizes...")
+    if verbose: print("\nUpdating node counts to reflect actual tree sizes...")
     for individual in optimizer.population.population:
         try:
             tree_structure, _ = convert_slim_individual_to_normal_tree(individual)
