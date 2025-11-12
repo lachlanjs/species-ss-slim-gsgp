@@ -19,6 +19,8 @@ from main_slim import slim
 from utils.utils import train_test_split
 from evaluators.fitness_functions import rmse
 
+import os
+
 DATASET_LOADERS = {
     'airfoil': load_airfoil,                    # Dataset 1
     'bike_sharing': load_bike_sharing,          # Dataset 2
@@ -63,7 +65,7 @@ BASE_ALGO_PARAMS = {
     'reconstruct': True    
 }
 
-DATASET_ITERATIONS = 30
+DATASET_ITERATIONS = 15
 
 UPDATE_TIME_INTERVAL = 2.0
 
@@ -74,7 +76,7 @@ def process_individual(individual, X_val, y_val, X_test, y_test):
     predictions_bf = individual.predict(X_test)
 
     test_rmse_bf = float(rmse(y_true=y_test, y_pred=predictions_bf))    
-    size = individual.nodes_count
+    size = int(individual.nodes_count)
 
     return test_rmse_bf, size
 
@@ -119,9 +121,9 @@ def get_result_dataset(variant_tuple: tuple[str], dataset_name: str, seed: int):
         return process_individual(individual, X_val, y_val, X_test, y_test)
     
     result_dict = {
-        "best_fitness": dict(zip(metrics, process_helper(results.best_fitness))),
-        "best_size": dict(zip(metrics, process_helper(results.smallest))),
-        "optimal_compromise": dict(zip(metrics, process_helper(results.best_normalized)))
+        "best_fitness":         dict(zip(metrics, process_helper(results.best_fitness))),
+        "best_size":            dict(zip(metrics, process_helper(results.smallest))),
+        "optimal_compromise":   dict(zip(metrics, process_helper(results.best_normalized)))
     }
 
     return result_dict
@@ -167,12 +169,17 @@ def get_results(args):
     results_df = results_df.sort_index()
 
     # save the datasets:
-    base_output_file_path = f"reproduced_results/{variant_name}"
+    base_output_file_path = f"{REPRODUCED_RESULTS_FILEPATH}/{variant_name}"
 
     # csv:
-    results_df.to_csv(base_output_file_path + ".csv")
+    try:
+        results_df.to_csv(base_output_file_path + ".csv")
+    except Exception as e:
+        print(f"Error with {variant_name} with id {process_id} writing to {base_output_file_path}.csv")
+        print(e)
+
     # xlsx:
-    results_df.to_excel(base_output_file_path + ".xlsx")
+    # results_df.to_excel(base_output_file_path + ".xlsx")
     
     print(f"Variant {variant_name} with proc id: {process_id} completed!")
 
@@ -188,6 +195,9 @@ def print_progress(progress_dict, total_processes):
 
 
 if __name__ == '__main__':
+
+    # note: must be abs path or child processes might write to the wrong path
+    REPRODUCED_RESULTS_FILEPATH = os.path.abspath("./slim_gsgp/reproduced_results_2")
     
     print(f"Starting {len(VARIANTS_DICT)} experiments")
     
@@ -203,7 +213,7 @@ if __name__ == '__main__':
         # Prepare arguments: (config, progress_dict, process_id)
         args = [(config, progress_dict, i) for i, config in enumerate(VARIANTS_DICT.items())]        
         
-        with Pool(processes=10) as pool:
+        with Pool(processes=2) as pool:
             try: 
             
                 # start async so we can monitor progress
@@ -224,7 +234,7 @@ if __name__ == '__main__':
                 pool.terminate()  # immediately stop all workers
                 pool.join()       # wait for them to finish terminating
                 print(" X All processes terminated X.")
-                sys.exit(1)
+                sys.exit(1)            
     
     print("\n✓ All experiments complete!")
 
