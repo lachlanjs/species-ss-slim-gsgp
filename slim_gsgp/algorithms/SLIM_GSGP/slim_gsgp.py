@@ -893,9 +893,9 @@ class SLIM_GSGP:
                 )
                 
                 # Display OMS transformations count for this generation
-                oms_count = get_oms_counter()
-                if oms_count > 0:
-                    print(f"  🔄 OMS transformations (|ms| < 0.1 → 0): {oms_count}")
+                # oms_count = get_oms_counter()
+                # if oms_count > 0:
+                #     print(f"  🔄 OMS transformations (|ms| < 0.1 → 0): {oms_count}")
             
             # Plot current generation if plotting is enabled (no simplification during evolution)
             if self.enable_plotting:

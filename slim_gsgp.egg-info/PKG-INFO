@@ -199,7 +199,7 @@ print(float(rmse(y_true=y_test, y_pred=predictions)))
 
 ## Additional Notes
 
-If a user wishes to use their own dataset rather than one of the sixteen benchmarking datasets included with the `slim` library, they can load their data into a Pandas DataFrame, ensuring that the target variable is the last column. They can then call the `load_pandas_df` function from `datasets.data_loader` as follows:
+If a user wishes to use their own dataset rather than one of the fifteen benchmarking datasets included with the `slim` library (dataset 12 'istanbul' is currently excluded), they can load their data into a Pandas DataFrame, ensuring that the target variable is the last column. They can then call the `load_pandas_df` function from `datasets.data_loader` as follows:
 
 ```python
 from slim_gsgp.datasets.data_loader import load_pandas_df  # import the loader for the dataset PPB
@@ -245,7 +245,7 @@ def modified_sigmoid( scaling_factor):
         return ms
 
 binarizer = modified_sigmoid(1)
-fitness_function_options['binarized_rmse']Â =Â binarized_rmse(binarized)
+fitness_function_options['binarized_rmse'] = binarized_rmse(binarized)
 
 
 # Defining the converter for the final tree
@@ -325,7 +325,7 @@ If you use SLIM in a scientific publication, please consider citing the followin
 @inproceedings{rosenfeld2025slimgsgp,
   author       = {Liah Rosenfeld and Davide Farinati and Diogo Rasteiro and Gloria Pietropolli and Karina Brotto Rebuli and Sara Silva and Leonardo Vanneschi},
   title        = {Slim\_gsgp: A Python Library for Non-Bloating GSGP},
-  booktitle    = {Genetic and Evolutionary Computation Conference (GECCO â€™25)},
+  booktitle    = {Genetic and Evolutionary Computation Conference (GECCO ’25)},
   year         = {2025},
   month        = {July},
   day          = {14--18},

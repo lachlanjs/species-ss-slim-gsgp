@@ -1,6 +1,7 @@
 
 # CSV files
 *.csv
+!slim_gsgp/reproduced_results_2/*.csv
 
 # Excel files
 *.xlsx
