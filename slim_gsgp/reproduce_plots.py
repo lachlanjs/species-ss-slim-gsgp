@@ -58,8 +58,25 @@ VARIANT_LINESTYLES = {
     "ALL":                      "-"
 }
 
+VARIANT_MARKERS = {
+    # BASE                       
+    "BASE":                     "",
+    # ADD ONE                    
+    "BASE + PT":                "o",
+    "BASE + OMS":               "^",
+    "BASE + LS":                "d",
+    "BASE + AS":                "s",
+    # REMOVE ONE                 
+    "ALL - PT":                 "o",
+    "ALL - OMS":                "^",
+    "ALL - LS":                 "d",
+    "ALL - AS":                 "s",
+    # ALL                        
+    "ALL":                      "*"
+}
+
 # PLOT SETTINGS
-MARKER_SIZE = 10
+MARKER_SIZE = 2.5
 LINE_ALPHA = 0.85
 
 # MATPLOTLIB LATEX SETTINGS
@@ -75,7 +92,10 @@ matplotlib.rcParams.update({
     ])
 })
 
-FIGSIZE = (4.804, (8/14) * 4.804)
+FIGWIDTH_INCHES = 3 # 4.8
+FIGSIZE = (FIGWIDTH_INCHES, (8/14) * FIGWIDTH_INCHES)
+
+BASE_NAME="BASE"
 
 
 def collate_variants(base_path: str):
@@ -99,20 +119,19 @@ def collate_variants(base_path: str):
 
     return full_df
 
-def create_line_plot(data, output_filepath, y_label: str, BASE="BASE"):
+def create_line_plot(data, output_filepath, y_label: str, baseline_data):
 
     # Gorka's line plot
 
     plt.figure(figsize=FIGSIZE)        
     # fig, ax = plt.subplots(figsize=(14, 8))
-
-    baseline_data = data.loc[BASE]
-    plt.axhline(0, color=VARIANT_COLORS[BASE], linestyle='--', linewidth=2, alpha=0.7, label=BASE)
+    
+    plt.axhline(0, color=VARIANT_COLORS[BASE_NAME], linestyle='--', linewidth=1.5, alpha=0.8, label=BASE_NAME)
 
     x_positions = np.arange(1, len(DATASET_NAMES) + 1)
 
     for variant_idx, variant_name in enumerate(VARIANTS_DICT.values()):
-        if variant_name == BASE: continue
+        if variant_name == BASE_NAME: continue
 
         variant_data = data.loc[variant_name]
 
@@ -122,8 +141,9 @@ def create_line_plot(data, output_filepath, y_label: str, BASE="BASE"):
         print(variant_name)
         print(VARIANT_LINESTYLES[variant_name])
         plt.plot(
-            x_positions, diff_pcs, 
+            x_positions, diff_pcs,
             linewidth=1, markersize=MARKER_SIZE,
+            marker=VARIANT_MARKERS[variant_name],
             linestyle=VARIANT_LINESTYLES[variant_name],
             color=VARIANT_COLORS[variant_name],
             label=variant_name, alpha=LINE_ALPHA
@@ -181,20 +201,35 @@ if __name__ == "__main__":
             create_line_plot(
                 full_means.xs(individual, level=2)[metric], 
                 f"{base_plots_path}/mean/{individual}_{metric}",
-                y_label=y_label
+                y_label=y_label,
+                baseline_data=full_means.xs("best_fitness", level=2)[metric].loc[BASE_NAME]
             )
             create_line_plot(
                 full_medians.xs(individual, level=2)[metric], 
                 f"{base_plots_path}/median/{individual}_{metric}",
-                y_label=y_label
+                y_label=y_label,
+                baseline_data=full_medians.xs("best_fitness", level=2)[metric].loc[BASE_NAME]
             )
 
-    # create cdds:
-    cdd_df = full_means.pivot()
+    # create cdds:    
+    for individual in ["optimal_compromise"]:
+        for metric in ["fitness", "size"]:
+            df_cdd = full_medians.xs(individual, level=2).reset_index()
+            df_cdd = df_cdd.pivot(index="dataset", columns="variant")
 
-    for metric in ["fitness", "size"]:
-        diagram = Diagram(
-            cdd_df.to_numpy(),
-            treatment_names = cdd_df.columns,
-            maximize_outcome = True
-        )
+            diagram = Diagram(
+                df_cdd[metric].to_numpy(),
+                treatment_names = df_cdd[metric].columns,
+                maximize_outcome = False
+            )
+
+            diagram.to_file(
+                f"slim_gsgp/cdd_plots/{individual}/{metric}_cdd.tex",
+                alpha = .05,
+                adjustment = "holm",
+                reverse_x = True,
+                # axis_options = {"title": "critdd"},
+            )
+
+else:
+    REPRODUCED_RESULTS_FILEPATH = os.path.abspath("./reproduced_results_2")

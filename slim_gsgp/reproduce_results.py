@@ -1,4 +1,18 @@
 # this file is intended to reproduce the results
+            
+import os
+
+# if you are going to use multiprocessing 
+# to do embarrassingly parallel tasks
+# at the high level, then it is best
+# to tell numpy to be restricted to the processes
+# you assign it. This *improves* the multithreaded
+# performance significantly
+os.environ['OPENBLAS_NUM_THREADS'] = '1'
+os.environ['MKL_NUM_THREADS'] = '1'
+os.environ['OMP_NUM_THREADS'] = '1'
+
+import numpy as np
 
 from multiprocessing import Pool, Manager
 import time
@@ -19,7 +33,6 @@ from main_slim import slim
 from utils.utils import train_test_split
 from evaluators.fitness_functions import rmse
 
-import os
 
 DATASET_LOADERS = {
     'airfoil': load_airfoil,                    # Dataset 1
@@ -65,7 +78,7 @@ BASE_ALGO_PARAMS = {
     'reconstruct': True    
 }
 
-DATASET_ITERATIONS = 15
+DATASET_ITERATIONS = 30
 
 UPDATE_TIME_INTERVAL = 2.0
 
@@ -196,6 +209,8 @@ def print_progress(progress_dict, total_processes):
 
 if __name__ == '__main__':
 
+    os.environ
+
     # note: must be abs path or child processes might write to the wrong path
     REPRODUCED_RESULTS_FILEPATH = os.path.abspath("./slim_gsgp/reproduced_results_2")
     
@@ -213,7 +228,7 @@ if __name__ == '__main__':
         # Prepare arguments: (config, progress_dict, process_id)
         args = [(config, progress_dict, i) for i, config in enumerate(VARIANTS_DICT.items())]        
         
-        with Pool(processes=2) as pool:
+        with Pool(processes=6) as pool:
             try: 
             
                 # start async so we can monitor progress
