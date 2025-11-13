@@ -101,7 +101,7 @@ BASE_NAME="BASE"
 def collate_variants(base_path: str):
 
     variant_dfs = {
-        variant_name: pd.read_csv(f"{REPRODUCED_RESULTS_FILEPATH}/{variant_name}.csv", index_col=[0, 1, 2])
+        variant_name: pd.read_csv(f"{base_path}/{variant_name}.csv", index_col=[0, 1, 2])
         for variant_name in VARIANTS_DICT.values()
     }
 
@@ -173,15 +173,79 @@ def create_line_plot(data, output_filepath, y_label: str, baseline_data):
     return plt.gcf() # Return current figure instead of plt module
 
 
-def create_cdd(data, output_filepath, y_label: str, BASE="BASE"):
 
-    # CDD    
+def produce_cdd(df_cdd, metric: str, filepath: str):
+
+    arr_cdd = df_cdd[metric].to_numpy()
+
+    # figure out if any columns are the same and remove as necessary,
+    # noting the difference with new names
+    variants_same = {}
+    variants_removed = []
+    print(list(enumerate(df_cdd[metric].columns)))
+    for variant_1_idx, variant_1 in enumerate(df_cdd[metric].columns):
+        for variant_2_idx, variant_2 in enumerate(df_cdd[metric].columns):
+            if variant_2_idx <= variant_1_idx: continue
+            if (variant_1_idx, variant_1) in variants_removed: continue
+            if (variant_2_idx, variant_2) in variants_removed: continue
+
+            if np.linalg.norm(arr_cdd[:, variant_1_idx] - arr_cdd[:, variant_2_idx]) < 1e-5:
+                if not variant_1 in variants_same.keys():
+                    variants_same[variant_1] = [variant_2]
+                else:
+                    variants_same[variant_1] += [variant_2]
+
+                print(f"removing: {(variant_2_idx, variant_2)}")
+                variants_removed += [(variant_2_idx, variant_2)]
+
+    # change variant names based on those that are the same
+    new_variant_names = [
+        " \& ".join([variant_name] + variants_same[variant_name]) 
+        if variant_name in variants_same.keys() else variant_name
+        for variant_idx, variant_name in enumerate(df_cdd[metric].columns) if not (variant_idx, variant_name) in variants_removed
+    ]            
+
+    # new_variant_names = [
+    #     " & ".join([first_variant_name] + same_list)
+    #     for first_variant_name, same_list in variants_same.items()
+    # ]
+
+    print("variants removed:")
+    print(variants_removed)
+    print("because they were the same as:")
+    print(variants_same)
+
+    # modify data array to remove those columns
+    keep_idxs = list(range(len(df_cdd[metric].columns)))
+    for variant_idx, _ in variants_removed:
+        print(variant_idx)
+        keep_idxs.remove(variant_idx)
+
+    print(f"shape: {arr_cdd.shape}")
+    print(f"keep_idxs: {keep_idxs}")
+    print(f"new_variant_names: {new_variant_names}")
 
 
+    diagram = Diagram(
+        arr_cdd[:, np.array(keep_idxs)],
+        # treatment_names = df_cdd[metric].columns,
+        treatment_names = new_variant_names,
+        maximize_outcome = False        
+    )
 
+    diagram.to_file(
+        # f"slim_gsgp/cdd_plots/{individual}/{metric}_cdd.tex",
+        filepath,
+        alpha = .05,
+        adjustment = "holm",
+        reverse_x = True,
+        # axis_options = {"title": "critdd"},
+        axis_options = {"width": "\\linewidth"}
+    )
+
+    print(f"<<<")
 
     return
-
 
 
 if __name__ == "__main__":
@@ -189,7 +253,7 @@ if __name__ == "__main__":
     REPRODUCED_RESULTS_FILEPATH = os.path.abspath("./slim_gsgp/reproduced_results_2")
     base_plots_path = os.path.abspath("slim_gsgp/reproduced_plots")
 
-    full_df = collate_variants("slim_gsgp")
+    full_df = collate_variants(REPRODUCED_RESULTS_FILEPATH)
 
     full_means = full_df.groupby(level=["variant", "dataset", "individual"]).mean()
     full_medians = full_df.groupby(level=["variant", "dataset", "individual"]).median()    
@@ -212,24 +276,103 @@ if __name__ == "__main__":
             )
 
     # create cdds:    
-    for individual in ["optimal_compromise"]:
-        for metric in ["fitness", "size"]:
+    
+    for metric in ["fitness", "size"]:
+        df_cdd = full_medians.reset_index()
+        
+        df_cdd["variant_individual"] = df_cdd["variant"].astype(str) + " " + df_cdd["individual"].astype(str)
+        df_cdd = df_cdd.pivot(index="dataset", columns="variant_individual")
+        
+        produce_cdd(df_cdd, metric, f"slim_gsgp/cdd_plots/full_{metric}_cdd.tex")
+    for metric in ["fitness", "size"]:
+        for individual in ["best_fitness", "best_size", "optimal_compromise"]:
             df_cdd = full_medians.xs(individual, level=2).reset_index()
+            
             df_cdd = df_cdd.pivot(index="dataset", columns="variant")
+            
+            produce_cdd(df_cdd, metric, f"slim_gsgp/cdd_plots/{individual}/{metric}_cdd.tex")
 
-            diagram = Diagram(
-                df_cdd[metric].to_numpy(),
-                treatment_names = df_cdd[metric].columns,
-                maximize_outcome = False
-            )
+        #for individual in ["best_fitness", "best_size", "optimal_compromise"]:
+        # print(f"CDD Plot: {individual} : {metric}")
+        # print(f">>>")
 
-            diagram.to_file(
-                f"slim_gsgp/cdd_plots/{individual}/{metric}_cdd.tex",
-                alpha = .05,
-                adjustment = "holm",
-                reverse_x = True,
-                # axis_options = {"title": "critdd"},
-            )
+        """
+        df_cdd = full_medians.reset_index()
+        # df_cdd = full_medians.xs(individual, level=2).reset_index()
+        df_cdd["variant_individual"] = df_cdd["variant"].astype(str) + " " + df_cdd["individual"].astype(str)
+        df_cdd = df_cdd.pivot(index="dataset", columns="variant_individual")
+        # df_cdd = df_cdd.pivot(index="dataset", columns="variant")
+
+
+        arr_cdd = df_cdd[metric].to_numpy()
+
+        # figure out if any columns are the same and remove as necessary,
+        # noting the difference with new names
+        variants_same = {}
+        variants_removed = []
+        print(list(enumerate(df_cdd[metric].columns)))
+        for variant_1_idx, variant_1 in enumerate(df_cdd[metric].columns):
+            for variant_2_idx, variant_2 in enumerate(df_cdd[metric].columns):
+                if variant_2_idx <= variant_1_idx: continue
+                if (variant_1_idx, variant_1) in variants_removed: continue
+                if (variant_2_idx, variant_2) in variants_removed: continue
+
+                if np.linalg.norm(arr_cdd[:, variant_1_idx] - arr_cdd[:, variant_2_idx]) < 1e-5:
+                    if not variant_1 in variants_same.keys():
+                        variants_same[variant_1] = [variant_2]
+                    else:
+                        variants_same[variant_1] += [variant_2]
+
+                    print(f"removing: {(variant_2_idx, variant_2)}")
+                    variants_removed += [(variant_2_idx, variant_2)]
+
+        # change variant names based on those that are the same
+        new_variant_names = [
+            " \& ".join([variant_name] + variants_same[variant_name]) 
+            if variant_name in variants_same.keys() else variant_name
+            for variant_idx, variant_name in enumerate(df_cdd[metric].columns) if not (variant_idx, variant_name) in variants_removed
+        ]            
+
+        # new_variant_names = [
+        #     " & ".join([first_variant_name] + same_list)
+        #     for first_variant_name, same_list in variants_same.items()
+        # ]
+
+        print("variants removed:")
+        print(variants_removed)
+        print("because they were the same as:")
+        print(variants_same)
+
+        # modify data array to remove those columns
+        keep_idxs = list(range(len(df_cdd[metric].columns)))
+        for variant_idx, _ in variants_removed:
+            print(variant_idx)
+            keep_idxs.remove(variant_idx)
+
+        print(f"shape: {arr_cdd.shape}")
+        print(f"keep_idxs: {keep_idxs}")
+        print(f"new_variant_names: {new_variant_names}")
+
+
+        diagram = Diagram(
+            arr_cdd[:, np.array(keep_idxs)],
+            # treatment_names = df_cdd[metric].columns,
+            treatment_names = new_variant_names,
+            maximize_outcome = False
+        )
+
+        diagram.to_file(
+            # f"slim_gsgp/cdd_plots/{individual}/{metric}_cdd.tex",
+            f"slim_gsgp/cdd_plots/{metric}_cdd.tex",
+            alpha = .05,
+            adjustment = "holm",
+            reverse_x = True,
+            # axis_options = {"title": "critdd"},
+        )
+
+        print(f"<<<")
+
+        """
 
 else:
     REPRODUCED_RESULTS_FILEPATH = os.path.abspath("./reproduced_results_2")

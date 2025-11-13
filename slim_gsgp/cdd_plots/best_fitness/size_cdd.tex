@@ -1,0 +1,52 @@
+\begin{tikzpicture}[
+  treatment line/.style={rounded corners=1.5pt, line cap=round, shorten >=1pt},
+  treatment label/.style={font=\small},
+  group line/.style={ultra thick},
+]
+
+\begin{axis}[
+  clip={false},
+  axis x line={center},
+  axis y line={none},
+  axis line style={-},
+  xmin={1},
+  ymax={0},
+  scale only axis={true},
+  width={\textwidth},
+  ticklabel style={anchor=south, yshift=1.3*\pgfkeysvalueof{/pgfplots/major tick length}, font=\small},
+  every tick/.style={draw=black},
+  major tick style={yshift=.5*\pgfkeysvalueof{/pgfplots/major tick length}},
+  minor tick style={yshift=.5*\pgfkeysvalueof{/pgfplots/minor tick length}},
+  title style={yshift=\baselineskip},
+  xmax={10},
+  ymin={-6.5},
+  height={7\baselineskip},
+  xtick={1.0,2.5,4.0,5.5,7.0,8.5,10.0},
+  minor x tick num={2},
+  x dir={reverse},
+]
+
+\draw[treatment line] ([yshift=-2pt] axis cs:2.75, 0) |- (axis cs:1.9166666666666665, -2.0)
+  node[treatment label, anchor=west] {ALL};
+\draw[treatment line] ([yshift=-2pt] axis cs:4.107142857142857, 0) |- (axis cs:1.9166666666666665, -3.0)
+  node[treatment label, anchor=west] {ALL - AS};
+\draw[treatment line] ([yshift=-2pt] axis cs:4.321428571428571, 0) |- (axis cs:1.9166666666666665, -4.0)
+  node[treatment label, anchor=west] {ALL - LS};
+\draw[treatment line] ([yshift=-2pt] axis cs:5.0, 0) |- (axis cs:1.9166666666666665, -5.0)
+  node[treatment label, anchor=west] {ALL - OMS};
+\draw[treatment line] ([yshift=-2pt] axis cs:5.464285714285714, 0) |- (axis cs:1.9166666666666665, -6.0)
+  node[treatment label, anchor=west] {ALL - PT};
+\draw[treatment line] ([yshift=-2pt] axis cs:5.607142857142857, 0) |- (axis cs:8.369047619047619, -6.0)
+  node[treatment label, anchor=east] {BASE + AS};
+\draw[treatment line] ([yshift=-2pt] axis cs:5.785714285714286, 0) |- (axis cs:8.369047619047619, -5.0)
+  node[treatment label, anchor=east] {BASE + PT};
+\draw[treatment line] ([yshift=-2pt] axis cs:6.964285714285714, 0) |- (axis cs:8.369047619047619, -4.0)
+  node[treatment label, anchor=east] {BASE + OMS};
+\draw[treatment line] ([yshift=-2pt] axis cs:7.464285714285714, 0) |- (axis cs:8.369047619047619, -3.0)
+  node[treatment label, anchor=east] {BASE + LS};
+\draw[treatment line] ([yshift=-2pt] axis cs:7.535714285714286, 0) |- (axis cs:8.369047619047619, -2.0)
+  node[treatment label, anchor=east] {BASE};
+\draw[group line] (axis cs:2.75, -1.3333333333333333) -- (axis cs:7.535714285714286, -1.3333333333333333);
+
+\end{axis}
+\end{tikzpicture}

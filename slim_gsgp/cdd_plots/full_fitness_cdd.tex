@@ -1,0 +1,90 @@
+\begin{tikzpicture}[
+  treatment line/.style={rounded corners=1.5pt, line cap=round, shorten >=1pt},
+  treatment label/.style={font=\small},
+  group line/.style={ultra thick},
+]
+
+\begin{axis}[
+  clip={false},
+  axis x line={center},
+  axis y line={none},
+  axis line style={-},
+  xmin={1},
+  ymax={0},
+  scale only axis={true},
+  width={\textwidth},
+  ticklabel style={anchor=south, yshift=1.3*\pgfkeysvalueof{/pgfplots/major tick length}, font=\small},
+  every tick/.style={draw=black},
+  major tick style={yshift=.5*\pgfkeysvalueof{/pgfplots/major tick length}},
+  minor tick style={yshift=.5*\pgfkeysvalueof{/pgfplots/minor tick length}},
+  title style={yshift=\baselineskip},
+  xmax={29},
+  ymin={-15.5},
+  height={16\baselineskip},
+  xtick={1,3,5,7,9,11,13,15,17,19,21,23,25,27,29},
+  minor x tick num={1},
+  x dir={reverse},
+]
+
+\draw[treatment line] ([yshift=-2pt] axis cs:4.857142857142857, 0) |- (axis cs:2.4404761904761902, -2.5)
+  node[treatment label, anchor=west] {ALL - PT optimal\_compromise};
+\draw[treatment line] ([yshift=-2pt] axis cs:4.928571428571429, 0) |- (axis cs:2.4404761904761902, -3.5)
+  node[treatment label, anchor=west] {ALL - PT best\_fitness};
+\draw[treatment line] ([yshift=-2pt] axis cs:6.214285714285714, 0) |- (axis cs:2.4404761904761902, -4.5)
+  node[treatment label, anchor=west] {ALL - AS best\_fitness};
+\draw[treatment line] ([yshift=-2pt] axis cs:7.357142857142857, 0) |- (axis cs:2.4404761904761902, -5.5)
+  node[treatment label, anchor=west] {ALL best\_fitness};
+\draw[treatment line] ([yshift=-2pt] axis cs:8.535714285714286, 0) |- (axis cs:2.4404761904761902, -6.5)
+  node[treatment label, anchor=west] {ALL - AS optimal\_compromise};
+\draw[treatment line] ([yshift=-2pt] axis cs:8.821428571428571, 0) |- (axis cs:2.4404761904761902, -7.5)
+  node[treatment label, anchor=west] {ALL optimal\_compromise};
+\draw[treatment line] ([yshift=-2pt] axis cs:9.214285714285714, 0) |- (axis cs:2.4404761904761902, -8.5)
+  node[treatment label, anchor=west] {ALL - PT best\_size};
+\draw[treatment line] ([yshift=-2pt] axis cs:9.357142857142858, 0) |- (axis cs:2.4404761904761902, -9.5)
+  node[treatment label, anchor=west] {BASE + OMS best\_fitness};
+\draw[treatment line] ([yshift=-2pt] axis cs:10.0, 0) |- (axis cs:2.4404761904761902, -10.5)
+  node[treatment label, anchor=west] {BASE + LS best\_fitness};
+\draw[treatment line] ([yshift=-2pt] axis cs:10.214285714285714, 0) |- (axis cs:2.4404761904761902, -11.5)
+  node[treatment label, anchor=west] {BASE + LS optimal\_compromise};
+\draw[treatment line] ([yshift=-2pt] axis cs:10.785714285714286, 0) |- (axis cs:2.4404761904761902, -12.5)
+  node[treatment label, anchor=west] {ALL - LS best\_fitness};
+\draw[treatment line] ([yshift=-2pt] axis cs:10.857142857142858, 0) |- (axis cs:2.4404761904761902, -13.5)
+  node[treatment label, anchor=west] {ALL - OMS best\_fitness};
+\draw[treatment line] ([yshift=-2pt] axis cs:11.285714285714286, 0) |- (axis cs:2.4404761904761902, -14.5)
+  node[treatment label, anchor=west] {ALL - OMS optimal\_compromise};
+\draw[treatment line] ([yshift=-2pt] axis cs:11.357142857142858, 0) |- (axis cs:2.4404761904761902, -15.5)
+  node[treatment label, anchor=west] {BASE + OMS optimal\_compromise};
+\draw[treatment line] ([yshift=-2pt] axis cs:11.714285714285714, 0) |- (axis cs:29.23809523809524, -16.0)
+  node[treatment label, anchor=east] {BASE + LS best\_size};
+\draw[treatment line] ([yshift=-2pt] axis cs:14.678571428571429, 0) |- (axis cs:29.23809523809524, -15.0)
+  node[treatment label, anchor=east] {ALL best\_size};
+\draw[treatment line] ([yshift=-2pt] axis cs:14.75, 0) |- (axis cs:29.23809523809524, -14.0)
+  node[treatment label, anchor=east] {ALL - AS best\_size};
+\draw[treatment line] ([yshift=-2pt] axis cs:14.785714285714286, 0) |- (axis cs:29.23809523809524, -13.0)
+  node[treatment label, anchor=east] {ALL - OMS best\_size};
+\draw[treatment line] ([yshift=-2pt] axis cs:17.5, 0) |- (axis cs:29.23809523809524, -12.0)
+  node[treatment label, anchor=east] {ALL - LS optimal\_compromise};
+\draw[treatment line] ([yshift=-2pt] axis cs:18.857142857142858, 0) |- (axis cs:29.23809523809524, -11.0)
+  node[treatment label, anchor=east] {BASE + OMS best\_size};
+\draw[treatment line] ([yshift=-2pt] axis cs:19.928571428571427, 0) |- (axis cs:29.23809523809524, -10.0)
+  node[treatment label, anchor=east] {BASE + AS best\_fitness \& BASE best\_fitness};
+\draw[treatment line] ([yshift=-2pt] axis cs:22.678571428571427, 0) |- (axis cs:29.23809523809524, -9.0)
+  node[treatment label, anchor=east] {BASE optimal\_compromise};
+\draw[treatment line] ([yshift=-2pt] axis cs:22.75, 0) |- (axis cs:29.23809523809524, -8.0)
+  node[treatment label, anchor=east] {BASE + AS optimal\_compromise};
+\draw[treatment line] ([yshift=-2pt] axis cs:23.071428571428573, 0) |- (axis cs:29.23809523809524, -7.0)
+  node[treatment label, anchor=east] {BASE + PT best\_fitness};
+\draw[treatment line] ([yshift=-2pt] axis cs:25.321428571428573, 0) |- (axis cs:29.23809523809524, -6.0)
+  node[treatment label, anchor=east] {BASE + AS best\_size};
+\draw[treatment line] ([yshift=-2pt] axis cs:25.535714285714285, 0) |- (axis cs:29.23809523809524, -5.0)
+  node[treatment label, anchor=east] {BASE best\_size};
+\draw[treatment line] ([yshift=-2pt] axis cs:26.321428571428573, 0) |- (axis cs:29.23809523809524, -4.0)
+  node[treatment label, anchor=east] {BASE + PT best\_size};
+\draw[treatment line] ([yshift=-2pt] axis cs:26.5, 0) |- (axis cs:29.23809523809524, -3.0)
+  node[treatment label, anchor=east] {BASE + PT optimal\_compromise};
+\draw[treatment line] ([yshift=-2pt] axis cs:26.821428571428573, 0) |- (axis cs:29.23809523809524, -2.0)
+  node[treatment label, anchor=east] {ALL - LS best\_size};
+\draw[group line] (axis cs:4.857142857142857, -1.3333333333333333) -- (axis cs:26.821428571428573, -1.3333333333333333);
+
+\end{axis}
+\end{tikzpicture}
