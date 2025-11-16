@@ -60,7 +60,7 @@ VARIANT_LINESTYLES = {
 
 VARIANT_MARKERS = {
     # BASE                       
-    "BASE":                     "",
+    "BASE":                     "x",
     # ADD ONE                    
     "BASE + PT":                "o",
     "BASE + OMS":               "^",
@@ -75,25 +75,44 @@ VARIANT_MARKERS = {
     "ALL":                      "*"
 }
 
+
+"""
+VARIANT_ABBREV = {
+    "BASE": "B."
+    "BASE + PT": "B. + PT"
+    "BASE + OMS": "B. + OMS"
+    "BASE + LS": "B. + LS"
+    "BASE + AS": "B. + AS"
+    "ALL - PT": "B. + "
+    "ALL - OMS": "B. + "
+    "ALL - LS": "B. + "
+    "ALL - AS": "B. + "
+    "ALL: "B. + "
+}
+"""
+
 # PLOT SETTINGS
-MARKER_SIZE = 2.5
-LINE_ALPHA = 0.85
+MARKER_SIZE = 3
+LINE_ALPHA = 0.75
 
 # MATPLOTLIB LATEX SETTINGS
-matplotlib.use("pgf")
-matplotlib.rcParams.update({
-    "pgf.texsystem": "pdflatex",
-#     'font.family': 'serif',
-    'font.size' : 2,    
-    'pgf.rcfonts': False,
-    "pgf.preamble": "\n".join([
-        r"\usepackage[utf8x]{inputenc}",
-        r"\usepackage[T1]{fontenc}",
-    ])
-})
+# matplotlib.use("pgf")
+# matplotlib.rcParams.update({
+#     "pgf.texsystem": "pdflatex",
+# #     'font.family': 'serif',
+#     'font.size' : 2,    
+#     'pgf.rcfonts': False,
+#     "pgf.preamble": "\n".join([
+#         r"\usepackage[utf8x]{inputenc}",
+#         r"\usepackage[T1]{fontenc}",
+#     ])
+# })
 
-FIGWIDTH_INCHES = 3 # 4.8
-FIGSIZE = (FIGWIDTH_INCHES, (8/14) * FIGWIDTH_INCHES)
+# FIGWIDTH_INCHES = 3 # 4.8
+# FIGSIZE = (FIGWIDTH_INCHES, (8/14) * FIGWIDTH_INCHES)
+
+FIGWIDTH_INCHES = 7 # 4.8
+FIGSIZE = (FIGWIDTH_INCHES, 1 * FIGWIDTH_INCHES)
 
 BASE_NAME="BASE"
 
@@ -119,16 +138,19 @@ def collate_variants(base_path: str):
 
     return full_df
 
-def create_line_plot(data, output_filepath, y_label: str, baseline_data):
+def create_line_plot(fig: plt.Figure, ax: plt.Axes, data, y_label: str, baseline_data, right: bool, show_x_label=True):
 
     # Gorka's line plot
 
-    plt.figure(figsize=FIGSIZE)        
-    # fig, ax = plt.subplots(figsize=(14, 8))
-    
-    plt.axhline(0, color=VARIANT_COLORS[BASE_NAME], linestyle='--', linewidth=1.5, alpha=0.8, label=BASE_NAME)
+    # plt.figure(figsize=FIGSIZE)        
+    # fig, ax = plt.subplots(figsize=(14, 8))        
 
-    x_positions = np.arange(1, len(DATASET_NAMES) + 1)
+    lplots = []
+    
+    lplot = ax.axhline(0, color=VARIANT_COLORS[BASE_NAME], linestyle='--', linewidth=1.5, alpha=0.8, label=BASE_NAME)
+    lplots.append(lplot)
+
+    x_positions = np.arange(1, len(DATASET_NAMES) + 1)    
 
     for variant_idx, variant_name in enumerate(VARIANTS_DICT.values()):
         if variant_name == BASE_NAME: continue
@@ -137,42 +159,52 @@ def create_line_plot(data, output_filepath, y_label: str, baseline_data):
 
         # i.e. halving the size / RMSE is a 50% improvement, halving again would be a 75% improvement 
         diff_pcs = ((baseline_data - variant_data) / baseline_data) * 100.0
-
-        print(variant_name)
-        print(VARIANT_LINESTYLES[variant_name])
-        plt.plot(
-            x_positions, diff_pcs,
+        
+        lplot, = ax.plot(
+            x_positions, -diff_pcs,
             linewidth=1, markersize=MARKER_SIZE,
             marker=VARIANT_MARKERS[variant_name],
             linestyle=VARIANT_LINESTYLES[variant_name],
             color=VARIANT_COLORS[variant_name],
+            markerfacecolor=VARIANT_COLORS[variant_name] 
+                if variant_name in ["BASE", "BASE + PT", "BASE + OMS", "BASE + LS", "BASE + AS", "ALL"] else "none",
+            markeredgecolor=VARIANT_COLORS[variant_name],
             label=variant_name, alpha=LINE_ALPHA
         )
+        lplots.append(lplot)
 
     # plt.xlabel("Dataset", fontsize=12, fontweight="bold")
-    plt.ylabel(y_label, fontsize=10, fontweight="bold")
+    
+    ax.set_ylabel(y_label, fontsize=10)#, fontweight="bold")
+
+    if right:
+        ax.yaxis.set_label_position("right")
+        ax.yaxis.tick_right()        
+
 
     dataset_names_formatted = [" ".join(sub.capitalize() for sub in name.split("_")) for name in DATASET_NAMES]
-    plt.xticks(x_positions, dataset_names_formatted, weight = "bold", rotation=20, ha="right")
+
+    ax.set_xticks(x_positions); 
+    ax.set_xticklabels([]); 
+    if show_x_label:
+        ax.set_xticks(x_positions, x_positions,  fontsize=8)
+
     # plt.xticks(x_positions, x_positions, weight = "bold")
-    plt.xlim(x_positions[0] - 0.5, x_positions[-1] + 0.5)
+    ax.set_xlim(x_positions[0] - 0.5, x_positions[-1] + 0.5)
 
-    plt.grid(True, alpha=0.3)
-    plt.legend
+    ax.grid(True, alpha=0.3)    
 
-    plt.legend(loc='best', fontsize=9, prop={'weight': 'bold'})
-    plt.tight_layout()
+    # plt.legend(loc='best', fontsize=9, prop={'weight': 'bold'})
+    # ax.tight_layout()
 
     # plt.savefig(f"{output_filepath}.png", dpi=300, bbox_inches="tight")
 
-    plt.savefig(f"{output_filepath}.pgf", format="pgf", bbox_inches="tight")
+    # plt.savefig(f"{output_filepath}.pgf", format="pgf", bbox_inches="tight")
 
     # export LaTeX:
     # ...
     
-    return plt.gcf() # Return current figure instead of plt module
-
-
+    return lplots # Return current figure instead of plt module
 
 def produce_cdd(df_cdd, metric: str, filepath: str):
 
@@ -258,22 +290,57 @@ if __name__ == "__main__":
     full_means = full_df.groupby(level=["variant", "dataset", "individual"]).mean()
     full_medians = full_df.groupby(level=["variant", "dataset", "individual"]).median()    
 
-    # create line plots:
-    for metric in ["fitness", "size"]:
-        y_label="RMSE Improvement %" if metric == "fitness" else "Size Improvement %"
-        for individual in ["best_fitness", "best_size", "optimal_compromise"]:
-            create_line_plot(
-                full_means.xs(individual, level=2)[metric], 
-                f"{base_plots_path}/mean/{individual}_{metric}",
+    fig, axs = plt.subplots(nrows=3, ncols=2, figsize=FIGSIZE)
+    lplots = []
+
+    
+    print("ax types")
+    print(type(axs))
+    print(type(axs[0]))
+
+    # create line plots:    
+    for col_idx, metric in enumerate(["fitness", "size"]):
+        y_label="RMSE Change (%)" if metric == "fitness" else "Size Change (%)"
+        for row_idx, individual in enumerate(["best_fitness", "best_size", "optimal_compromise"]):
+            lplots_new = create_line_plot(
+                fig, axs[row_idx][col_idx],
+                full_medians.xs(individual, level=2)[metric],                 
                 y_label=y_label,
-                baseline_data=full_means.xs("best_fitness", level=2)[metric].loc[BASE_NAME]
+                baseline_data=full_medians.xs("best_fitness", level=2)[metric].loc[BASE_NAME],
+                right = col_idx==1,
+                show_x_label = row_idx == 2
             )
-            create_line_plot(
-                full_medians.xs(individual, level=2)[metric], 
-                f"{base_plots_path}/median/{individual}_{metric}",
-                y_label=y_label,
-                baseline_data=full_medians.xs("best_fitness", level=2)[metric].loc[BASE_NAME]
-            )
+            lplots += [lplots_new]
+
+    # axs[-1][0].legend(
+    #     handles=lplots[0],loc='upper center',  # labels=['A', 'B', 'C']
+    #     fontsize=8, prop={'weight': 'bold'},
+    #     bbox_to_anchor=(0.5, -0.2), fancybox=False, 
+    #     shadow=False, ncol=3
+    # )
+
+    # Create a single legend at the bottom center
+    # fig.legend(handles=lplots[0], 
+    #     loc='lower center',             # Position at bottom center
+    #     labels=list(VARIANTS_DICT.values()),
+    #     bbox_to_anchor=(0.5, 0.01),     # Fine-tune position (x, y)
+    #     ncol=5,                         # Number of columns in legend
+    #     frameon=False,                    # Optional: add frame,
+    #     fontsize=7
+    # )              
+
+    # Add text labels between columns
+    text_y = 0.51
+    fig.text(text_y, 0.76, 'BF', fontsize=10, fontweight='bold', 
+            va='center', ha='center')
+    fig.text(text_y, 0.50, 'BS', fontsize=10, fontweight='bold', 
+            va='center', ha='center')
+    fig.text(text_y, 0.22, 'OC', fontsize=10, fontweight='bold', 
+            va='center', ha='center')    
+
+    # save figure
+    plt.subplots_adjust(hspace=0.1) # A smaller value reduces space
+    fig.savefig(f"{base_plots_path}/median/median_full.pdf", format="pdf", bbox_inches="tight")
 
     # create cdds:    
     
@@ -292,87 +359,25 @@ if __name__ == "__main__":
             
             produce_cdd(df_cdd, metric, f"slim_gsgp/cdd_plots/{individual}/{metric}_cdd.tex")
 
-        #for individual in ["best_fitness", "best_size", "optimal_compromise"]:
-        # print(f"CDD Plot: {individual} : {metric}")
-        # print(f">>>")
-
-        """
-        df_cdd = full_medians.reset_index()
-        # df_cdd = full_medians.xs(individual, level=2).reset_index()
+    for metric in ["fitness", "size"]:
+        df_cdd = full_medians.loc[[("ALL", ds, "best_fitness") for ds in DATASET_NAMES] + [("ALL", ds, "best_size") for ds in DATASET_NAMES] + [("ALL", ds, "optimal_compromise") for ds in DATASET_NAMES]
+                 + [("BASE", ds, "best_fitness") for ds in DATASET_NAMES]]
+        df_cdd = df_cdd.reset_index()
         df_cdd["variant_individual"] = df_cdd["variant"].astype(str) + " " + df_cdd["individual"].astype(str)
         df_cdd = df_cdd.pivot(index="dataset", columns="variant_individual")
-        # df_cdd = df_cdd.pivot(index="dataset", columns="variant")
+        produce_cdd(df_cdd, metric, f"slim_gsgp/cdd_plots/ALL_{metric}_cdd.tex")
+        
+    # FINAL plot of the results
 
+    plt.figure(figsize=(FIGWIDTH_INCHES, FIGWIDTH_INCHES))
 
-        arr_cdd = df_cdd[metric].to_numpy()
+    df_final = full_medians.reset_index()        
+    df_final["variant_individual"] = df_final["variant"].astype(str) + " " + df_final["individual"].astype(str)
+    df_final = df_final.pivot(index="dataset", columns="variant_individual")
 
-        # figure out if any columns are the same and remove as necessary,
-        # noting the difference with new names
-        variants_same = {}
-        variants_removed = []
-        print(list(enumerate(df_cdd[metric].columns)))
-        for variant_1_idx, variant_1 in enumerate(df_cdd[metric].columns):
-            for variant_2_idx, variant_2 in enumerate(df_cdd[metric].columns):
-                if variant_2_idx <= variant_1_idx: continue
-                if (variant_1_idx, variant_1) in variants_removed: continue
-                if (variant_2_idx, variant_2) in variants_removed: continue
+    plt.scatter(df_final["size"], df_final["fitness"])
+    
 
-                if np.linalg.norm(arr_cdd[:, variant_1_idx] - arr_cdd[:, variant_2_idx]) < 1e-5:
-                    if not variant_1 in variants_same.keys():
-                        variants_same[variant_1] = [variant_2]
-                    else:
-                        variants_same[variant_1] += [variant_2]
-
-                    print(f"removing: {(variant_2_idx, variant_2)}")
-                    variants_removed += [(variant_2_idx, variant_2)]
-
-        # change variant names based on those that are the same
-        new_variant_names = [
-            " \& ".join([variant_name] + variants_same[variant_name]) 
-            if variant_name in variants_same.keys() else variant_name
-            for variant_idx, variant_name in enumerate(df_cdd[metric].columns) if not (variant_idx, variant_name) in variants_removed
-        ]            
-
-        # new_variant_names = [
-        #     " & ".join([first_variant_name] + same_list)
-        #     for first_variant_name, same_list in variants_same.items()
-        # ]
-
-        print("variants removed:")
-        print(variants_removed)
-        print("because they were the same as:")
-        print(variants_same)
-
-        # modify data array to remove those columns
-        keep_idxs = list(range(len(df_cdd[metric].columns)))
-        for variant_idx, _ in variants_removed:
-            print(variant_idx)
-            keep_idxs.remove(variant_idx)
-
-        print(f"shape: {arr_cdd.shape}")
-        print(f"keep_idxs: {keep_idxs}")
-        print(f"new_variant_names: {new_variant_names}")
-
-
-        diagram = Diagram(
-            arr_cdd[:, np.array(keep_idxs)],
-            # treatment_names = df_cdd[metric].columns,
-            treatment_names = new_variant_names,
-            maximize_outcome = False
-        )
-
-        diagram.to_file(
-            # f"slim_gsgp/cdd_plots/{individual}/{metric}_cdd.tex",
-            f"slim_gsgp/cdd_plots/{metric}_cdd.tex",
-            alpha = .05,
-            adjustment = "holm",
-            reverse_x = True,
-            # axis_options = {"title": "critdd"},
-        )
-
-        print(f"<<<")
-
-        """
 
 else:
     REPRODUCED_RESULTS_FILEPATH = os.path.abspath("./reproduced_results_2")

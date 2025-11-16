@@ -90,21 +90,21 @@ def custom_latex_converter(df, metric: str, caption="Median test RMSE", label="t
                     base_value = df.loc[("BASE", problem, "best_fitness"), metric]
                                         
                     color_val = (base_value - value) / base_value # % improvement from baseline
-                    color_val *= 0.5
+                    color_val *= 0.25
 
                     # Format value
-                    value_str = f"{value:.2f}"
+                    value_str = f"{value:.2f}".strip()
                     
                     # Wrap in colorcelltest
                     cell = f"\\colorcelltesttwo{{{color_val}}}{{{value_str}}}"
                     
                     # Apply bold formatting for best in class values
                     if (variant, individual) == best_in_problem:                        
-                        cell = f"\\textbf{{{cell}}}"
-                    if variant == best_individual:
-                        cell = f"\\textit{{{cell}}}"
-                    if variant == "BASE" and individual == "best_fitness":
                         cell = f"\\underline{{{cell}}}"
+                    if variant == best_individual:
+                        cell = f"\\textbf{{{cell}}}"
+                    if variant == "BASE" and individual == "best_fitness":
+                        cell = f"({cell})"
                     
                     row_parts.append(cell)
                 except (KeyError, IndexError):
@@ -137,8 +137,11 @@ if __name__ == "__main__":
     full_means = full_df.groupby(level=["variant", "dataset", "individual"]).mean()
     full_medians = full_df.groupby(level=["variant", "dataset", "individual"]).median()    
 
-    table_tex_fitness = custom_latex_converter(full_medians, "fitness", caption = "Median test RMSE", label="tab:rmse")
-    table_tex_size = custom_latex_converter(full_medians, "size", caption = "Median test RMSE", label="tab:rmse")
+    fitness_caption = "Median fitness results. Rows for each dataset are ordered: Best Fitness, Best Size, Optimal Compromise. Values in bold, underline, and green represent the best in row, dataset and improvement over SLIM respectively."
+    size_caption = "Median size results. Rows for each dataset are ordered: Best Fitness, Best Size, Optimal Compromise. Values in bold, underline, and green represent the best in row, dataset and improvement over SLIM respectively. "
+
+    table_tex_fitness = custom_latex_converter(full_medians, "fitness", caption = fitness_caption, label="tab:rmse")
+    table_tex_size = custom_latex_converter(full_medians, "size", caption = size_caption, label="tab:size")
 
     with open("slim_gsgp/table_latex/fitness_table.tex", "w") as fp:
         fp.write(table_tex_fitness)
