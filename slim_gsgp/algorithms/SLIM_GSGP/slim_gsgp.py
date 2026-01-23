@@ -29,7 +29,8 @@ import time
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-plt.ion() 
+
+plt.ion()
 from slim_gsgp.algorithms.GP.representations.tree import Tree as GP_Tree
 from slim_gsgp.algorithms.GSGP.representations.tree import Tree
 from slim_gsgp.algorithms.SLIM_GSGP.representations.individual import Individual
@@ -133,14 +134,12 @@ def plot_generation_fitness_vs_nodes(population, generation, X_test=None, y_test
     
     # Best normalized individual (Pareto dominance considering fitness and size)
     # The non-dominated individuals were already calculated above
-    # Note: No simplification is applied during evolution, only at the end
     non_dominated_population = [population.population[idx] for idx in non_dominated_idxs]
     
-    # Apply normalization to non-dominated individuals (without simplification)
+    # Apply normalization to non-dominated individuals
     best_normalized_individual = select_best_normalized_individual(non_dominated_population)
     
     # Use training fitness for consistent visualization
-    # (The normalization is based on training fitness, so the plot should show the same)
     best_normalized_fitness = best_normalized_individual.fitness
     
     best_normalized_nodes = best_normalized_individual.nodes_count
@@ -153,75 +152,7 @@ def plot_generation_fitness_vs_nodes(population, generation, X_test=None, y_test
     
     # Add legend
     _plot_axes.legend(loc='upper right', fontsize=9)
-    
-    # Detailed normalization information disabled for cleaner output
-    # Uncomment the section below if you need to debug normalization issues
-    
-    # # Show detailed normalization information
-    # print(f"\n{'='*80}")
-    # print(f"GENERACIÓN {generation} - ANÁLISIS DE NORMALIZACIÓN")
-    # print(f"{'='*80}")
-    # 
-    # # Get normalization details by creating temporary copies and normalizing
-    # from slim_gsgp.utils.utils import normalize_population_attributes
-    # import copy
-    # 
-    # # Create minimal copies for normalization analysis
-    # temp_population = []
-    # for i, ind in enumerate(population.population):
-    #     temp_ind = type('TempIndividual', (), {})()
-    #     temp_ind.fitness = ind.fitness
-    #     temp_ind.nodes_count = ind.nodes_count
-    #     temp_ind.original_index = i
-    #     temp_population.append(temp_ind)
-    # 
-    # # Normalize the temporary population
-    # normalize_population_attributes(temp_population, ['fitness', 'nodes_count'])
-    # 
-    # # Find min/max for reference
-    # fitnesses = [ind.fitness for ind in population.population]
-    # nodes = [ind.nodes_count for ind in population.population]
-    # min_fitness, max_fitness = min(fitnesses), max(fitnesses)
-    # min_nodes, max_nodes = min(nodes), max(nodes)
-    # 
-    # print(f"Rango Fitness: [{min_fitness:.4f}, {max_fitness:.4f}]")
-    # print(f"Rango Nodes: [{min_nodes}, {max_nodes}]")
-    # print(f"\nTodos los individuos:")
-    # print(f"{'Idx':<3} {'Fitness':<8} {'Nodes':<5} {'Fit_norm':<8} {'Nodes_norm':<10} {'Distancia':<9} {'Selección'}")
-    # print(f"{'-'*80}")
-    # 
-    # best_distance = float('inf')
-    # selected_idx = -1
-    # 
-    # for i, temp_ind in enumerate(temp_population):
-    #     original_ind = population.population[i]
-    #     distance = (temp_ind.normalized_fitness**2 + temp_ind.normalized_nodes_count**2)**0.5
-    #     
-    #     if distance < best_distance:
-    #         best_distance = distance
-    #         selected_idx = i
-    #     
-    #     selection_mark = ""
-    #     print(f"{i:<3} {original_ind.fitness:<8.4f} {original_ind.nodes_count:<5} "
-    #           f"{temp_ind.normalized_fitness:<8.4f} {temp_ind.normalized_nodes_count:<10.4f} "
-    #           f"{distance:<9.4f} {selection_mark}")
-    # 
-    # # Mark the selected individual
-    # print(f"{'-'*80}")
-    # selected_original = population.population[selected_idx]
-    # selected_temp = temp_population[selected_idx]
-    # print(f"★ SELECCIONADO: Individuo {selected_idx}")
-    # print(f"  Fitness: {selected_original.fitness:.4f} → {selected_temp.normalized_fitness:.4f}")
-    # print(f"  Nodes: {selected_original.nodes_count} → {selected_temp.normalized_nodes_count:.4f}")
-    # print(f"  Distancia al origen (0,0): {best_distance:.4f}")
-    # 
-    # # Verify it matches the function's selection
-    # function_selected = select_best_normalized_individual(population.population)
-    # matches = (function_selected.fitness == selected_original.fitness and 
-    #           function_selected.nodes_count == selected_original.nodes_count)
-    # print(f"  ✓ Coincide con select_best_normalized_individual: {matches}")
-    # print(f"{'='*80}")
-    
+     
     # Update the plot without blocking
     _plot_figure.canvas.draw()
     _plot_figure.canvas.flush_events()
@@ -891,12 +822,7 @@ class SLIM_GSGP:
                     end - start,
                     self.elite.nodes_count,
                 )
-                
-                # Display OMS transformations count for this generation
-                # oms_count = get_oms_counter()
-                # if oms_count > 0:
-                #     print(f"  🔄 OMS transformations (|ms| < 0.1 → 0): {oms_count}")
-            
+
             # Plot current generation if plotting is enabled (no simplification during evolution)
             if self.enable_plotting:
                 plot_generation_fitness_vs_nodes(population, it, X_test, y_test, ffunction, self.operator)

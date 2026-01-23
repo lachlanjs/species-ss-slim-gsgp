@@ -430,7 +430,3 @@ if __name__ == "__main__":
                                 log_path=os.path.join(os.getcwd(),
                                                                 "log", f"test_{ds}-size.csv"),
                                    reconstruct=True, n_jobs=1)
-
-                #print(show_individual(final_tree, operator='sum'))
-                #predictions = final_tree.predict(data=X_test, slim_version=algorithm)
-                #print(float(rmse(y_true=y_test, y_pred=predictions)))

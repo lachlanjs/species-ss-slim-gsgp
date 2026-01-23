@@ -446,8 +446,8 @@ def simplify_population(population, debug=False):
                     simplified += 1
                     nodes_removed_total += (original_node_count - simplified_node_count)
                     
-                    # Debug: show what was simplified
-                    if debug and simplified <= 3:  # Show first 3 simplifications
+                    # Show first 3 simplifications if debug mode is enabled
+                    if debug and simplified <= 3:
                         print(f"\n[DEBUG] Individual {i} simplified: {original_node_count} → {simplified_node_count} nodes")
                         print(f"  nodes_removed from simplify_constant_operations: {nodes_removed}")
                         print(f"  Actual node difference: {original_node_count - simplified_node_count}")

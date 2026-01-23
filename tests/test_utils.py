@@ -35,11 +35,11 @@ def test_get_best_max():
             self.population = population
             self.fit = [indiv.fitness for indiv in self.population]
 
-    example1 =  IndivTest(1)
-    example2 =  IndivTest(2)
-    example3 =  IndivTest(3)
-    example4 =  IndivTest(4)
-    example5 =  IndivTest(5)
+    example1 = IndivTest(1)
+    example2 = IndivTest(2)
+    example3 = IndivTest(3)
+    example4 = IndivTest(4)
+    example5 = IndivTest(5)
 
     example_list = [example1, example2, example3, example4, example5]
     expected_top = sorted(example_list, key=lambda x: x.fitness, reverse=True)[:3]

@@ -29,8 +29,6 @@ from slim_gsgp.algorithms.GP.representations.tree_utils import (create_full_rand
 from slim_gsgp.algorithms.GSGP.representations.tree import Tree
 from sklearn.metrics import root_mean_squared_error
 
-# import matplotlib
-
 
 def protected_div(x1, x2):
     """Implements the division protected against zero denominator
@@ -751,8 +749,7 @@ def remove_outliers_iqr(values, multiplier=1.5, debug=False, attr_name="", only_
     else:
         # Remove both upper and lower outliers (traditional IQR)
         mask = (np_values >= lower_bound) & (np_values <= upper_bound)
-    
-    # Debug information
+
     if debug:
         outlier_indices = [i for i, keep in enumerate(mask) if not keep]
         outlier_values = np_values[~mask]
