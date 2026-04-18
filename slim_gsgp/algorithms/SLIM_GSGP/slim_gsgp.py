@@ -35,9 +35,9 @@ from slim_gsgp.algorithms.GP.representations.tree import Tree as GP_Tree
 from slim_gsgp.algorithms.GSGP.representations.tree import Tree
 from slim_gsgp.algorithms.SLIM_GSGP.representations.individual import Individual
 from slim_gsgp.algorithms.SLIM_GSGP.representations.population import Population
-from slim_gsgp.algorithms.SLIM_GSGP.operators.mutators import reset_oms_counter, get_oms_counter
+from slim_gsgp.algorithms.SLIM_GSGP.operators.mutators import reset_oms_counter, get_oms_counter, reset_nm_counter, get_nm_counter
 from slim_gsgp.utils.diversity import gsgp_pop_div_from_vectors
-from slim_gsgp.utils.logger import logger, log_oms_transformations
+from slim_gsgp.utils.logger import logger, log_oms_transformations, log_nm_degenerate
 from slim_gsgp.utils.utils import verbose_reporter, select_best_normalized_individual
 
 # Global variable to store the figure for persistent plotting
@@ -502,8 +502,9 @@ class SLIM_GSGP:
 
         # begining the evolution process
         for it in range(1, n_iter + 1, 1):
-            # Reset OMS counter at the start of each generation
+            # Reset OMS and NM counters at the start of each generation
             reset_oms_counter()
+            reset_nm_counter()
             
             # starting an empty offspring population
             offs_pop, start = [], time.time()
@@ -801,13 +802,21 @@ class SLIM_GSGP:
                     seed=self.seed,
                 )
                 
-                # Log OMS transformations if log_path is provided
+                # Log OMS and NM counters if log_path is provided
                 if log_path is not None:
                     oms_log_path = log_path.replace('.csv', '_oms_transformations.csv')
                     log_oms_transformations(
                         oms_log_path,
                         it,
                         get_oms_counter(),
+                        run_info=run_info,
+                        seed=self.seed,
+                    )
+                    nm_log_path = log_path.replace('.csv', '_nm_degenerate.csv')
+                    log_nm_degenerate(
+                        nm_log_path,
+                        it,
+                        get_nm_counter(),
                         run_info=run_info,
                         seed=self.seed,
                     )

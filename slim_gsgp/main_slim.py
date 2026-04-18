@@ -71,6 +71,7 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
          tournament_size: int = 2,
          test_elite: bool = slim_gsgp_solve_parameters["test_elite"],
          oms: bool = False,
+         nm: bool = False,
          linear_scaling: bool = False,
          use_simplification: bool = True,
          enable_plotting: bool = False,
@@ -145,6 +146,9 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
         Whether to test the elite individual on the test set after each generation.
     oms : bool, optional
         Whether to use the optimal mutation step size. (Default is False)
+    nm : bool, optional
+        Whether to use normalized mutation (normalizes the semantic direction to unit length
+        before applying the mutation step). Ignored if oms=True. (Default is False)
     linear_scaling : bool, optional
         Whether to use linear scaling for fitness evaluation. When enabled, applies optimal linear 
         transformation y_scaled = a + y_raw * b to improve fitness. (Default is False)
@@ -234,6 +238,19 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
         "initializer must be " + f"{', '.join(valid_initializers[:-1])} or {valid_initializers[-1]}" \
             if len(valid_initializers) > 1 else valid_initializers[0]
 
+    # OMS and NM are mutually exclusive — NM takes priority
+    if oms and nm:
+        import warnings
+        warnings.warn("OMS and NM are mutually exclusive: both were set to True. "
+                      "NM takes priority; OMS will be disabled.", UserWarning, stacklevel=2)
+        oms = False
+
+    # NM removes the implicit ||s_r|| amplification that base SLIM gets for free
+    # (||s_r|| ~ sqrt(n_samples)), so ms_upper is scaled up to compensate.
+    # This makes ms_upper=1 produce comparable step magnitudes with or without NM.
+    if nm:
+        ms_upper = ms_upper * (len(X_train) ** 0.5)
+
     # ================================
     #       Parameter Definition
     # ================================
@@ -283,7 +300,8 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
         two_trees=current_slim_gsgp_parameters['two_trees'],
         operator=current_slim_gsgp_parameters['operator'],
         sig=sig,
-        oms=oms
+        oms=oms,
+        nm=nm
     )
     current_slim_gsgp_parameters["initializer"] = initializer_options[initializer]
     current_slim_gsgp_parameters["ms"] = ms

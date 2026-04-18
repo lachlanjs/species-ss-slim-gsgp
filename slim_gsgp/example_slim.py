@@ -23,6 +23,7 @@ from slim_gsgp.main_slim import slim  # import the slim_gsgp library
 from slim_gsgp.datasets.data_loader import load_airfoil  # import the loader for the airfoil dataset
 from slim_gsgp.evaluators.fitness_functions import rmse  # import the rmse fitness metric
 from slim_gsgp.utils.utils import train_test_split  # import the train-test split function
+from slim_gsgp.utils.naming_utils import build_execution_type
 import csv
 import os
 from datetime import datetime
@@ -95,13 +96,23 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, p_test=0.4, seed=42)
 # Split the test set into validation and test sets (with fixed seed for reproducibility)
 X_val, X_test, y_val, y_test = train_test_split(X_test, y_test, p_test=0.5, seed=42)
 
+
+# --- Algorithm variant flags ---
+oms = False                   # Optimal Mutation Step (mutually exclusive with nm)
+nm = True                   # Normalized Mutation   (mutually exclusive with oms)
+linear_scaling = False        # Linear Scaling
+pareto_tournament = False     # Pareto tournament selection
+use_simplification = False    # Simplification of individuals
+
 # Apply the SLIM GSGP algorithm (with fixed seed for reproducibility)
 results = slim(X_train=X_train, y_train=y_train,
                X_test=X_val, y_test=y_val,
                dataset_name='airfoil', slim_version='SLIM+ABS', pop_size=100, n_iter=100,
-               ms_lower=0, ms_upper=1, p_inflate=0.5, reconstruct=True, 
-               #tournament_type="pareto", tournament_size=5, multi_obj_attrs=["fitness", "size"], 
-               oms=True, linear_scaling=True, use_simplification=True, enable_plotting=False, seed=42)
+               ms_lower=0, ms_upper=1, p_inflate=0.5, reconstruct=True,
+               tournament_type="pareto" if pareto_tournament else "standard",
+               tournament_size=5, multi_obj_attrs=["fitness", "size"],
+               oms=oms, nm=nm, linear_scaling=linear_scaling,
+               use_simplification=use_simplification, enable_plotting=False, seed=42)
 
 # Extract all three individuals
 best_fitness_individual = results.best_fitness
@@ -297,18 +308,8 @@ print(f"Tree depth: {best_normalized_individual.depth}")
 
 # Save results to file
 dataset_name = 'airfoil'
-# Determine execution type based on OMS and linear scaling usage
-oms_used = True  # Change this to match the oms parameter above
-linear_scaling_used = False  # Change this to match the linear_scaling parameter above
-
-if linear_scaling_used and oms_used:
-    execution_type = 'slim linear scaling oms'
-elif linear_scaling_used:
-    execution_type = 'slim linear scaling'
-elif oms_used:
-    execution_type = 'slim oms'
-else:
-    execution_type = 'slim'
+execution_type = build_execution_type(use_oms=oms, use_nm=nm, use_linear_scaling=linear_scaling,
+                                      use_pareto_tournament=pareto_tournament, use_simplification=use_simplification)
 
 # Convert SLIM GSGP to readable tree and visualize
 try:

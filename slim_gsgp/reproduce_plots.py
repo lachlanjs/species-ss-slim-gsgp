@@ -15,13 +15,18 @@ VARIANTS_DICT = {
     tuple():                    "BASE",
     ("PT"):                     "BASE + PT",
     ("OMS"):                    "BASE + OMS",
+    ("NM"):                     "BASE + NM",
     ("LS"):                     "BASE + LS",
     ("AS"):                     "BASE + AS",
     ("OMS", "LS", "AS"):        "ALL - PT",
+    ("NM", "LS", "AS"):         "ALL - PT (NM)",
     ("PT", "LS", "AS"):         "ALL - OMS",
     ("PT", "OMS", "AS"):        "ALL - LS",
+    ("PT", "NM", "AS"):         "ALL - LS (NM)",
     ("PT", "OMS", "LS"):        "ALL - AS",
-    ("PT", "OMS", "LS", "AS"):  "ALL"
+    ("PT", "NM", "LS"):         "ALL - AS (NM)",
+    ("PT", "OMS", "LS", "AS"):  "ALL",
+    ("PT", "NM", "LS", "AS"):   "ALL (NM)"
 }
 
 VARIANT_COLORS = {
@@ -30,15 +35,20 @@ VARIANT_COLORS = {
     # ADD ONE                    
     "BASE + PT":                "#FF3333",
     "BASE + OMS":               "#33FF99",
+    "BASE + NM":                "#00CC66",
     "BASE + LS":                "#9933FF",
     "BASE + AS":                "#3377FF",
     # REMOVE ONE                 
     "ALL - PT":                 "#FF3333",
+    "ALL - PT (NM)":            "#FF6666",
     "ALL - OMS":                "#33FF99",
     "ALL - LS":                 "#9933FF",
+    "ALL - LS (NM)":            "#BB55FF",
     "ALL - AS":                 "#3377FF",
+    "ALL - AS (NM)":            "#66AAFF",
     # ALL                        
-    "ALL":                      "#000000"
+    "ALL":                      "#000000",
+    "ALL (NM)":                 "#555555"
 }
 
 VARIANT_LINESTYLES = {
@@ -47,15 +57,20 @@ VARIANT_LINESTYLES = {
     # ADD ONE                    
     "BASE + PT":                "-",
     "BASE + OMS":               "-",
+    "BASE + NM":                "-",
     "BASE + LS":                "-",
     "BASE + AS":                "-",
     # REMOVE ONE                 
     "ALL - PT":                 "--",
+    "ALL - PT (NM)":            "--",
     "ALL - OMS":                "--",
     "ALL - LS":                 "--",
+    "ALL - LS (NM)":            "--",
     "ALL - AS":                 "--",
+    "ALL - AS (NM)":            "--",
     # ALL                        
-    "ALL":                      "-"
+    "ALL":                      "-",
+    "ALL (NM)":                 "-"
 }
 
 VARIANT_MARKERS = {
@@ -64,15 +79,20 @@ VARIANT_MARKERS = {
     # ADD ONE                    
     "BASE + PT":                "o",
     "BASE + OMS":               "^",
+    "BASE + NM":                "v",
     "BASE + LS":                "d",
     "BASE + AS":                "s",
     # REMOVE ONE                 
     "ALL - PT":                 "o",
+    "ALL - PT (NM)":            "o",
     "ALL - OMS":                "^",
     "ALL - LS":                 "d",
+    "ALL - LS (NM)":            "d",
     "ALL - AS":                 "s",
+    "ALL - AS (NM)":            "s",
     # ALL                        
-    "ALL":                      "*"
+    "ALL":                      "*",
+    "ALL (NM)":                 "P"
 }
 
 

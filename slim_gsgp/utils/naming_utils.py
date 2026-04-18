@@ -3,7 +3,7 @@ Utility functions for building consistent execution type and variant names.
 These functions ensure naming consistency across different execution scripts.
 """
 
-def build_execution_type(use_linear_scaling=False, use_oms=False, 
+def build_execution_type(use_linear_scaling=False, use_oms=False, use_nm=False,
                         use_pareto_tournament=False, use_simplification=True):
     """
     Build execution type name based on enabled features.
@@ -11,6 +11,7 @@ def build_execution_type(use_linear_scaling=False, use_oms=False,
     Args:
         use_linear_scaling: Whether linear scaling is enabled
         use_oms: Whether OMS is enabled
+        use_nm: Whether Normalized Mutation is enabled (mutually exclusive with use_oms)
         use_pareto_tournament: Whether Pareto tournament is enabled
         use_simplification: Whether simplification is enabled
         
@@ -24,6 +25,8 @@ def build_execution_type(use_linear_scaling=False, use_oms=False,
         'slim_linear_scaling_pareto'
         >>> build_execution_type(use_oms=True, use_simplification=False)
         'slim_oms_no_simplif'
+        >>> build_execution_type(use_nm=True)
+        'slim_nm'
     """
     execution_type = "slim"
     
@@ -31,6 +34,8 @@ def build_execution_type(use_linear_scaling=False, use_oms=False,
         execution_type += "_linear_scaling"
     if use_oms:
         execution_type += "_oms"
+    if use_nm:
+        execution_type += "_nm"
     if use_pareto_tournament:
         execution_type += "_pareto"
     if not use_simplification:
@@ -39,7 +44,7 @@ def build_execution_type(use_linear_scaling=False, use_oms=False,
     return execution_type
 
 
-def build_variant_name(slim_version, use_oms=False, use_linear_scaling=False, 
+def build_variant_name(slim_version, use_oms=False, use_nm=False, use_linear_scaling=False, 
                       use_pareto_tournament=False):
     """
     Build variant name based on SLIM version and enabled features.
@@ -47,6 +52,7 @@ def build_variant_name(slim_version, use_oms=False, use_linear_scaling=False,
     Args:
         slim_version: SLIM version (e.g., "SLIM+ABS", "SLIM+SIG2")
         use_oms: Whether OMS is enabled
+        use_nm: Whether Normalized Mutation is enabled (mutually exclusive with use_oms)
         use_linear_scaling: Whether linear scaling is enabled
         use_pareto_tournament: Whether Pareto tournament is enabled
         
@@ -60,11 +66,15 @@ def build_variant_name(slim_version, use_oms=False, use_linear_scaling=False,
         'SLIM+ABS + LS'
         >>> build_variant_name("SLIM+ABS", use_oms=True, use_linear_scaling=True, use_pareto_tournament=True)
         'SLIM+ABS + OMS + LS + Pareto'
+        >>> build_variant_name("SLIM+ABS", use_nm=True)
+        'SLIM+ABS + NM'
     """
     variant_parts = [slim_version]
     
     if use_oms:
         variant_parts.append("OMS")
+    if use_nm:
+        variant_parts.append("NM")
     if use_linear_scaling:
         variant_parts.append("LS")
     if use_pareto_tournament:

@@ -43,6 +43,19 @@ def get_oms_counter():
     global _oms_zero_transformations_count
     return _oms_zero_transformations_count
 
+# Global counter for NM degenerate directions (||s_r|| ≈ 0, normalization skipped)
+_nm_degenerate_count = 0
+
+def reset_nm_counter():
+    """Reset the NM degenerate directions counter."""
+    global _nm_degenerate_count
+    _nm_degenerate_count = 0
+
+def get_nm_counter():
+    """Get the current NM degenerate directions count."""
+    global _nm_degenerate_count
+    return _nm_degenerate_count
+
 # two tree function
 def two_trees_delta(operator="sum"):
     """
@@ -244,7 +257,7 @@ def one_tree_delta(operator="sum", sig=False):
     return ot_delta
 
 
-def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum",single_tree_sigmoid=False,sig=False, oms: bool=False):
+def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum",single_tree_sigmoid=False,sig=False, oms: bool=False, nm: bool=False):
     """
     Generate an inflate mutation function.
 
@@ -266,6 +279,10 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
         Boolean indicating if sigmoid should be applied.
     oms : bool
         Boolean indicating whether the optimal step mutation should be used
+    nm : bool
+        Boolean indicating whether normalized mutation should be used (normalizes the
+        semantic direction s_r to unit length before applying the mutation step).
+        Ignored if oms=True, since OMS already accounts for the direction magnitude.
 
     Returns
     -------
@@ -411,18 +428,30 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
         else:
             operator_f = torch.prod
 
-        # calculate the optimal mutation step value here
-        if oms:
+        # compute semantic direction s_r (shared by nm and oms blocks)
+        if nm or oms:
             if two_trees:
                 tr1, tr2 = random_trees
-                s_r = torch.sub(tr1.train_semantics, tr2.train_semantics)                
-            else: # one tree
+                s_r = torch.sub(tr1.train_semantics, tr2.train_semantics)
+            else:  # one tree
                 tr1, = random_trees
                 if sig:
                     s_r = torch.sub(torch.mul(2, tr1.train_semantics), 1)
                 else:
                     s_r = torch.sub(1, torch.div(2, torch.add(1, torch.abs(tr1.train_semantics))))
-            
+
+        # normalize mutation direction to unit length (NM), ignored when OMS is active
+        if nm and not oms:
+            s_r_norm = torch.norm(s_r)
+            if s_r_norm > 1e-7:
+                ms = ms / s_r_norm
+            else:
+                # degenerate direction (constant tree): skip normalization
+                global _nm_degenerate_count
+                _nm_degenerate_count += 1
+
+        # calculate the optimal mutation step value here
+        if oms:
             s_r_inv = s_r / (1e-7 + torch.mul(y_train.shape[0]), s_r * s_r) if s_r.shape == torch.Size([1]) else s_r / (1e-5 + torch.sum(s_r * s_r))                        
             ms = torch.vdot(s_r_inv.broadcast_to(y_train.shape), y_train - operator_f(individual.train_semantics, dim=0)) # .flatten()
             ms = torch.clamp(ms, -100.0, 100.0)  

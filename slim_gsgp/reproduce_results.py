@@ -58,13 +58,18 @@ VARIANTS_DICT = {
     tuple():                "BASE",
     ("PT"):                 "BASE + PT",
     ("OMS"):                "BASE + OMS",
+    ("NM"):                 "BASE + NM",
     ("LS"):                 "BASE + LS",
     ("AS"):                 "BASE + AS",
     ("OMS", "LS", "AS"):    "ALL - PT",
+    ("NM", "LS", "AS"):     "ALL - PT (NM)",
     ("PT", "LS", "AS"):     "ALL - OMS",
     ("PT", "OMS", "AS"):    "ALL - LS",
+    ("PT", "NM", "AS"):     "ALL - LS (NM)",
     ("PT", "OMS", "LS"):    "ALL - AS",
-    ("PT", "OMS", "LS", "AS"):    "ALL"
+    ("PT", "NM", "LS"):     "ALL - AS (NM)",
+    ("PT", "OMS", "LS", "AS"):    "ALL",
+    ("PT", "NM", "LS", "AS"):     "ALL (NM)"
 }
 
 BASE_ALGO_PARAMS = {
@@ -103,6 +108,7 @@ def get_result_dataset(variant_tuple: tuple[str], dataset_name: str, seed: int):
     # get the variant specifics:
     use_pt =    "PT" in variant_tuple
     use_oms =   "OMS" in variant_tuple
+    use_nm =    "NM" in variant_tuple
     use_ls =    "LS" in variant_tuple
     use_as =    "AS" in variant_tuple
 
@@ -116,6 +122,7 @@ def get_result_dataset(variant_tuple: tuple[str], dataset_name: str, seed: int):
             "y_test": y_val,
             "dataset_name": dataset_name,
             "oms": use_oms,
+            "nm": use_nm,
             "linear_scaling": use_ls,
             "use_simplification": use_as            
         },

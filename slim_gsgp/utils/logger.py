@@ -207,3 +207,55 @@ def log_oms_transformations(
         infos = copy(run_info) if run_info is not None else []
         infos.extend([seed, generation, oms_count])
         writer.writerow(infos)
+
+
+def log_nm_degenerate(
+    path: str,
+    generation: int,
+    nm_count: int,
+    run_info: list = None,
+    seed: int = 0,
+) -> None:
+    """
+    Logs NM degenerate direction count per generation into a CSV file.
+    A degenerate direction occurs when ||s_r|| ≈ 0 and normalization is skipped.
+
+    Parameters
+    ----------
+    path : str
+        Path to the CSV file.
+    generation : int
+        Current generation number.
+    nm_count : int
+        Number of NM degenerate directions in this generation.
+    run_info : list, optional
+        Information about the run. Defaults to None.
+    seed : int, optional
+        The seed used in random, numpy, and torch libraries. Defaults to 0.
+
+    Returns
+    -------
+    None
+    """
+    # Create log directory if it doesn't exist
+    if not os.path.isdir(os.path.dirname(path)):
+        os.mkdir(os.path.dirname(path))
+
+    # Check if file exists to write header
+    file_exists = os.path.isfile(path)
+
+    with open(path, "a", newline="") as file:
+        writer = csv.writer(file)
+
+        # Write header if file is new
+        if not file_exists:
+            header = []
+            if run_info is not None:
+                header.extend(["dataset", "experiment_id"])
+            header.extend(["seed", "generation", "nm_degenerate"])
+            writer.writerow(header)
+
+        # Write data row
+        infos = copy(run_info) if run_info is not None else []
+        infos.extend([seed, generation, nm_count])
+        writer.writerow(infos)
