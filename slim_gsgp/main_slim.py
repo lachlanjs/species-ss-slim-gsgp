@@ -213,6 +213,12 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
         warnings.warn("No dataset name set. Using default value of dataset_1.")
         dataset_name = "dataset_1"
 
+    # NM removes the implicit ||s_r|| amplification that base SLIM gets for free
+    # (||s_r|| ~ sqrt(n_samples)), so ms_upper is scaled up to compensate.
+    # This makes ms_upper=1 produce comparable step magnitudes with or without NM.
+    if nm:
+        ms_upper = ms_upper * (len(X_train) ** 0.5)
+
     # If so, create the ms callable
     ms = generate_random_uniform(ms_lower, ms_upper)
 
@@ -244,12 +250,6 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
         warnings.warn("OMS and NM are mutually exclusive: both were set to True. "
                       "NM takes priority; OMS will be disabled.", UserWarning, stacklevel=2)
         oms = False
-
-    # NM removes the implicit ||s_r|| amplification that base SLIM gets for free
-    # (||s_r|| ~ sqrt(n_samples)), so ms_upper is scaled up to compensate.
-    # This makes ms_upper=1 produce comparable step magnitudes with or without NM.
-    if nm:
-        ms_upper = ms_upper * (len(X_train) ** 0.5)
 
     # ================================
     #       Parameter Definition
