@@ -273,6 +273,9 @@ def run_single_dataset_multiple_times(dataset_name, num_runs=30, slim_version='S
     
     # Storage for all runs
     runs_data = []
+
+    # Raw per-run rows (reproduce_results.py format)
+    raw_rows = []
     
     # Collect results for statistics
     bf_train_rmse_list = []
@@ -423,7 +426,21 @@ def run_single_dataset_multiple_times(dataset_name, num_runs=30, slim_version='S
             sm_test_rmse_list.append(sm_test)
             sm_nodes_list.append(sm_nodes)
             sm_depth_list.append(sm_depth)
-            
+
+            # Raw rows in reproduce_results format (0-indexed run)
+            for ind_name, test_val, nodes_val in [
+                ('best_fitness',       bf_test, bf_nodes),
+                ('optimal_compromise', bn_test, bn_nodes),
+                ('best_size',          sm_test, sm_nodes),
+            ]:
+                raw_rows.append({
+                    'dataset':    dataset_name,
+                    'individual': ind_name,
+                    'run':        run_idx - 1,
+                    'fitness':    test_val,
+                    'size':       nodes_val,
+                })
+
             print(f"   ✓ Run completed")
             print(f"      BF: Test={bf_test:.5f}, Nodes={bf_nodes}")
             print(f"      BN: Test={bn_test:.5f}, Nodes={bn_nodes}")
@@ -509,6 +526,8 @@ def run_single_dataset_multiple_times(dataset_name, num_runs=30, slim_version='S
     print(f"Failed runs: {failed_runs}")
     print(f"Success rate: {(successful_runs/num_runs)*100:.1f}%")
     print("=" * 80)
+
+    return raw_rows
 
 if __name__ == "__main__":
     import sys

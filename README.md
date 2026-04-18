@@ -112,6 +112,37 @@ predictions = final_tree.predict(X_test)
 print(float(rmse(y_true=y_test, y_pred=predictions)))
 ```
 
+## Running batch experiments with `run.py`
+
+The `slim_gsgp/run.py` script is the main entry point for running batch experiments across multiple datasets without writing any Python code. All settings are controlled through a clearly marked **CONFIGURATION** block at the top of the file — no other part of the script needs to be edited.
+
+### How to use it
+
+1. Open `slim_gsgp/run.py` and edit the configuration block:
+
+   | Setting | Description |
+   |---|---|
+   | `SLIM_VERSION` | Algorithm variant to run (e.g. `'SLIM+ABS'`, `'SLIM*SIG2'`, …) |
+   | `USE_OMS` | Enable Optimal Mutation Step (only valid for `+` variants) |
+   | `USE_NM` | Enable Normalized Mutation (mutually exclusive with OMS) |
+   | `USE_LINEAR_SCALING` | Enable linear scaling of fitness |
+   | `USE_PARETO_TOURNAMENT` | Enable Pareto-based tournament selection |
+   | `USE_SIMPLIFICATION` | Enable post-evolution tree simplification |
+   | `NUM_RUNS` | Number of independent runs per dataset |
+   | `BASE_SEED` | Base random seed (each run increments from this value) |
+   | `DATASETS` | Dictionary of datasets — set a value to `True` to include it, `False` to skip it |
+
+2. Run the script from the `slim_gsgp` directory:
+
+   ```sh
+   cd slim_gsgp
+   python run.py
+   ```
+
+Results are saved as CSV files inside the `log/` folder. If the optional `generate_consolidated_excel` module is present, a single consolidated Excel file is also produced automatically.
+
+> **Note:** `istanbul` (dataset 12) is disabled by default due to its large size. OMS and NM are mutually exclusive; if both are enabled, OMS is automatically disabled.
+
 ## Arguments for the *gp*, *gsgp* and *slim* function
 
 ### Common arguments
