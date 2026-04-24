@@ -293,6 +293,7 @@ if hasattr(best_normalized_individual, 'print_scaling_info'):
 best_normalized_individual.calculate_semantics(X_val, testing=True)
 best_normalized_individual.evaluate(rmse, y_val, testing=True, operator="sum")
 
+
 # Show fitness information for best normalized individual
 print(f"Training fitness (RMSE): {best_normalized_individual.fitness:.6f}")
 print(f"Validation fitness (RMSE): {best_normalized_individual.test_fitness:.6f}")
