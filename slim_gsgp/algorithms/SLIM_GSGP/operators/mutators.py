@@ -282,7 +282,8 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
     nm : bool
         Boolean indicating whether normalized mutation should be used (normalizes the
         semantic direction s_r to unit length before applying the mutation step).
-        Ignored if oms=True, since OMS already accounts for the direction magnitude.
+        Compatible with oms: when both are enabled, NM normalizes the direction first,
+        then OMS computes the optimal step over the unit-length direction.
 
     Returns
     -------
@@ -440,17 +441,24 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
                 else:
                     s_r = torch.sub(1, torch.div(2, torch.add(1, torch.abs(tr1.train_semantics))))
 
-        # normalize mutation direction to unit length (NM), ignored when OMS is active
+        # NM: scale ms by 1/||s_r|| so the variator produces a unit-direction step.
+        # NM is skipped when OMS is also active because OMS completely determines ms
+        # analytically using the original s_r. Normalising s_r before OMS would cause
+        # the variator (which applies ms * s_r_original via random_trees) to overshoot
+        # by a factor of ||s_r|| ≈ √n_samples, degrading fitness.
         if nm and not oms:
             s_r_norm = torch.norm(s_r)
             if s_r_norm > 1e-7:
+                # NM-only: scale ms so the variator produces a unit-direction step:
+                # (ms / ||s_r||) * s_r_original = ms * (s_r / ||s_r||)
                 ms = ms / s_r_norm
             else:
                 # degenerate direction (constant tree): skip normalization
                 global _nm_degenerate_count
                 _nm_degenerate_count += 1
 
-        # calculate the optimal mutation step value here
+        # OMS: compute the analytically optimal ms for the original (unnormalized) s_r.
+        # The variator applies ms * s_r_original, so the optimal ms is <r, s_r>/||s_r||².
         if oms:
             s_r_inv = s_r / (1e-7 + torch.mul(y_train.shape[0]), s_r * s_r) if s_r.shape == torch.Size([1]) else s_r / (1e-5 + torch.sum(s_r * s_r))                        
             ms = torch.vdot(s_r_inv.broadcast_to(y_train.shape), y_train - operator_f(individual.train_semantics, dim=0)) # .flatten()

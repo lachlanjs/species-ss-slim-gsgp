@@ -124,7 +124,7 @@ The `slim_gsgp/run.py` script is the main entry point for running batch experime
    |---|---|
    | `SLIM_VERSION` | Algorithm variant to run (e.g. `'SLIM+ABS'`, `'SLIM*SIG2'`, …) |
    | `USE_OMS` | Enable Optimal Mutation Step (only valid for `+` variants) |
-   | `USE_NM` | Enable Normalized Mutation (mutually exclusive with OMS) |
+   | `USE_NM` | Enable Normalized Mutation (compatible with OMS: normalises direction first, then OMS picks optimal step) |
    | `USE_LINEAR_SCALING` | Enable linear scaling of fitness |
    | `USE_PARETO_TOURNAMENT` | Enable Pareto-based tournament selection |
    | `USE_SIMPLIFICATION` | Enable post-evolution tree simplification |
@@ -141,7 +141,7 @@ The `slim_gsgp/run.py` script is the main entry point for running batch experime
 
 Results are saved as CSV files inside the `log/` folder. If the optional `generate_consolidated_excel` module is present, a single consolidated Excel file is also produced automatically.
 
-> **Note:** `istanbul` (dataset 12) is disabled by default due to its large size. OMS and NM are mutually exclusive; if both are enabled, OMS is automatically disabled.
+> **Note:** `istanbul` (dataset 12) is disabled by default due to its large size.
 
 ## Arguments for the *gp*, *gsgp* and *slim* function
 

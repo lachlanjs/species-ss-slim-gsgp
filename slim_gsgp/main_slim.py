@@ -148,7 +148,10 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
         Whether to use the optimal mutation step size. (Default is False)
     nm : bool, optional
         Whether to use normalized mutation (normalizes the semantic direction to unit length
-        before applying the mutation step). Ignored if oms=True. (Default is False)
+        before applying the mutation step). When oms is also enabled, NM has no additional
+        effect: OMS already computes the analytically optimal ms for the original direction,
+        and normalising before OMS would cause the variator to overshoot by ||s_r|| ≈ √n.
+        (Default is False)
     linear_scaling : bool, optional
         Whether to use linear scaling for fitness evaluation. When enabled, applies optimal linear 
         transformation y_scaled = a + y_raw * b to improve fitness. (Default is False)
@@ -213,12 +216,6 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
         warnings.warn("No dataset name set. Using default value of dataset_1.")
         dataset_name = "dataset_1"
 
-    # NM removes the implicit ||s_r|| amplification that base SLIM gets for free
-    # (||s_r|| ~ sqrt(n_samples)), so ms_upper is scaled up to compensate.
-    # This makes ms_upper=1 produce comparable step magnitudes with or without NM.
-    if nm:
-        ms_upper = ms_upper * (len(X_train) ** 0.5)
-
     # If so, create the ms callable
     ms = generate_random_uniform(ms_lower, ms_upper)
 
@@ -243,13 +240,6 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
     assert initializer.lower() in initializer_options.keys(), \
         "initializer must be " + f"{', '.join(valid_initializers[:-1])} or {valid_initializers[-1]}" \
             if len(valid_initializers) > 1 else valid_initializers[0]
-
-    # OMS and NM are mutually exclusive — NM takes priority
-    if oms and nm:
-        import warnings
-        warnings.warn("OMS and NM are mutually exclusive: both were set to True. "
-                      "NM takes priority; OMS will be disabled.", UserWarning, stacklevel=2)
-        oms = False
 
     # ================================
     #       Parameter Definition
