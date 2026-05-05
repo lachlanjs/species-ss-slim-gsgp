@@ -49,7 +49,7 @@ SLIM_VERSION = 'SLIM+ABS'
 #   'SLIM*SIG1'  — Inflate with sigmoid (version 1) and product operator
 
 USE_OMS = True
-USE_NM = False
+USE_NM = True
 USE_LINEAR_SCALING = False
 USE_PARETO_TOURNAMENT = False
 USE_SIMPLIFICATION = False
@@ -112,10 +112,6 @@ def _validate_config():
             f"  WARNING: OMS only works with '+' versions. "
             f"Disabling OMS for '{SLIM_VERSION}'."
         )
-        oms = False
-
-    if oms and nm:
-        print("  WARNING: OMS and NM are mutually exclusive. Disabling OMS.")
         oms = False
 
     enabled_datasets = [name for name, active in DATASETS.items() if active]

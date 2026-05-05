@@ -11,7 +11,7 @@ def build_execution_type(use_linear_scaling=False, use_oms=False, use_nm=False,
     Args:
         use_linear_scaling: Whether linear scaling is enabled
         use_oms: Whether OMS is enabled
-        use_nm: Whether Normalized Mutation is enabled (mutually exclusive with use_oms)
+        use_nm: Whether Normalized Mutation is enabled (compatible with use_oms)
         use_pareto_tournament: Whether Pareto tournament is enabled
         use_simplification: Whether simplification is enabled
         
@@ -52,7 +52,7 @@ def build_variant_name(slim_version, use_oms=False, use_nm=False, use_linear_sca
     Args:
         slim_version: SLIM version (e.g., "SLIM+ABS", "SLIM+SIG2")
         use_oms: Whether OMS is enabled
-        use_nm: Whether Normalized Mutation is enabled (mutually exclusive with use_oms)
+        use_nm: Whether Normalized Mutation is enabled (compatible with use_oms)
         use_linear_scaling: Whether linear scaling is enabled
         use_pareto_tournament: Whether Pareto tournament is enabled
         

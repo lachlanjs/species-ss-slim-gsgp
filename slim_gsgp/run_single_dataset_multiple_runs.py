@@ -219,7 +219,7 @@ def run_single_dataset_multiple_times(dataset_name, num_runs=30, slim_version='S
         num_runs: Number of times to run the algorithm (default: 30)
         slim_version: Version of SLIM to use
         use_oms: Whether to use OMS
-        use_nm: Whether to use Normalized Mutation
+        use_nm: Whether to use Normalized Mutation 
         use_linear_scaling: Whether to use linear scaling
         use_pareto_tournament: Whether to use Pareto tournament
         use_simplification: Whether to use simplification when selecting best_normalized
@@ -232,16 +232,11 @@ def run_single_dataset_multiple_times(dataset_name, num_runs=30, slim_version='S
         return
     
     # Validate OMS usage
-    compatible_oms_versions = ["SLIM+ABS", "SLIM+SIG2"]
+    compatible_oms_versions = ["SLIM+ABS", "SLIM+SIG2", "SLIM+SIG1"]
     if use_oms and slim_version not in compatible_oms_versions:
-        print(f"⚠️  WARNING: OMS only works with '+' versions (SLIM+ABS or SLIM+SIG2).")
+        print(f"⚠️  WARNING: OMS only works with '+' versions (SLIM+ABS, SLIM+SIG2 or SLIM+SIG1).")
         print(f"   Current version: {slim_version}. OMS will be disabled.")
         use_oms = False
-
-    # Validate OMS/NM mutual exclusivity
-    if use_oms and use_nm:
-        print(f"⚠️  WARNING: OMS and NM are mutually exclusive. NM will be disabled.")
-        use_nm = False
 
     # Build execution type name using utility function
     execution_type = build_execution_type(

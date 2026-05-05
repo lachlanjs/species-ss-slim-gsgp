@@ -245,13 +245,6 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
         "initializer must be " + f"{', '.join(valid_initializers[:-1])} or {valid_initializers[-1]}" \
             if len(valid_initializers) > 1 else valid_initializers[0]
 
-    # OMS and NM are mutually exclusive — NM takes priority
-    if oms and nm:
-        import warnings
-        warnings.warn("OMS and NM are mutually exclusive: both were set to True. "
-                      "NM takes priority; OMS will be disabled.", UserWarning, stacklevel=2)
-        oms = False
-
     # ================================
     #       Parameter Definition
     # ================================

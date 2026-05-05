@@ -98,8 +98,8 @@ X_val, X_test, y_val, y_test = train_test_split(X_test, y_test, p_test=0.5, seed
 
 
 # --- Algorithm variant flags ---
-oms = False                   # Optimal Mutation Step (mutually exclusive with nm)
-nm = True                   # Normalized Mutation   (mutually exclusive with oms)
+oms = False                   # Optimal Mutation Step
+nm = False                   # Normalized Mutation
 linear_scaling = False        # Linear Scaling
 pareto_tournament = False     # Pareto tournament selection
 use_simplification = False    # Simplification of individuals
