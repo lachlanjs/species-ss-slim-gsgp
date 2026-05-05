@@ -88,7 +88,11 @@ from datetime import datetime
 import pandas as pd
 
 # Ensure relative imports work regardless of the current working directory
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_this_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _this_dir)
+# Ensure the project root takes priority over the installed package in site-packages,
+# so that 'from slim_gsgp.xxx import ...' resolves to the local source code.
+sys.path.insert(0, os.path.dirname(_this_dir))
 
 from run_single_dataset_multiple_runs import (
     run_single_dataset_multiple_times,

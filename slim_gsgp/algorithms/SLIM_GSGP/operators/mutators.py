@@ -56,6 +56,56 @@ def get_nm_counter():
     global _nm_degenerate_count
     return _nm_degenerate_count
 
+
+def normalize_semantics(s_R, mode='zscore', epsilon=1e-8):
+    """
+    Apply statistical normalization to the semantic vector of a random program.
+
+    Implements the Normalized Mutation Operator (Bakurov et al., 2024),
+    inspired by batch normalization from deep learning.  Normalization is
+    computed over the full training semantic vector so that the perturbation
+    has a well-defined, bounded magnitude regardless of tree depth or dataset
+    scale.
+
+    Parameters
+    ----------
+    s_R : torch.Tensor, shape (n,)
+        Semantic vector of the random program TR evaluated on the n training
+        (or test) points.
+    mode : str, optional
+        'zscore' -> standardisation: (s_R - mean) / std  [default]
+        'minmax' -> normalisation:   2*(s_R - min)/(max - min) - 1
+    epsilon : float, optional
+        Numerical threshold to avoid division by zero. Default: 1e-8.
+
+    Returns
+    -------
+    torch.Tensor, shape (n,)
+        Normalised semantic vector ready to be used as perturbation in GSM.
+        If normalisation would divide by zero (constant / degenerate tree),
+        returns a zero vector (null perturbation) and increments the global
+        degenerate counter.
+    """
+    global _nm_degenerate_count
+    if mode == 'zscore':
+        mu = s_R.mean()
+        sigma = s_R.std()
+        if sigma < epsilon:
+            _nm_degenerate_count += 1
+            return torch.zeros_like(s_R)
+        return (s_R - mu) / sigma
+    elif mode == 'minmax':
+        min_val = s_R.min()
+        max_val = s_R.max()
+        rango = max_val - min_val
+        if rango < epsilon:
+            _nm_degenerate_count += 1
+            return torch.zeros_like(s_R)
+        return 2.0 * (s_R - min_val) / rango - 1.0
+    else:
+        raise ValueError(f"norm_mode must be 'zscore' or 'minmax', got: {mode}")
+
+
 # two tree function
 def two_trees_delta(operator="sum"):
     """
@@ -257,7 +307,7 @@ def one_tree_delta(operator="sum", sig=False):
     return ot_delta
 
 
-def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum",single_tree_sigmoid=False,sig=False, oms: bool=False, nm: bool=False):
+def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum",single_tree_sigmoid=False,sig=False, oms: bool=False, nm: bool=False, norm_mode: str = 'zscore'):
     """
     Generate an inflate mutation function.
 
@@ -280,9 +330,14 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
     oms : bool
         Boolean indicating whether the optimal step mutation should be used
     nm : bool
-        Boolean indicating whether normalized mutation should be used (normalizes the
-        semantic direction s_r to unit length before applying the mutation step).
-        Ignored if oms=True, since OMS already accounts for the direction magnitude.
+        Boolean indicating whether normalized mutation should be used.
+        Applies statistical normalization (z-score or min-max) over the full
+        semantic vector of TR before scaling by ms, as in Bakurov et al.
+        (2024). Ignored if oms=True.
+    norm_mode : str, optional
+        Normalization mode for NM. 'zscore' (default) standardises the
+        semantic vector to zero mean and unit variance; 'minmax' maps it to
+        the interval [-1, 1]. Only used when nm=True.
 
     Returns
     -------
@@ -440,16 +495,6 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
                 else:
                     s_r = torch.sub(1, torch.div(2, torch.add(1, torch.abs(tr1.train_semantics))))
 
-        # normalize mutation direction to unit length (NM), ignored when OMS is active
-        if nm and not oms:
-            s_r_norm = torch.norm(s_r)
-            if s_r_norm > 1e-7:
-                ms = ms / s_r_norm
-            else:
-                # degenerate direction (constant tree): skip normalization
-                global _nm_degenerate_count
-                _nm_degenerate_count += 1
-
         # calculate the optimal mutation step value here
         if oms:
             s_r_inv = s_r / (1e-7 + torch.mul(y_train.shape[0]), s_r * s_r) if s_r.shape == torch.Size([1]) else s_r / (1e-5 + torch.sum(s_r * s_r))                        
@@ -464,14 +509,36 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
             
 
         # creating the new block for the individual, based on the random trees and operators
+        # For NM, apply statistical normalization (Bakurov et al., 2024) to the full semantic
+        # vector of TR before scaling by ms (Normalized Mutation Operator).
+        if nm and not oms:
+            s_r_train_norm = normalize_semantics(s_r, mode=norm_mode)
+            if operator == "sum":
+                block_train_sem = torch.mul(ms, s_r_train_norm)
+            else:
+                block_train_sem = torch.add(1, torch.mul(ms, s_r_train_norm))
+            if X_test is not None:
+                if two_trees:
+                    s_r_test = torch.sub(random_trees[0].test_semantics, random_trees[1].test_semantics)
+                else:
+                    if sig:
+                        s_r_test = torch.sub(torch.mul(2, random_trees[0].test_semantics), 1)
+                    else:
+                        s_r_test = torch.sub(1, torch.div(2, torch.add(1, torch.abs(random_trees[0].test_semantics))))
+                s_r_test_norm = normalize_semantics(s_r_test, mode=norm_mode)
+                block_test_sem = torch.mul(ms, s_r_test_norm) if operator == "sum" else torch.add(1, torch.mul(ms, s_r_test_norm))
+            else:
+                block_test_sem = None
+        else:
+            block_train_sem = variator(*random_trees, ms, testing=False)
+            block_test_sem = variator(*random_trees, ms, testing=True) if X_test is not None else None
+
+        ms_struct = ms
+
         new_block = Tree(
-            structure=[variator, *random_trees, ms],
-            train_semantics=variator(*random_trees, ms, testing=False),
-            test_semantics=(
-                variator(*random_trees, ms, testing=True)
-                if X_test is not None
-                else None
-            ),
+            structure=[variator, *random_trees, ms_struct],
+            train_semantics=block_train_sem,
+            test_semantics=block_test_sem,
             reconstruct=True,
         )
         # creating the offspring individual, by adding the new block to it

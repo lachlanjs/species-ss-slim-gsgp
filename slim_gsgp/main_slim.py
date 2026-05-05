@@ -27,6 +27,7 @@ import uuid
 import os
 import warnings
 import torch
+from typing import Optional
 
 from slim_gsgp.algorithms.SLIM_GSGP.slim_gsgp import SLIM_GSGP
 from slim_gsgp.config.slim_config import *
@@ -64,7 +65,7 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
          tree_functions: list = list(FUNCTIONS.keys()),
          tree_constants: list = [float(key.replace("constant_", "").replace("_", "-")) for key in CONSTANTS],
          copy_parent: bool =slim_gsgp_parameters["copy_parent"],
-         max_depth: int | None = slim_gsgp_solve_parameters["max_depth"],
+         max_depth: Optional[int] = slim_gsgp_solve_parameters["max_depth"],
          n_jobs: int = slim_gsgp_solve_parameters["n_jobs"],
          tournament_type: str = "standard",
          multi_obj_attrs: list[str] = ["fitness", "size"],
@@ -72,6 +73,7 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
          test_elite: bool = slim_gsgp_solve_parameters["test_elite"],
          oms: bool = False,
          nm: bool = False,
+         norm_mode: str = 'zscore',
          linear_scaling: bool = False,
          use_simplification: bool = True,
          enable_plotting: bool = False,
@@ -147,8 +149,13 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
     oms : bool, optional
         Whether to use the optimal mutation step size. (Default is False)
     nm : bool, optional
-        Whether to use normalized mutation (normalizes the semantic direction to unit length
-        before applying the mutation step). Ignored if oms=True. (Default is False)
+        Whether to use normalized mutation. Applies statistical normalization
+        (z-score or min-max) over the full semantic vector of TR before scaling
+        by ms, as in Bakurov et al. (2024). Ignored if oms=True. (Default is False)
+    norm_mode : str, optional
+        Normalization mode when nm=True. 'zscore' (default) standardises the
+        semantic vector to zero mean and unit variance; 'minmax' maps it to
+        the interval [-1, 1]. (Default is 'zscore')
     linear_scaling : bool, optional
         Whether to use linear scaling for fitness evaluation. When enabled, applies optimal linear 
         transformation y_scaled = a + y_raw * b to improve fitness. (Default is False)
@@ -212,12 +219,6 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
     if dataset_name is None:
         warnings.warn("No dataset name set. Using default value of dataset_1.")
         dataset_name = "dataset_1"
-
-    # NM removes the implicit ||s_r|| amplification that base SLIM gets for free
-    # (||s_r|| ~ sqrt(n_samples)), so ms_upper is scaled up to compensate.
-    # This makes ms_upper=1 produce comparable step magnitudes with or without NM.
-    if nm:
-        ms_upper = ms_upper * (len(X_train) ** 0.5)
 
     # If so, create the ms callable
     ms = generate_random_uniform(ms_lower, ms_upper)
@@ -301,7 +302,8 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
         operator=current_slim_gsgp_parameters['operator'],
         sig=sig,
         oms=oms,
-        nm=nm
+        nm=nm,
+        norm_mode=norm_mode
     )
     current_slim_gsgp_parameters["initializer"] = initializer_options[initializer]
     current_slim_gsgp_parameters["ms"] = ms
@@ -310,11 +312,10 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
     current_slim_gsgp_parameters["copy_parent"] = copy_parent
     current_slim_gsgp_parameters["seed"] = seed
 
-    match tournament_type:
-        case "standard":            
-            current_slim_gsgp_parameters["selector"] = tournament_selection(tournament_size, minimization)
-        case "pareto":            
-            current_slim_gsgp_parameters["selector"] = tournament_selection_pareto(tournament_size, multi_obj_attrs, minimization)
+    if tournament_type == "standard":
+        current_slim_gsgp_parameters["selector"] = tournament_selection(tournament_size, minimization)
+    elif tournament_type == "pareto":
+        current_slim_gsgp_parameters["selector"] = tournament_selection_pareto(tournament_size, multi_obj_attrs, minimization)
 
     current_slim_gsgp_parameters["find_elit_func"] = get_best_min if minimization else get_best_max
 
