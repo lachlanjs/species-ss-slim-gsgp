@@ -157,6 +157,9 @@ def nested_depth_calculator(operator, depths):
     elif operator.__name__ == "geometric_crossover":
         depths = [n + 2 for n in depths]
         depths.append(depths[-1] + 1)
+    elif operator.__name__.startswith("nm_variator"):
+        # NM formula: ms * (2*(T_R - min)/range - 1) → same depth overhead as SIG1 (3 extra levels)
+        depths[0] += 3
     return max(depths)
 
 
@@ -191,7 +194,17 @@ def nested_nodes_calculator(operator, nodes):
                     else (
                         [6]
                         if operator.__name__ == "tt_delta_mul"
-                        else ([4] if operator.__name__ == "tt_delta_sum" else [0])
+                        else (
+                            [4]
+                            if operator.__name__ == "tt_delta_sum"
+                            else (
+                                # NM formula: ms * (2*(T_R - min)/range - 1)
+                                # operators: mul, sub, mul, div, sub → 7 extra nodes
+                                [7]
+                                if operator.__name__.startswith("nm_variator")
+                                else [0]
+                            )
+                        )
                     )
                 )
             )

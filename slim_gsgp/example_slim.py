@@ -98,11 +98,12 @@ X_val, X_test, y_val, y_test = train_test_split(X_test, y_test, p_test=0.5, seed
 
 
 # --- Algorithm variant flags ---
-oms = False                   # Optimal Mutation Step
-nm = False                   # Normalized Mutation
+oms = True                   # Optimal Mutation Step
+nm = True                   # Normalized Mutation
 linear_scaling = False        # Linear Scaling
 pareto_tournament = False     # Pareto tournament selection
 use_simplification = False    # Simplification of individuals
+save_tree_png = False          # Save tree visualizations as PNG
 
 # Apply the SLIM GSGP algorithm (with fixed seed for reproducibility)
 results = slim(X_train=X_train, y_train=y_train,
@@ -260,16 +261,17 @@ try:
             print(f"\n✓ No constant operations to simplify")
         
         # Generate PNG visualization (use simplified tree)
-        try:
-            from slim_gsgp.utils.tree_to_png import save_tree_as_png_simple
-            
-            png_path_fitness = save_tree_as_png_simple(simplified_tree_fitness, os.path.join("log", "slim_tree_visualization_best_fitness.png"))
-            
-        except ImportError as e:
-            print(f"\n⚠️  Could not generate PNG (missing dependencies): {e}")
-            print(f"    Install required packages: pip install graphviz")
-        except Exception as e:
-            print(f"\n⚠️  Error generating PNG: {e}")
+        if save_tree_png:
+            try:
+                from slim_gsgp.utils.tree_to_png import save_tree_as_png_simple
+                
+                png_path_fitness = save_tree_as_png_simple(simplified_tree_fitness, os.path.join("log", "slim_tree_visualization_best_fitness.png"))
+                
+            except ImportError as e:
+                print(f"\n⚠️  Could not generate PNG (missing dependencies): {e}")
+                print(f"    Install required packages: pip install graphviz")
+            except Exception as e:
+                print(f"\n⚠️  Error generating PNG: {e}")
     else:
         print("❌ Could not convert SLIM GSGP to tree structure")
         
@@ -432,16 +434,17 @@ try:
             print(f"\n✓ No constant operations to simplify")
         
         # Generate PNG visualization (use simplified tree)
-        try:
-            from slim_gsgp.utils.tree_to_png import save_tree_as_png_simple
-            
-            png_path = save_tree_as_png_simple(simplified_tree, os.path.join("log", "slim_tree_visualization.png"))
-            
-        except ImportError as e:
-            print(f"\n⚠️  Could not generate PNG (missing dependencies): {e}")
-            print(f"    Install required packages: pip install graphviz")
-        except Exception as e:
-            print(f"\n⚠️  Error generating PNG: {e}")
+        if save_tree_png:
+            try:
+                from slim_gsgp.utils.tree_to_png import save_tree_as_png_simple
+                
+                png_path = save_tree_as_png_simple(simplified_tree, os.path.join("log", "slim_tree_visualization.png"))
+                
+            except ImportError as e:
+                print(f"\n⚠️  Could not generate PNG (missing dependencies): {e}")
+                print(f"    Install required packages: pip install graphviz")
+            except Exception as e:
+                print(f"\n⚠️  Error generating PNG: {e}")
     else:
         print("❌ Could not convert SLIM GSGP to tree structure")
         
@@ -591,21 +594,22 @@ try:
             print(f"\n✓ No constant operations to simplify")
         
         # Generate PNG visualization (use simplified tree)
-        try:
-            from slim_gsgp.utils.tree_to_png import save_tree_as_png_simple
-            
-            png_path_smallest = save_tree_as_png_simple(simplified_tree_smallest, os.path.join("log", "slim_tree_visualization_smallest.png"))
-            
-        except ImportError as e:
-            print(f"\n⚠️  Could not generate PNG (missing dependencies): {e}")
-            print(f"    Install required packages: pip install graphviz")
-        except Exception as e:
-            print(f"\n⚠️  Error generating PNG: {e}")
+        if save_tree_png:
+            try:
+                from slim_gsgp.utils.tree_to_png import save_tree_as_png_simple
+                
+                png_path_smallest = save_tree_as_png_simple(simplified_tree_smallest, os.path.join("log", "slim_tree_visualization_smallest.png"))
+                
+            except ImportError as e:
+                print(f"\n⚠️  Could not generate PNG (missing dependencies): {e}")
+                print(f"    Install required packages: pip install graphviz")
+            except Exception as e:
+                print(f"\n⚠️  Error generating PNG: {e}")
     else:
         print("❌ Could not convert SLIM GSGP to tree structure")
         
 except Exception as e:
-    print(f"❌ Error during tree conversion: {e}")
+    print(f"❌ Error durante tree conversion: {e}")
     import traceback
     traceback.print_exc()
 

@@ -57,53 +57,102 @@ def get_nm_counter():
     return _nm_degenerate_count
 
 
-def normalize_semantics(s_R, mode='zscore', epsilon=1e-8):
+def make_nm_variator(operator, train_stats, two_trees):
     """
-    Apply statistical normalization to the semantic vector of a random program.
+    Create a variator closure for Normalized Mutation that captures training statistics.
 
-    Implements the Normalized Mutation Operator (Bakurov et al., 2024),
-    inspired by batch normalization from deep learning.  Normalization is
-    computed over the full training semantic vector so that the perturbation
-    has a well-defined, bounded magnitude regardless of tree depth or dataset
-    scale.
+    This ensures that predict() and any future reconstruction use the same min-max
+    normalization factors that were computed from training data during mutation, rather
+    than falling back to the standard ABS/SIG variator formula.
+
+    Parameters
+    ----------
+    operator : str
+        The aggregation operator ("sum" or "mul").
+    train_stats : tuple
+        (min_val, max_val) computed from the training semantics during mutation.
+    two_trees : bool
+        Whether the block was built from two random trees (difference) or one.
+
+    Returns
+    -------
+    Callable
+        A variator function compatible with the Tree.structure convention:
+        ``nm_variator(*random_trees, ms, testing)`` → torch.Tensor.
+    """
+    min_val, max_val = train_stats
+    rango = max_val - min_val
+    epsilon = 1e-8
+
+    def nm_variator(*args, testing):
+        # Unpack: (tr1, tr2, ms, testing) for two_trees, (tr1, ms, testing) for one tree.
+        if two_trees:
+            tr1, tr2, ms = args
+            raw = (
+                torch.sub(tr1.test_semantics, tr2.test_semantics)
+                if testing
+                else torch.sub(tr1.train_semantics, tr2.train_semantics)
+            )
+        else:
+            tr1, ms = args
+            raw = tr1.test_semantics if testing else tr1.train_semantics
+
+        if rango < epsilon:
+            norm = torch.zeros_like(raw)
+        else:
+            norm = 2.0 * (raw - min_val) / rango - 1.0
+
+        if operator == "sum":
+            return torch.mul(ms, norm)
+        else:
+            return torch.add(1, torch.mul(ms, norm))
+
+    nm_variator.__name__ = f"nm_variator_{operator}_{'tt' if two_trees else 'ot'}"
+    return nm_variator
+
+
+def normalize_semantics(s_R, epsilon=1e-8, stats=None):
+    """
+    Apply min-max normalization to the semantic vector of a random program.
+
+    Implements the Normalized Mutation Operator: maps the raw semantic vector
+    of TR to the interval [-1, 1] using the training min and max, so that the
+    perturbation has a bounded magnitude consistent with the SLIM-GSGP formula:
+
+        T_M(x) = T_P(x) + ms * (2 * (T_R^raw(x) - m_train) / (M_train - m_train) - 1)
 
     Parameters
     ----------
     s_R : torch.Tensor, shape (n,)
-        Semantic vector of the random program TR evaluated on the n training
-        (or test) points.
-    mode : str, optional
-        'zscore' -> standardisation: (s_R - mean) / std  [default]
-        'minmax' -> normalisation:   2*(s_R - min)/(max - min) - 1
+        Semantic vector of the random program TR evaluated on n points.
     epsilon : float, optional
         Numerical threshold to avoid division by zero. Default: 1e-8.
+    stats : tuple or None, optional
+        Pre-computed normalization statistics from training data: (min_val, max_val).
+        If None, statistics are computed from s_R (training call).
+        Pass the stats returned by the training call when normalizing
+        test semantics so that the same scale factors are reused.
 
     Returns
     -------
-    torch.Tensor, shape (n,)
-        Normalised semantic vector ready to be used as perturbation in GSM.
-        If normalisation would divide by zero (constant / degenerate tree),
-        returns a zero vector (null perturbation) and increments the global
-        degenerate counter.
+    tuple(torch.Tensor, tuple)
+        - Normalised semantic vector in [-1, 1]. If the range is zero
+          (constant / degenerate tree), returns a zero vector and increments
+          the global degenerate counter.
+        - The statistics used: (min_val, max_val). Always returned so the
+          caller can reuse them on test data.
     """
     global _nm_degenerate_count
-    if mode == 'zscore':
-        mu = s_R.mean()
-        sigma = s_R.std()
-        if sigma < epsilon:
-            _nm_degenerate_count += 1
-            return torch.zeros_like(s_R)
-        return (s_R - mu) / sigma
-    elif mode == 'minmax':
+    if stats is not None:
+        min_val, max_val = stats
+    else:
         min_val = s_R.min()
         max_val = s_R.max()
-        rango = max_val - min_val
-        if rango < epsilon:
-            _nm_degenerate_count += 1
-            return torch.zeros_like(s_R)
-        return 2.0 * (s_R - min_val) / rango - 1.0
-    else:
-        raise ValueError(f"norm_mode must be 'zscore' or 'minmax', got: {mode}")
+    rango = max_val - min_val
+    if rango < epsilon:
+        _nm_degenerate_count += 1
+        return torch.zeros_like(s_R), (min_val, max_val)
+    return 2.0 * (s_R - min_val) / rango - 1.0, (min_val, max_val)
 
 
 # two tree function
@@ -307,7 +356,7 @@ def one_tree_delta(operator="sum", sig=False):
     return ot_delta
 
 
-def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum",single_tree_sigmoid=False,sig=False, oms: bool=False, nm: bool=False, norm_mode: str = 'zscore'):
+def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum",single_tree_sigmoid=False,sig=False, oms: bool=False, nm: bool=False):
     """
     Generate an inflate mutation function.
 
@@ -331,13 +380,8 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
         Boolean indicating whether the optimal step mutation should be used
     nm : bool
         Boolean indicating whether normalized mutation should be used.
-        Applies statistical normalization (z-score or min-max) over the full
-        semantic vector of TR before scaling by ms, as in Bakurov et al.
-        (2024). Ignored if oms=True.
-    norm_mode : str, optional
-        Normalization mode for NM. 'zscore' (default) standardises the
-        semantic vector to zero mean and unit variance; 'minmax' maps it to
-        the interval [-1, 1]. Only used when nm=True.
+        Maps T_R^raw to [-1, 1] using training min/max before scaling by ms.
+        Ignored if oms=True.
 
     Returns
     -------
@@ -417,6 +461,9 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
             The mutated tree Individual.
         """
         if two_trees:
+            # For NM the trees must produce raw outputs so that normalization
+            # acts on the true semantic range (T_R^raw in the formula).
+            logistic_flag = not nm
             # getting two random trees
             random_tree1 = get_random_tree(
                 max_depth,
@@ -426,7 +473,7 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
                 inputs=X,
                 p_c=p_c,
                 grow_probability=grow_probability,
-                logistic=True,
+                logistic=logistic_flag,
             )
             random_tree2 = get_random_tree(
                 max_depth,
@@ -436,7 +483,7 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
                 inputs=X,
                 p_c=p_c,
                 grow_probability=grow_probability,
-                logistic=True,
+                logistic=logistic_flag,
             )
             # adding the random trees to a list, to be used in the creation of a new block
             random_trees = [random_tree1, random_tree2]
@@ -444,10 +491,13 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
             # calculating the semantics of the random trees on testing, if applicable
             if X_test is not None:
                 [
-                    rt.calculate_semantics(X_test, testing=True, logistic=True)
+                    rt.calculate_semantics(X_test, testing=True, logistic=logistic_flag)
                     for rt in random_trees
                 ]                        
         else:
+            # For NM the tree must produce raw outputs (no squashing function);
+            # the bounding to [-1, 1] is provided entirely by the normalization.
+            logistic_flag = (single_tree_sigmoid or sig) if not nm else False
             # getting one random tree
             random_tree1 = get_random_tree(
                 max_depth,
@@ -457,7 +507,7 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
                 inputs=X,
                 p_c=p_c,
                 grow_probability=grow_probability,
-                logistic=single_tree_sigmoid or sig,
+                logistic=logistic_flag,
             )
             # adding the random tree to a list, to be used in the creation of a new block
             random_trees = [random_tree1]
@@ -466,7 +516,7 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
             if X_test is not None:
                 [
                     rt.calculate_semantics(
-                        X_test, testing=True, logistic=single_tree_sigmoid or sig
+                        X_test, testing=True, logistic=logistic_flag
                     )
                     for rt in random_trees
                 ]
@@ -483,49 +533,57 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
         else:
             operator_f = torch.prod
 
-        # compute semantic direction s_r (shared by nm and oms blocks)
+        # compute raw semantic direction s_r
         if nm or oms:
             if two_trees:
                 tr1, tr2 = random_trees
                 s_r = torch.sub(tr1.train_semantics, tr2.train_semantics)
             else:  # one tree
                 tr1, = random_trees
-                if sig:
+                if nm:
+                    # NM uses T_R^raw directly; normalization provides the bounding.
+                    s_r = tr1.train_semantics
+                elif sig:
                     s_r = torch.sub(torch.mul(2, tr1.train_semantics), 1)
                 else:
                     s_r = torch.sub(1, torch.div(2, torch.add(1, torch.abs(tr1.train_semantics))))
 
+        # If NM is active, normalize s_r to [-1, 1] now — before OMS so that OMS
+        # computes the optimal step over the normalized direction.
+        if nm:
+            s_r_norm_train, train_stats = normalize_semantics(s_r)
+            s_r_for_oms = s_r_norm_train
+        elif oms:
+            s_r_for_oms = s_r
+
         # calculate the optimal mutation step value here
         if oms:
-            s_r_inv = s_r / (1e-7 + torch.mul(y_train.shape[0]), s_r * s_r) if s_r.shape == torch.Size([1]) else s_r / (1e-5 + torch.sum(s_r * s_r))                        
-            ms = torch.vdot(s_r_inv.broadcast_to(y_train.shape), y_train - operator_f(individual.train_semantics, dim=0)) # .flatten()
-            ms = torch.clamp(ms, -100.0, 100.0)  
-            
+            s_r_inv = s_r_for_oms / (1e-7 + torch.mul(y_train.shape[0]), s_r_for_oms * s_r_for_oms) if s_r_for_oms.shape == torch.Size([1]) else s_r_for_oms / (1e-5 + torch.sum(s_r_for_oms * s_r_for_oms))
+            ms = torch.vdot(s_r_inv.broadcast_to(y_train.shape), y_train - operator_f(individual.train_semantics, dim=0))
+            ms = torch.clamp(ms, -100.0, 100.0)
+
             # Convert near-zero mutation steps to 0 to prevent overfitting and bloat
             if torch.abs(ms) < 0.1:
                 global _oms_zero_transformations_count
                 _oms_zero_transformations_count += 1
                 ms = torch.tensor(0.0)
-            
 
-        # creating the new block for the individual, based on the random trees and operators
-        # For NM, apply statistical normalization (Bakurov et al., 2024) to the full semantic
-        # vector of TR before scaling by ms (Normalized Mutation Operator).
-        if nm and not oms:
-            s_r_train_norm = normalize_semantics(s_r, mode=norm_mode)
+        # Build block semantics.
+        # When NM is active (alone or combined with OMS), use the normalized direction.
+        # When only OMS is active, or neither, use the standard variator.
+        if nm:
+            # Normalize test semantics reusing training statistics — never recompute on test.
             if operator == "sum":
-                block_train_sem = torch.mul(ms, s_r_train_norm)
+                block_train_sem = torch.mul(ms, s_r_norm_train)
             else:
-                block_train_sem = torch.add(1, torch.mul(ms, s_r_train_norm))
+                block_train_sem = torch.add(1, torch.mul(ms, s_r_norm_train))
             if X_test is not None:
                 if two_trees:
                     s_r_test = torch.sub(random_trees[0].test_semantics, random_trees[1].test_semantics)
                 else:
-                    if sig:
-                        s_r_test = torch.sub(torch.mul(2, random_trees[0].test_semantics), 1)
-                    else:
-                        s_r_test = torch.sub(1, torch.div(2, torch.add(1, torch.abs(random_trees[0].test_semantics))))
-                s_r_test_norm = normalize_semantics(s_r_test, mode=norm_mode)
+                    # Raw test semantics, mirroring how s_r was built for train.
+                    s_r_test = random_trees[0].test_semantics
+                s_r_test_norm, _ = normalize_semantics(s_r_test, stats=train_stats)
                 block_test_sem = torch.mul(ms, s_r_test_norm) if operator == "sum" else torch.add(1, torch.mul(ms, s_r_test_norm))
             else:
                 block_test_sem = None
@@ -535,8 +593,17 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
 
         ms_struct = ms
 
+        # When NM is active, store a closure that captures training statistics so
+        # that predict() and any future reconstruction apply the correct NM formula
+        # instead of falling back to the ABS/SIG variator.
+        structure_variator = (
+            make_nm_variator(operator, train_stats, two_trees)
+            if nm
+            else variator
+        )
+
         new_block = Tree(
-            structure=[variator, *random_trees, ms_struct],
+            structure=[structure_variator, *random_trees, ms_struct],
             train_semantics=block_train_sem,
             test_semantics=block_test_sem,
             reconstruct=True,

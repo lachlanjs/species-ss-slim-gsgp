@@ -73,7 +73,6 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
          test_elite: bool = slim_gsgp_solve_parameters["test_elite"],
          oms: bool = False,
          nm: bool = False,
-         norm_mode: str = 'zscore',
          linear_scaling: bool = False,
          use_simplification: bool = True,
          enable_plotting: bool = False,
@@ -149,13 +148,8 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
     oms : bool, optional
         Whether to use the optimal mutation step size. (Default is False)
     nm : bool, optional
-        Whether to use normalized mutation. Applies statistical normalization
-        (z-score or min-max) over the full semantic vector of TR before scaling
-        by ms, as in Bakurov et al. (2024). Ignored if oms=True. (Default is False)
-    norm_mode : str, optional
-        Normalization mode when nm=True. 'zscore' (default) standardises the
-        semantic vector to zero mean and unit variance; 'minmax' maps it to
-        the interval [-1, 1]. (Default is 'zscore')
+        Whether to use normalized mutation. Maps T_R^raw to [-1, 1] using
+        training min/max before scaling by ms. Ignored if oms=True. (Default is False)
     linear_scaling : bool, optional
         Whether to use linear scaling for fitness evaluation. When enabled, applies optimal linear 
         transformation y_scaled = a + y_raw * b to improve fitness. (Default is False)
@@ -296,7 +290,6 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
         sig=sig,
         oms=oms,
         nm=nm,
-        norm_mode=norm_mode
     )
     current_slim_gsgp_parameters["initializer"] = initializer_options[initializer]
     current_slim_gsgp_parameters["ms"] = ms
