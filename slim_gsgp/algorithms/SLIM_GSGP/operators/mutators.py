@@ -61,16 +61,16 @@ def make_nm_variator(operator, train_stats, two_trees):
     """
     Create a variator closure for Normalized Mutation that captures training statistics.
 
-    This ensures that predict() and any future reconstruction use the same min-max
-    normalization factors that were computed from training data during mutation, rather
-    than falling back to the standard ABS/SIG variator formula.
+    This ensures that predict() and any future reconstruction use the same
+    standardization factors (mean and std) that were computed from training data
+    during mutation, rather than falling back to the standard ABS/SIG variator formula.
 
     Parameters
     ----------
     operator : str
         The aggregation operator ("sum" or "mul").
     train_stats : tuple
-        (min_val, max_val) computed from the training semantics during mutation.
+        (mean_val, std_val) computed from the training semantics during mutation.
     two_trees : bool
         Whether the block was built from two random trees (difference) or one.
 
@@ -80,8 +80,7 @@ def make_nm_variator(operator, train_stats, two_trees):
         A variator function compatible with the Tree.structure convention:
         ``nm_variator(*random_trees, ms, testing)`` → torch.Tensor.
     """
-    min_val, max_val = train_stats
-    rango = max_val - min_val
+    mean_val, std_val = train_stats
     epsilon = 1e-8
 
     def nm_variator(*args, testing):
@@ -97,10 +96,11 @@ def make_nm_variator(operator, train_stats, two_trees):
             tr1, ms = args
             raw = tr1.test_semantics if testing else tr1.train_semantics
 
-        if rango < epsilon:
+        if not torch.isfinite(std_val) or std_val < epsilon:
             norm = torch.zeros_like(raw)
         else:
-            norm = 2.0 * (raw - min_val) / rango - 1.0
+            norm = (raw - mean_val) / std_val
+            norm = torch.nan_to_num(norm, nan=0.0, posinf=0.0, neginf=0.0)
 
         if operator == "sum":
             return torch.mul(ms, norm)
@@ -113,13 +113,13 @@ def make_nm_variator(operator, train_stats, two_trees):
 
 def normalize_semantics(s_R, epsilon=1e-8, stats=None):
     """
-    Apply min-max normalization to the semantic vector of a random program.
+    Apply standardization (N1) to the semantic vector of a random program.
 
-    Implements the Normalized Mutation Operator: maps the raw semantic vector
-    of TR to the interval [-1, 1] using the training min and max, so that the
-    perturbation has a bounded magnitude consistent with the SLIM-GSGP formula:
+    Implements the N1 Normalized Mutation Operator from Bakurov et al. (2024):
+    centers the raw semantic vector of TR to mean 0 and std 1, so that the
+    perturbation is zero-centered, consistent with the SLIM-GSGP formula:
 
-        T_M(x) = T_P(x) + ms * (2 * (T_R^raw(x) - m_train) / (M_train - m_train) - 1)
+        T_M(x) = T_P(x) + ms * (T_R^raw(x) - mean) / std
 
     Parameters
     ----------
@@ -128,7 +128,7 @@ def normalize_semantics(s_R, epsilon=1e-8, stats=None):
     epsilon : float, optional
         Numerical threshold to avoid division by zero. Default: 1e-8.
     stats : tuple or None, optional
-        Pre-computed normalization statistics from training data: (min_val, max_val).
+        Pre-computed standardization statistics from training data: (mean_val, std_val).
         If None, statistics are computed from s_R (training call).
         Pass the stats returned by the training call when normalizing
         test semantics so that the same scale factors are reused.
@@ -136,23 +136,26 @@ def normalize_semantics(s_R, epsilon=1e-8, stats=None):
     Returns
     -------
     tuple(torch.Tensor, tuple)
-        - Normalised semantic vector in [-1, 1]. If the range is zero
+        - Standardized semantic vector with mean 0 and std 1. If std is zero
           (constant / degenerate tree), returns a zero vector and increments
           the global degenerate counter.
-        - The statistics used: (min_val, max_val). Always returned so the
+        - The statistics used: (mean_val, std_val). Always returned so the
           caller can reuse them on test data.
     """
     global _nm_degenerate_count
     if stats is not None:
-        min_val, max_val = stats
+        mean_val, std_val = stats
     else:
-        min_val = s_R.min()
-        max_val = s_R.max()
-    rango = max_val - min_val
-    if rango < epsilon:
+        mean_val = s_R.mean()
+        # correction=0 (population std) avoids nan for n=1 and is more stable
+        std_val = s_R.std(correction=0)
+    if not torch.isfinite(std_val) or std_val < epsilon:
         _nm_degenerate_count += 1
-        return torch.zeros_like(s_R), (min_val, max_val)
-    return 2.0 * (s_R - min_val) / rango - 1.0, (min_val, max_val)
+        return torch.zeros_like(s_R), (mean_val, std_val)
+    normalized = (s_R - mean_val) / std_val
+    # Replace any nan/inf from extreme tree outputs (e.g. inf-inf) with 0
+    normalized = torch.nan_to_num(normalized, nan=0.0, posinf=0.0, neginf=0.0)
+    return normalized, (mean_val, std_val)
 
 
 # two tree function

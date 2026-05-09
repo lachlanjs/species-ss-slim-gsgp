@@ -49,7 +49,7 @@ SLIM_VERSION = 'SLIM+ABS'
 #   'SLIM*SIG1'  — Inflate with sigmoid (version 1) and product operator
 
 USE_OMS = True
-USE_NM = True
+USE_NM = False
 USE_LINEAR_SCALING = True
 USE_PARETO_TOURNAMENT = True
 USE_SIMPLIFICATION = True

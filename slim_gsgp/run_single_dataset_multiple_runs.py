@@ -349,10 +349,12 @@ def run_single_dataset_multiple_times(dataset_name, num_runs=30, slim_version='S
             # === Process Best Fitness Individual ===
             best_fitness_individual.calculate_semantics(X_val, testing=True)
             best_fitness_individual.evaluate(rmse, y_val, testing=True, operator="sum")
+            predictions_bf_train = best_fitness_individual.predict(X_train)
+            train_rmse_bf = float(rmse(y_true=y_train, y_pred=predictions_bf_train))
             predictions_bf = best_fitness_individual.predict(X_test)
             test_rmse_bf = float(rmse(y_true=y_test, y_pred=predictions_bf))
             
-            bf_train = round(float(best_fitness_individual.fitness) if hasattr(best_fitness_individual.fitness, 'item') else float(best_fitness_individual.fitness), 5)
+            bf_train = round(train_rmse_bf, 5)
             bf_val = round(float(best_fitness_individual.test_fitness) if hasattr(best_fitness_individual.test_fitness, 'item') else float(best_fitness_individual.test_fitness), 5)
             bf_test = round(test_rmse_bf, 5)
             bf_nodes = best_fitness_individual.nodes_count
@@ -423,23 +425,33 @@ def run_single_dataset_multiple_times(dataset_name, num_runs=30, slim_version='S
             sm_depth_list.append(sm_depth)
 
             # Raw rows in reproduce_results format (0-indexed run)
-            for ind_name, test_val, nodes_val in [
-                ('best_fitness',       bf_test, bf_nodes),
-                ('optimal_compromise', bn_test, bn_nodes),
-                ('best_size',          sm_test, sm_nodes),
-            ]:
-                raw_rows.append({
-                    'dataset':    dataset_name,
-                    'individual': ind_name,
-                    'run':        run_idx - 1,
-                    'fitness':    test_val,
-                    'size':       nodes_val,
-                })
+            raw_rows.append({
+                'dataset':       dataset_name,
+                'individual':    'best_fitness',
+                'run':           run_idx - 1,
+                'fitness':       bf_test,
+                'train_fitness': bf_train,
+                'size':          bf_nodes,
+            })
+            raw_rows.append({
+                'dataset':    dataset_name,
+                'individual': 'optimal_compromise',
+                'run':        run_idx - 1,
+                'fitness':    bn_test,
+                'size':       bn_nodes,
+            })
+            raw_rows.append({
+                'dataset':    dataset_name,
+                'individual': 'best_size',
+                'run':        run_idx - 1,
+                'fitness':    sm_test,
+                'size':       sm_nodes,
+            })
 
             print(f"   ✓ Run completed")
-            print(f"      BF: Test={bf_test:.5f}, Nodes={bf_nodes}")
-            print(f"      BN: Test={bn_test:.5f}, Nodes={bn_nodes}")
-            print(f"      SM: Test={sm_test:.5f}, Nodes={sm_nodes}")
+            print(f"      BF: Train={bf_train:.5f}, Test={bf_test:.5f}, Nodes={bf_nodes}")
+            print(f"      BN: Train={bn_train:.5f}, Test={bn_test:.5f}, Nodes={bn_nodes}")
+            print(f"      SM: Train={sm_train:.5f}, Test={sm_test:.5f}, Nodes={sm_nodes}")
             
             successful_runs += 1
             
