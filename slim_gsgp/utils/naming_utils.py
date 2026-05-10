@@ -70,10 +70,13 @@ def build_variant_name(slim_version, use_oms=False, use_nm=False, use_linear_sca
         'SLIM+ABS + NM'
     """
     variant_parts = [slim_version]
-    
+
+    # N1 versions have NM built into the version name itself; don't append a redundant "+ NM".
+    _n1_versions = ("SLIM+N1", "SLIM*N1")
+
     if use_oms:
         variant_parts.append("OMS")
-    if use_nm:
+    if use_nm and slim_version not in _n1_versions:
         variant_parts.append("NM")
     if use_linear_scaling:
         variant_parts.append("LS")

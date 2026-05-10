@@ -54,27 +54,36 @@ DATASET_LOADERS = {
 
 DATASETS = list(DATASET_LOADERS.keys())
 
+# ============================================================================
+#                         C O N F I G U R A T I O N
+# ============================================================================
+SLIM_VERSION = "SLIM+N1"
+# Available options:
+#   'SLIM+ABS'  — Inflate with absolute value and sum operator
+#   'SLIM+N1'   — Normalized mutation (standardization) and sum operator
+#   'SLIM*ABS'  — Inflate with absolute value and product operator
+#   'SLIM*N1'   — Normalized mutation (standardization) and product operator
+#   'SLIM+SIG2' — Inflate with sigmoid (version 2) and sum operator
+#   'SLIM*SIG2' — Inflate with sigmoid (version 2) and product operator
+# ============================================================================
+
+# Flags that can be combined with any SLIM version.
+# Each key is a tuple of active flags; the value is the label used for output files.
 VARIANTS_DICT = {
-    tuple():                "BASE",
-    ("PT"):                 "BASE + PT",
-    ("OMS"):                "BASE + OMS",
-    ("NM"):                 "BASE + NM",
-    ("LS"):                 "BASE + LS",
-    ("AS"):                 "BASE + AS",
-    ("OMS", "LS", "AS"):    "ALL - PT",
-    ("NM", "LS", "AS"):     "ALL - PT (NM)",
-    ("PT", "LS", "AS"):     "ALL - OMS",
-    ("PT", "OMS", "AS"):    "ALL - LS",
-    ("PT", "NM", "AS"):     "ALL - LS (NM)",
-    ("PT", "OMS", "LS"):    "ALL - AS",
-    ("PT", "NM", "LS"):     "ALL - AS (NM)",
-    ("PT", "OMS", "LS", "AS"):    "ALL",
-    ("PT", "NM", "LS", "AS"):     "ALL (NM)"
+    tuple():                    "BASE",
+    ("PT",):                    "BASE + PT",
+    ("OMS",):                   "BASE + OMS",
+    ("LS",):                    "BASE + LS",
+    ("AS",):                    "BASE + AS",
+    ("OMS", "LS", "AS"):        "ALL - PT",
+    ("PT", "LS", "AS"):         "ALL - OMS",
+    ("PT", "OMS", "AS"):        "ALL - LS",
+    ("PT", "OMS", "LS"):        "ALL - AS",
+    ("PT", "OMS", "LS", "AS"): "ALL",
 }
 
 BASE_ALGO_PARAMS = {
     'verbose': 0,
-    'slim_version': "SLIM+ABS",
     'pop_size': 100,
     'n_iter': 100,
     'ms_lower': 0,
@@ -105,16 +114,17 @@ def get_result_dataset(variant_tuple: tuple[str], dataset_name: str, seed: int):
     X_train, X_test, y_train, y_test = train_test_split(X, y, p_test=0.4, seed=seed)
     X_val, X_test, y_val, y_test = train_test_split(X_test, y_test, p_test=0.5, seed=seed)
 
-    # get the variant specifics:
-    use_pt =    "PT" in variant_tuple
-    use_oms =   "OMS" in variant_tuple
-    use_nm =    "NM" in variant_tuple
-    use_ls =    "LS" in variant_tuple
-    use_as =    "AS" in variant_tuple
+    # get the variant specifics from the flag tuple:
+    flags = set(variant_tuple)
+    use_pt  = "PT"  in flags
+    use_oms = "OMS" in flags
+    use_ls  = "LS"  in flags
+    use_as  = "AS"  in flags
 
     algo_params = {
         **BASE_ALGO_PARAMS,
         **{
+            "slim_version": SLIM_VERSION,
             "seed": seed,
             "X_train": X_train,
             "y_train": y_train,
@@ -122,7 +132,6 @@ def get_result_dataset(variant_tuple: tuple[str], dataset_name: str, seed: int):
             "y_test": y_val,
             "dataset_name": dataset_name,
             "oms": use_oms,
-            "nm": use_nm,
             "linear_scaling": use_ls,
             "use_simplification": use_as            
         },
@@ -153,7 +162,7 @@ def get_results(args):
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
     # extract arguments
-    (variant_tuple, variant_name), progress_dict, process_id = args    
+    (variant_tuple, variant_name), progress_dict, process_id, results_filepath = args    
 
     # print start message
     print(f"Variant {variant_name} started with proc id: {process_id}")
@@ -189,7 +198,7 @@ def get_results(args):
     results_df = results_df.sort_index()
 
     # save the datasets:
-    base_output_file_path = f"{REPRODUCED_RESULTS_FILEPATH}/{variant_name}"
+    base_output_file_path = f"{results_filepath}/{variant_name}"
 
     # csv:
     try:
@@ -233,7 +242,7 @@ if __name__ == '__main__':
             progress_dict[i] = 0
         
         # Prepare arguments: (config, progress_dict, process_id)
-        args = [(config, progress_dict, i) for i, config in enumerate(VARIANTS_DICT.items())]        
+        args = [(config, progress_dict, i, REPRODUCED_RESULTS_FILEPATH) for i, config in enumerate(VARIANTS_DICT.items())]        
         
         with Pool(processes=6) as pool:
             try: 

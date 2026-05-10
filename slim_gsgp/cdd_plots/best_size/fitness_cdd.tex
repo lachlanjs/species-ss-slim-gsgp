@@ -18,38 +18,35 @@
   major tick style={yshift=.5*\pgfkeysvalueof{/pgfplots/major tick length}},
   minor tick style={yshift=.5*\pgfkeysvalueof{/pgfplots/minor tick length}},
   title style={yshift=\baselineskip},
-  xmax={10},
-  ymin={-6.5},
-  height={7\baselineskip},
-  xtick={1.0,2.5,4.0,5.5,7.0,8.5,10.0},
-  minor x tick num={2},
+  xmax={9},
+  ymin={-5.5},
+  height={6\baselineskip},
+  xtick={1,3,5,7,9},
+  minor x tick num={1},
   x dir={reverse},
 ]
 
-\draw[treatment line] ([yshift=-2pt] axis cs:1.6428571428571428, 0) |- (axis cs:0.8095238095238094, -2.0)
+\draw[treatment line] ([yshift=-2pt] axis cs:2.0, 0) |- (axis cs:1.25, -2.5)
   node[treatment label, anchor=west] {ALL - PT};
-\draw[treatment line] ([yshift=-2pt] axis cs:2.2142857142857144, 0) |- (axis cs:0.8095238095238094, -3.0)
+\draw[treatment line] ([yshift=-2pt] axis cs:2.5, 0) |- (axis cs:1.25, -3.5)
   node[treatment label, anchor=west] {BASE + LS};
-\draw[treatment line] ([yshift=-2pt] axis cs:4.107142857142857, 0) |- (axis cs:0.8095238095238094, -4.0)
-  node[treatment label, anchor=west] {ALL};
-\draw[treatment line] ([yshift=-2pt] axis cs:4.178571428571429, 0) |- (axis cs:0.8095238095238094, -5.0)
-  node[treatment label, anchor=west] {ALL - AS};
-\draw[treatment line] ([yshift=-2pt] axis cs:4.285714285714286, 0) |- (axis cs:0.8095238095238094, -6.0)
+\draw[treatment line] ([yshift=-2pt] axis cs:3.142857142857143, 0) |- (axis cs:1.25, -4.5)
   node[treatment label, anchor=west] {ALL - OMS};
-\draw[treatment line] ([yshift=-2pt] axis cs:5.428571428571429, 0) |- (axis cs:10.011904761904763, -6.0)
+\draw[treatment line] ([yshift=-2pt] axis cs:3.2142857142857144, 0) |- (axis cs:1.25, -5.5)
+  node[treatment label, anchor=west] {ALL \& ALL - AS};
+\draw[treatment line] ([yshift=-2pt] axis cs:5.285714285714286, 0) |- (axis cs:8.714285714285715, -6.0)
   node[treatment label, anchor=east] {BASE + OMS};
-\draw[treatment line] ([yshift=-2pt] axis cs:7.535714285714286, 0) |- (axis cs:10.011904761904763, -5.0)
+\draw[treatment line] ([yshift=-2pt] axis cs:6.535714285714286, 0) |- (axis cs:8.714285714285715, -5.0)
   node[treatment label, anchor=east] {BASE + AS};
-\draw[treatment line] ([yshift=-2pt] axis cs:7.75, 0) |- (axis cs:10.011904761904763, -4.0)
+\draw[treatment line] ([yshift=-2pt] axis cs:6.607142857142857, 0) |- (axis cs:8.714285714285715, -4.0)
   node[treatment label, anchor=east] {BASE};
-\draw[treatment line] ([yshift=-2pt] axis cs:8.678571428571429, 0) |- (axis cs:10.011904761904763, -3.0)
-  node[treatment label, anchor=east] {BASE + PT};
-\draw[treatment line] ([yshift=-2pt] axis cs:9.178571428571429, 0) |- (axis cs:10.011904761904763, -2.0)
+\draw[treatment line] ([yshift=-2pt] axis cs:7.75, 0) |- (axis cs:8.714285714285715, -3.0)
   node[treatment label, anchor=east] {ALL - LS};
-\draw[group line] (axis cs:8.678571428571429, -1.3333333333333333) -- (axis cs:9.178571428571429, -1.3333333333333333);
-\draw[group line] (axis cs:2.2142857142857144, -2.0) -- (axis cs:5.428571428571429, -2.0);
-\draw[group line] (axis cs:7.535714285714286, -2.6666666666666665) -- (axis cs:7.75, -2.6666666666666665);
-\draw[group line] (axis cs:1.6428571428571428, -1.3333333333333333) -- (axis cs:2.2142857142857144, -1.3333333333333333);
+\draw[treatment line] ([yshift=-2pt] axis cs:7.964285714285714, 0) |- (axis cs:8.714285714285715, -2.0)
+  node[treatment label, anchor=east] {BASE + PT};
+\draw[group line] (axis cs:6.535714285714286, -2.6666666666666665) -- (axis cs:6.607142857142857, -2.6666666666666665);
+\draw[group line] (axis cs:7.75, -1.3333333333333333) -- (axis cs:7.964285714285714, -1.3333333333333333);
+\draw[group line] (axis cs:2.0, -1.6666666666666667) -- (axis cs:3.2142857142857144, -1.6666666666666667);
 
 \end{axis}
 \end{tikzpicture}

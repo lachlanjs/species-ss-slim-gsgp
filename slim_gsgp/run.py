@@ -47,6 +47,8 @@ SLIM_VERSION = 'SLIM+ABS'
 #   'SLIM*ABS'   — Inflate with absolute value and product operator
 #   'SLIM*SIG2'  — Inflate with sigmoid (version 2) and product operator
 #   'SLIM*SIG1'  — Inflate with sigmoid (version 1) and product operator
+#   'SLIM+N1'    — Normalize mutation (standardization) with sum operator (USE_NM is ignored)
+#   'SLIM*N1'    — Normalize mutation (standardization) with product operator (USE_NM is ignored)
 
 USE_OMS = True
 USE_NM = False
@@ -106,7 +108,12 @@ def _validate_config():
     oms = USE_OMS
     nm = USE_NM
 
-    compatible_oms_versions = ("SLIM+ABS", "SLIM+SIG2", "SLIM+SIG1")
+    # N1 versions have NM built into the version definition; USE_NM is irrelevant.
+    _n1_versions = ("SLIM+N1", "SLIM*N1")
+    if SLIM_VERSION in _n1_versions:
+        nm = True
+
+    compatible_oms_versions = ("SLIM+ABS", "SLIM+SIG2", "SLIM+SIG1", "SLIM+N1", "SLIM*N1")
     if oms and SLIM_VERSION not in compatible_oms_versions:
         print(
             f"  WARNING: OMS only works with '+' versions. "
