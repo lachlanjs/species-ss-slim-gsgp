@@ -138,7 +138,7 @@ def collate_variants(base_path: str):
 
     return full_df
 
-def create_line_plot(fig: plt.Figure, ax: plt.Axes, data, y_label: str, baseline_data, right: bool, show_x_label=True):
+def create_line_plot(fig: plt.Figure, ax: plt.Axes, data, y_label: str, baseline_data, right: bool, show_x_label=True, ylim=None):
 
     # Gorka's line plot
 
@@ -191,6 +191,9 @@ def create_line_plot(fig: plt.Figure, ax: plt.Axes, data, y_label: str, baseline
 
     # plt.xticks(x_positions, x_positions, weight = "bold")
     ax.set_xlim(x_positions[0] - 0.5, x_positions[-1] + 0.5)
+
+    if ylim is not None:
+        ax.set_ylim(ylim[0], ylim[1])
 
     ax.grid(True, alpha=0.3)    
 
@@ -301,6 +304,7 @@ if __name__ == "__main__":
     # create line plots:    
     for col_idx, metric in enumerate(["fitness", "size"]):
         y_label="RMSE Change (%)" if metric == "fitness" else "Size Change (%)"
+        ylim = (-125, 60) if metric == "fitness" else (-125, 125)
         for row_idx, individual in enumerate(["best_fitness", "best_size", "optimal_compromise"]):
             lplots_new = create_line_plot(
                 fig, axs[row_idx][col_idx],
@@ -308,6 +312,7 @@ if __name__ == "__main__":
                 y_label=y_label,
                 baseline_data=full_medians.xs("best_fitness", level=2)[metric].loc[BASE_NAME],
                 right = col_idx==1,
+                ylim=ylim,
                 show_x_label = row_idx == 2
             )
             lplots += [lplots_new]
