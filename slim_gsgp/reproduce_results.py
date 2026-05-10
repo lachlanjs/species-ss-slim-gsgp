@@ -57,7 +57,7 @@ DATASETS = list(DATASET_LOADERS.keys())
 # ============================================================================
 #                         C O N F I G U R A T I O N
 # ============================================================================
-SLIM_VERSION = "SLIM+N1"
+SLIM_VERSION = "SLIM+ABS"
 # Available options:
 #   'SLIM+ABS'  — Inflate with absolute value and sum operator
 #   'SLIM+N1'   — Normalized mutation (standardization) and sum operator
