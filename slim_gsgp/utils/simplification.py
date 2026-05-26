@@ -22,7 +22,25 @@
 """
 Tree conversion utilities for SLIM_GSGP individuals.
 Converts SLIM GSGP representation to readable tree structure for visualization.
+
+Two simplification passes are available:
+
+  1. ``simplify_constant_operations`` — conservative, hand-written constant
+     folding and identity rules.
+  2. ``simplify_tree_sympy`` — algebraic simplification via Sympy. Only kept
+     when the result round-trips through the 4-operator (+, -, *, /) tree
+     format and yields fewer nodes than the input.
+
+Both passes operate on the *converted view* returned by
+``convert_slim_individual_to_normal_tree`` and never touch
+``individual.collection``, which is what ``predict()`` uses. As a result the
+prediction path is bit-identical before and after simplification — the
+simplified tree is only used to recompute ``individual.nodes_count`` for
+Pareto-frontier selection. See ``scripts/verify_sympy_simplification.py``
+for an end-to-end check.
 """
+
+import re
 
 import torch
 
@@ -378,6 +396,320 @@ def simplify_constant_operations(tree_structure, constants_dict):
 
 
 
+def _count_tree_nodes(structure):
+    """Count nodes in a tree-tuple structure (leaves count as 1)."""
+    if not isinstance(structure, tuple):
+        return 1
+    return 1 + sum(_count_tree_nodes(c) for c in structure[1:])
+
+
+def _clean_node_name(node):
+    """Strip np.str_(...) wrappers and surrounding quotes from a leaf name."""
+    s = str(node)
+    if "np.str_(" in s:
+        s = re.sub(r"np\.str_\('([^']+)'\)", r"\1", s)
+    return s.strip("'\"")
+
+
+def _format_number_leaf(value):
+    """Stringify a numeric leaf in the canonical '<float>' shape used by the
+    rest of the simplification code (so node counters and downstream
+    constant-folding stay consistent)."""
+    if isinstance(value, bool):
+        value = float(value)
+    f = float(value)
+    if f.is_integer():
+        return f"{f:.1f}"
+    return repr(f)
+
+
+def _resolve_constant_value(name, constants_dict):
+    """Return the numeric value of a constant leaf, or None if not resolvable."""
+    if name in constants_dict:
+        v = constants_dict[name]
+        if callable(v):
+            try:
+                return float(v(None).item())
+            except Exception:
+                return None
+        try:
+            return float(v)
+        except Exception:
+            return None
+    if name.startswith("constant_"):
+        raw = name.replace("constant_", "")
+        if raw.startswith("_"):
+            raw = "-" + raw[1:]
+        try:
+            return float(raw)
+        except ValueError:
+            return None
+    try:
+        return float(name)
+    except (TypeError, ValueError):
+        return None
+
+
+def _tree_to_sympy(structure, constants_dict, sp, symbol_cache):
+    """Convert a tree-tuple to a Sympy expression.
+
+    Returns the expression or ``None`` if the tree contains a node we don't
+    know how to translate (anything other than the 4 base operators, a
+    'negative' unary, a terminal, or a numeric constant).
+    """
+    if not isinstance(structure, tuple):
+        name = _clean_node_name(structure) if not isinstance(structure, (int, float)) else None
+        if isinstance(structure, (int, float)):
+            return sp.Float(float(structure))
+        if name is None:
+            return None
+        const_val = _resolve_constant_value(name, constants_dict)
+        if const_val is not None:
+            return sp.Float(const_val)
+        # Treat as a terminal variable (e.g. 'x0', 'x1', ...).
+        if name not in symbol_cache:
+            symbol_cache[name] = sp.Symbol(name)
+        return symbol_cache[name]
+
+    if len(structure) == 0:
+        return None
+
+    op = _clean_node_name(structure[0])
+
+    if len(structure) == 2:
+        arg = _tree_to_sympy(structure[1], constants_dict, sp, symbol_cache)
+        if arg is None:
+            return None
+        if op.lower() in ("negative", "neg"):
+            return -arg
+        return None
+
+    if len(structure) == 3:
+        left = _tree_to_sympy(structure[1], constants_dict, sp, symbol_cache)
+        right = _tree_to_sympy(structure[2], constants_dict, sp, symbol_cache)
+        if left is None or right is None:
+            return None
+        if op == "add":
+            return left + right
+        if op == "subtract":
+            return left - right
+        if op == "multiply":
+            return left * right
+        if op == "divide":
+            return left / right
+        return None
+
+    return None
+
+
+def _sympy_to_tree(expr, sp):
+    """Convert a Sympy expression back to a tree-tuple structure.
+
+    Returns ``(structure, True)`` on success, ``(None, False)`` if the
+    expression contains a construct the SLIM tree format cannot represent
+    (non-trivial powers, transcendental functions, etc.).
+
+    The output uses only ``add``, ``subtract``, ``multiply``, ``divide`` and
+    numeric/symbol leaves — exactly the set produced elsewhere in the
+    codebase, so downstream passes (PNG rendering, node counting,
+    ``simplify_constant_operations``) keep working unchanged.
+    """
+    if expr.is_Symbol:
+        return str(expr), True
+
+    if expr.is_Number:
+        try:
+            return _format_number_leaf(float(expr)), True
+        except (TypeError, ValueError):
+            return None, False
+
+    if expr.is_Add:
+        # Split into "positive" and "negative" terms so we emit subtract where
+        # natural, instead of "x + (-1)*y" which inflates the node count.
+        positives, negatives = [], []
+        for term in expr.args:
+            coeff, rest = term.as_coeff_Mul()
+            if coeff.is_Number and float(coeff) < 0:
+                negated = (-coeff) * rest if rest != 1 else (-coeff)
+                negatives.append(negated)
+            else:
+                positives.append(term)
+
+        sub_pos = []
+        for t in positives:
+            r, ok = _sympy_to_tree(t, sp)
+            if not ok:
+                return None, False
+            sub_pos.append(r)
+        sub_neg = []
+        for t in negatives:
+            r, ok = _sympy_to_tree(t, sp)
+            if not ok:
+                return None, False
+            sub_neg.append(r)
+
+        if not sub_pos and not sub_neg:
+            return _format_number_leaf(0.0), True
+        if not sub_pos:
+            # All terms negative: emit 0 - sum(...).
+            result = sub_neg[0]
+            for s in sub_neg[1:]:
+                result = ("add", result, s)
+            return ("subtract", _format_number_leaf(0.0), result), True
+
+        result = sub_pos[0]
+        for s in sub_pos[1:]:
+            result = ("add", result, s)
+        for s in sub_neg:
+            result = ("subtract", result, s)
+        return result, True
+
+    if expr.is_Mul:
+        numerator, denominator = [], []
+        for factor in expr.args:
+            if factor.is_Pow and factor.args[1].is_Integer:
+                power = int(factor.args[1])
+                if power == -1:
+                    denominator.append(factor.args[0])
+                    continue
+                if power < -1:
+                    # x ** -n with n > 1: would require nested multiplications.
+                    # Bail out to keep semantics 100% obvious.
+                    return None, False
+                if power > 1:
+                    # Expand x**n into n-1 explicit multiplications when small.
+                    if power > 5:
+                        return None, False
+                    expanded = factor.args[0]
+                    for _ in range(power - 1):
+                        expanded = expanded * factor.args[0]
+                    numerator.append(expanded)
+                    continue
+            numerator.append(factor)
+
+        if not numerator:
+            num_tree = _format_number_leaf(1.0)
+        else:
+            r0, ok = _sympy_to_tree(numerator[0], sp)
+            if not ok:
+                return None, False
+            num_tree = r0
+            for n in numerator[1:]:
+                r, ok = _sympy_to_tree(n, sp)
+                if not ok:
+                    return None, False
+                num_tree = ("multiply", num_tree, r)
+
+        if not denominator:
+            return num_tree, True
+
+        r0, ok = _sympy_to_tree(denominator[0], sp)
+        if not ok:
+            return None, False
+        den_tree = r0
+        for d in denominator[1:]:
+            r, ok = _sympy_to_tree(d, sp)
+            if not ok:
+                return None, False
+            den_tree = ("multiply", den_tree, r)
+        return ("divide", num_tree, den_tree), True
+
+    if expr.is_Pow:
+        base, exponent = expr.args
+        if exponent.is_Integer:
+            n = int(exponent)
+            if n == -1:
+                base_tree, ok = _sympy_to_tree(base, sp)
+                if not ok:
+                    return None, False
+                return ("divide", _format_number_leaf(1.0), base_tree), True
+            if 2 <= n <= 5:
+                base_tree, ok = _sympy_to_tree(base, sp)
+                if not ok:
+                    return None, False
+                result = base_tree
+                for _ in range(n - 1):
+                    result = ("multiply", result, base_tree)
+                return result, True
+        return None, False
+
+    return None, False
+
+
+def simplify_tree_sympy(tree_structure, constants_dict, max_input_nodes=200):
+    """Algebraically simplify a tree using Sympy.
+
+    Multiple Sympy strategies are tried (``simplify``, ``cancel``, ``together``,
+    ``factor``, ``expand``); the smallest valid round-trip is returned. If
+    every candidate either fails to round-trip or grows the tree, the input
+    is returned unchanged.
+
+    Parameters
+    ----------
+    tree_structure : tuple or scalar
+        The tree to simplify, in the format produced by
+        ``convert_slim_individual_to_normal_tree``.
+    constants_dict : dict
+        Maps constant names to either a numeric value or a callable returning
+        a torch tensor (the convention used by the SLIM ``CONSTANTS`` dict).
+    max_input_nodes : int
+        Hard cap on the input size — Sympy gets expensive on very large
+        expressions, so we skip the rewrite above this many nodes.
+
+    Returns
+    -------
+    tuple
+        (simplified_tree, nodes_removed, applied)
+
+        ``applied`` is ``True`` when a strictly smaller tree was produced.
+        ``nodes_removed`` is always >= 0.
+    """
+    try:
+        import sympy as sp
+    except ImportError:
+        return tree_structure, 0, False
+
+    if tree_structure is None:
+        return tree_structure, 0, False
+
+    original_nodes = _count_tree_nodes(tree_structure)
+    if original_nodes > max_input_nodes:
+        return tree_structure, 0, False
+
+    symbol_cache: dict = {}
+    try:
+        expr = _tree_to_sympy(tree_structure, constants_dict, sp, symbol_cache)
+    except Exception:
+        return tree_structure, 0, False
+    if expr is None:
+        return tree_structure, 0, False
+
+    candidates = []
+    for builder in (sp.simplify, sp.cancel, sp.together, sp.factor, sp.expand):
+        try:
+            candidates.append(builder(expr))
+        except Exception:
+            continue
+    candidates.append(expr)
+
+    best_tree = tree_structure
+    best_count = original_nodes
+    for cand in candidates:
+        try:
+            back, ok = _sympy_to_tree(cand, sp)
+        except Exception:
+            continue
+        if not ok or back is None:
+            continue
+        cnt = _count_tree_nodes(back)
+        if cnt < best_count:
+            best_count = cnt
+            best_tree = back
+
+    nodes_removed = max(original_nodes - best_count, 0)
+    return best_tree, nodes_removed, nodes_removed > 0
+
+
 def simplify_population(population, debug=False):
     """
     Apply simplification to all individuals in a population.
@@ -427,14 +759,25 @@ def simplify_population(population, debug=False):
                     elif len(tree) == 3:  # Binary operator
                         return 1 + count_nodes(tree[1]) + count_nodes(tree[2])
                     return 1
-                
+
                 original_node_count = count_nodes(tree_structure)
-                
-                # Apply simplification
-                simplified_tree, nodes_removed = simplify_constant_operations(
+
+                # First pass: Sympy-based algebraic simplification. It only
+                # accepts results that round-trip through the 4-operator tree
+                # format, so the output is always something the rest of the
+                # pipeline can render and count.
+                sympy_tree, sympy_removed, _ = simplify_tree_sympy(
                     tree_structure, tree_dicts['CONSTANTS']
                 )
-                
+
+                # Second pass: conservative constant folding cleans up any
+                # remaining identity/constant patterns the Sympy result may
+                # still expose (e.g. when Sympy was skipped due to size).
+                simplified_tree, nodes_removed = simplify_constant_operations(
+                    sympy_tree, tree_dicts['CONSTANTS']
+                )
+                nodes_removed += sympy_removed
+
                 # Count nodes in simplified tree
                 simplified_node_count = count_nodes(simplified_tree)
                 
