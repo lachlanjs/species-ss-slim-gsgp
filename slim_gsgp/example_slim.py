@@ -97,9 +97,11 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, p_test=0.4, seed=42)
 X_val, X_test, y_val, y_test = train_test_split(X_test, y_test, p_test=0.5, seed=42)
 
 
+# --- SLIM version (use SLIM+N1 / SLIM*N1 to enable Normalized Mutation) ---
+slim_version = 'SLIM+N1'
+
 # --- Algorithm variant flags ---
 oms = True                   # Optimal Mutation Step
-nm = True                   # Normalized Mutation
 linear_scaling = False        # Linear Scaling
 pareto_tournament = False     # Pareto tournament selection
 use_simplification = False    # Simplification of individuals
@@ -108,11 +110,11 @@ save_tree_png = False          # Save tree visualizations as PNG
 # Apply the SLIM GSGP algorithm (with fixed seed for reproducibility)
 results = slim(X_train=X_train, y_train=y_train,
                X_test=X_val, y_test=y_val,
-               dataset_name='airfoil', slim_version='SLIM+ABS', pop_size=100, n_iter=100,
+               dataset_name='airfoil', slim_version=slim_version, pop_size=100, n_iter=100,
                ms_lower=0, ms_upper=1, p_inflate=0.5, reconstruct=True,
                tournament_type="pareto" if pareto_tournament else "standard",
                tournament_size=5, multi_obj_attrs=["fitness", "size"],
-               oms=oms, nm=nm, linear_scaling=linear_scaling,
+               oms=oms, linear_scaling=linear_scaling,
                use_simplification=use_simplification, enable_plotting=False, seed=42)
 
 # Extract all three individuals
@@ -311,7 +313,7 @@ print(f"Tree depth: {best_normalized_individual.depth}")
 
 # Save results to file
 dataset_name = 'airfoil'
-execution_type = build_execution_type(use_oms=oms, use_nm=nm, use_linear_scaling=linear_scaling,
+execution_type = build_execution_type(use_oms=oms, use_linear_scaling=linear_scaling,
                                       use_pareto_tournament=pareto_tournament, use_simplification=use_simplification)
 
 # Convert SLIM GSGP to readable tree and visualize

@@ -28,9 +28,13 @@ Usage:
     python run.py
 
 Only edit the CONFIGURATION block below to control:
-  - Which algorithm variant is run (OMS, NM, LS, Pareto, Simplification)
+  - Which SLIM version is run (selects the inflate-mutation formula, including N1)
+  - Which orthogonal variant flags are enabled (OMS, LS, Pareto, Simplification)
   - Which datasets are included or skipped
   - How many times each dataset is run
+
+Note: NM (Normalized Mutation) is NOT a variant flag. It is intrinsic to the
+SLIM+N1 / SLIM*N1 versions — choose one of those as SLIM_VERSION to use NM.
 """
 
 # ============================================================================
@@ -47,11 +51,10 @@ SLIM_VERSION = 'SLIM+ABS'
 #   'SLIM*ABS'   — Inflate with absolute value and product operator
 #   'SLIM*SIG2'  — Inflate with sigmoid (version 2) and product operator
 #   'SLIM*SIG1'  — Inflate with sigmoid (version 1) and product operator
-#   'SLIM+N1'    — Normalize mutation (standardization) with sum operator (USE_NM is ignored)
-#   'SLIM*N1'    — Normalize mutation (standardization) with product operator (USE_NM is ignored)
+#   'SLIM+N1'    — Normalized mutation (standardization) with sum operator
+#   'SLIM*N1'    — Normalized mutation (standardization) with product operator
 
 USE_OMS = True
-USE_NM = False
 USE_LINEAR_SCALING = True
 USE_PARETO_TOURNAMENT = True
 USE_SIMPLIFICATION = True
@@ -106,14 +109,8 @@ from utils.naming_utils import build_execution_type, build_variant_name
 def _validate_config():
     """Validates configuration before starting and applies compatibility rules."""
     oms = USE_OMS
-    nm = USE_NM
 
-    # N1 versions have NM built into the version definition; USE_NM is irrelevant.
-    _n1_versions = ("SLIM+N1", "SLIM*N1")
-    if SLIM_VERSION in _n1_versions:
-        nm = True
-
-    compatible_oms_versions = ("SLIM+ABS", "SLIM+SIG2", "SLIM+SIG1", "SLIM+N1", "SLIM*N1")
+    compatible_oms_versions = ("SLIM+ABS", "SLIM+SIG2", "SLIM+SIG1", "SLIM+N1")
     if oms and SLIM_VERSION not in compatible_oms_versions:
         print(
             f"  WARNING: OMS only works with '+' versions. "
@@ -137,7 +134,7 @@ def _validate_config():
     if NUM_RUNS < 1:
         raise ValueError("NUM_RUNS must be >= 1.")
 
-    return oms, nm, enabled_datasets
+    return oms, enabled_datasets
 
 
 def main():
@@ -147,7 +144,7 @@ def main():
 
     # --- Validation and conflict resolution ---
     try:
-        use_oms, use_nm, enabled_datasets = _validate_config()
+        use_oms, enabled_datasets = _validate_config()
     except ValueError as e:
         print(f"\n[Configuration ERROR] {e}")
         sys.exit(1)
@@ -156,14 +153,12 @@ def main():
     variant_name = build_variant_name(
         slim_version=SLIM_VERSION,
         use_oms=use_oms,
-        use_nm=use_nm,
         use_linear_scaling=USE_LINEAR_SCALING,
         use_pareto_tournament=USE_PARETO_TOURNAMENT,
     )
     execution_type = build_execution_type(
         use_linear_scaling=USE_LINEAR_SCALING,
         use_oms=use_oms,
-        use_nm=use_nm,
         use_pareto_tournament=USE_PARETO_TOURNAMENT,
         use_simplification=USE_SIMPLIFICATION,
     )
@@ -171,7 +166,6 @@ def main():
     print(f"\n  Variant            : {variant_name}")
     print(f"  SLIM version       : {SLIM_VERSION}")
     print(f"  OMS                : {'✓' if use_oms else '✗'}")
-    print(f"  NM                 : {'✓' if use_nm else '✗'}")
     print(f"  Linear Scaling     : {'✓' if USE_LINEAR_SCALING else '✗'}")
     print(f"  Pareto Tournament  : {'✓' if USE_PARETO_TOURNAMENT else '✗'}")
     print(f"  Simplification     : {'✓' if USE_SIMPLIFICATION else '✗'}")
@@ -194,7 +188,6 @@ def main():
                 num_runs=NUM_RUNS,
                 slim_version=SLIM_VERSION,
                 use_oms=use_oms,
-                use_nm=use_nm,
                 use_linear_scaling=USE_LINEAR_SCALING,
                 use_pareto_tournament=USE_PARETO_TOURNAMENT,
                 use_simplification=USE_SIMPLIFICATION,

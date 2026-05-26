@@ -7,22 +7,19 @@ from reproduce_results import DATASET_LOADERS
 DATASET_NAMES = list(DATASET_LOADERS.keys())
 from reproduce_plots import collate_variants
 
+# Orthogonal variant flags. NM is NOT included — it is a property of the
+# SLIM version (SLIM+N1 / SLIM*N1), not a variant flag.
 VARIANTS_DICT = {
     tuple():                    "BASE",
     ("PT"):                     "BASE + PT",
     ("OMS"):                    "BASE + OMS",
-    ("NM"):                     "BASE + NM",
     ("LS"):                     "BASE + LS",
     ("AS"):                     "BASE + AS",
     ("OMS", "LS", "AS"):        "ALL - PT",
-    ("NM", "LS", "AS"):         "ALL - PT (NM)",
     ("PT", "LS", "AS"):         "ALL - OMS",
     ("PT", "OMS", "AS"):        "ALL - LS",
-    ("PT", "NM", "AS"):         "ALL - LS (NM)",
     ("PT", "OMS", "LS"):        "ALL - AS",
-    ("PT", "NM", "LS"):         "ALL - AS (NM)",
     ("PT", "OMS", "LS", "AS"):  "ALL",
-    ("PT", "NM", "LS", "AS"):   "ALL (NM)"
 }
 
 BASE_NAME="BASE"

@@ -72,7 +72,6 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
          tournament_size: int = 2,
          test_elite: bool = slim_gsgp_solve_parameters["test_elite"],
          oms: bool = False,
-         nm: bool = False,
          linear_scaling: bool = False,
          use_simplification: bool = True,
          enable_plotting: bool = False,
@@ -147,9 +146,6 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
         Whether to test the elite individual on the test set after each generation.
     oms : bool, optional
         Whether to use the optimal mutation step size. (Default is False)
-    nm : bool, optional
-        Whether to use normalized mutation. Maps T_R^raw to [-1, 1] using
-        training min/max before scaling by ms. Ignored if oms=True. (Default is False)
     linear_scaling : bool, optional
         Whether to use linear scaling for fitness evaluation. When enabled, applies optimal linear 
         transformation y_scaled = a + y_raw * b to improve fitness. (Default is False)
@@ -179,10 +175,9 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
 
     op, sig, trees = check_slim_version(slim_version=slim_version)
 
-    # SLIM+N1 / SLIM*N1 have Normalized Mutation built into the version definition.
-    # Force nm=True regardless of what the caller passed.
-    if slim_version in ("SLIM+N1", "SLIM*N1"):
-        nm = True
+    # NM (Normalized Mutation) is intrinsic to the SLIM+N1 / SLIM*N1 versions,
+    # not an orthogonal variant flag. It is derived from slim_version alone.
+    nm = slim_version in ("SLIM+N1", "SLIM*N1")
 
     validate_inputs(X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test, pop_size=pop_size, n_iter=n_iter,
                     elitism=elitism, n_elites=n_elites, init_depth=init_depth, log_path=log_path, prob_const=prob_const,

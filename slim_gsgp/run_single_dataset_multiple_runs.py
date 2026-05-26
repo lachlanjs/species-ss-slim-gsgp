@@ -207,19 +207,21 @@ def save_formatted_table(stats, dataset_name, execution_type, output_dir="log"):
     
     print(f"   Formatted summary table saved to: {filename}")
 
-def run_single_dataset_multiple_times(dataset_name, num_runs=30, slim_version='SLIM+ABS', 
-                                     use_oms=True, use_nm=False, use_linear_scaling=False, 
-                                     use_pareto_tournament=False, use_simplification=True, 
+def run_single_dataset_multiple_times(dataset_name, num_runs=30, slim_version='SLIM+ABS',
+                                     use_oms=True, use_linear_scaling=False,
+                                     use_pareto_tournament=False, use_simplification=True,
                                      base_seed=None):
     """
     Run a single dataset multiple times with different seeds and calculate statistics.
-    
+
+    NM (Normalized Mutation) is NOT a variant flag — it is intrinsic to the
+    SLIM+N1 / SLIM*N1 versions. Select one of those versions to enable NM.
+
     Args:
         dataset_name: Name of the dataset to run
         num_runs: Number of times to run the algorithm (default: 30)
-        slim_version: Version of SLIM to use
+        slim_version: Version of SLIM to use (use SLIM+N1 / SLIM*N1 for NM)
         use_oms: Whether to use OMS
-        use_nm: Whether to use Normalized Mutation 
         use_linear_scaling: Whether to use linear scaling
         use_pareto_tournament: Whether to use Pareto tournament
         use_simplification: Whether to use simplification when selecting best_normalized
@@ -231,10 +233,10 @@ def run_single_dataset_multiple_times(dataset_name, num_runs=30, slim_version='S
         print(f"Available datasets: {', '.join(DATASET_LOADERS.keys())}")
         return
     
-    # Validate OMS usage
-    compatible_oms_versions = ["SLIM+ABS", "SLIM+SIG2", "SLIM+SIG1"]
+    # Validate OMS usage (compatible with '+' versions, including SLIM+N1)
+    compatible_oms_versions = ["SLIM+ABS", "SLIM+SIG2", "SLIM+SIG1", "SLIM+N1"]
     if use_oms and slim_version not in compatible_oms_versions:
-        print(f"⚠️  WARNING: OMS only works with '+' versions (SLIM+ABS, SLIM+SIG2 or SLIM+SIG1).")
+        print(f"⚠️  WARNING: OMS only works with '+' versions ({', '.join(compatible_oms_versions)}).")
         print(f"   Current version: {slim_version}. OMS will be disabled.")
         use_oms = False
 
@@ -242,11 +244,10 @@ def run_single_dataset_multiple_times(dataset_name, num_runs=30, slim_version='S
     execution_type = build_execution_type(
         use_linear_scaling=use_linear_scaling,
         use_oms=use_oms,
-        use_nm=use_nm,
         use_pareto_tournament=use_pareto_tournament,
         use_simplification=use_simplification
     )
-    
+
     print("=" * 80)
     print(f"RUNNING DATASET '{dataset_name.upper()}' - {num_runs} RUNS")
     print("=" * 80)
@@ -254,7 +255,6 @@ def run_single_dataset_multiple_times(dataset_name, num_runs=30, slim_version='S
     print(f"Configuration:")
     print(f"  Linear Scaling: {'✓ Enabled' if use_linear_scaling else '✗ Disabled'}")
     print(f"  OMS: {'✓ Enabled' if use_oms else '✗ Disabled'}")
-    print(f"  NM: {'✓ Enabled' if use_nm else '✗ Disabled'}")
     print(f"  Simplification: {'✓ Enabled' if use_simplification else '✗ Disabled'}")
     print(f"  Pareto Tournament: {'✓ Enabled' if use_pareto_tournament else '✗ Disabled'}")
     print(f"Execution type: {execution_type}")
@@ -310,6 +310,8 @@ def run_single_dataset_multiple_times(dataset_name, num_runs=30, slim_version='S
             X_val, X_test, y_val, y_test = train_test_split(X_test, y_test, p_test=0.5, seed=seed)
             
             # Prepare algorithm parameters
+            # NM is derived inside slim() from slim_version (SLIM+N1 / SLIM*N1);
+            # no 'nm' flag is passed at this layer.
             algorithm_params = {
                 'X_train': X_train,
                 'y_train': y_train,
@@ -324,7 +326,6 @@ def run_single_dataset_multiple_times(dataset_name, num_runs=30, slim_version='S
                 'p_inflate': 0.5,
                 'reconstruct': True,
                 'oms': use_oms,
-                'nm': use_nm,
                 'linear_scaling': use_linear_scaling,
                 'use_simplification': use_simplification,
                 'seed': seed
@@ -551,9 +552,7 @@ if __name__ == "__main__":
                         help='Base seed for reproducibility')
     parser.add_argument('--oms', '--use_oms', action='store_true', default=False,
                         help='Enable OMS')
-    parser.add_argument('--nm', '--use_nm', action='store_true', default=False,
-                        help='Enable Normalized Mutation')
-    parser.add_argument('--linear_scaling', '--use_linear_scaling', action='store_true', 
+    parser.add_argument('--linear_scaling', '--use_linear_scaling', action='store_true',
                         default=False, help='Enable Linear Scaling')
     parser.add_argument('--pareto_tournament', '--use_pareto_tournament', action='store_true',
                         default=False, help='Enable Pareto Tournament')
@@ -568,17 +567,15 @@ if __name__ == "__main__":
     slim_version = args.slim_version
     base_seed = args.base_seed
     use_oms = args.oms
-    use_nm = args.nm
     use_linear_scaling = args.linear_scaling
     use_pareto_tournament = args.pareto_tournament
     use_simplification = not args.no_simplification  # Invert the flag
-    
+
     print(f"Configuration:")
     print(f"  Dataset: {dataset_name}")
     print(f"  Number of runs: {num_runs}")
     print(f"  SLIM Version: {slim_version}")
     print(f"  OMS: {use_oms}")
-    print(f"  NM: {use_nm}")
     print(f"  Linear Scaling: {use_linear_scaling}")
     print(f"  Pareto Tournament: {use_pareto_tournament}")
     print(f"  Simplification: {use_simplification}")
@@ -593,7 +590,6 @@ if __name__ == "__main__":
         num_runs=num_runs,
         slim_version=slim_version,
         use_oms=use_oms,
-        use_nm=use_nm,
         use_linear_scaling=use_linear_scaling,
         use_pareto_tournament=use_pareto_tournament,
         use_simplification=use_simplification,
