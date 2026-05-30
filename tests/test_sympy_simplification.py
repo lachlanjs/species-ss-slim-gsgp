@@ -157,6 +157,74 @@ def test_sympy_skips_oversized_trees():
     assert out is tree  # untouched
 
 
+def _build_pathological_tree(depth):
+    """Nested divisions/products of distinct variables — the shape that made
+    sympy.simplify/factor/cancel run for minutes (effectively hanging) before
+    the timeout safeguard was added."""
+    tree = "x0"
+    for i in range(depth):
+        var = f"x{i % 8}"
+        # Alternate divide / multiply / subtract to defeat trivial folding.
+        if i % 3 == 0:
+            tree = ("divide", tree, ("add", var, "1.0"))
+        elif i % 3 == 1:
+            tree = ("multiply", tree, ("subtract", var, "0.5"))
+        else:
+            tree = ("subtract", tree, ("divide", "1.0", ("add", var, "2.0")))
+    return tree
+
+
+def test_sympy_pass_is_time_bounded_on_pathological_input():
+    """Regression test for the bioavailability seed=57 hang.
+
+    Before the fix, sympy.simplify/factor/cancel had no timeout and could run
+    for many minutes on medium-sized expressions with nested divisions. This
+    asserts the pass returns quickly regardless, and never grows the tree.
+    """
+    import time
+
+    tree = _build_pathological_tree(depth=40)  # ~ a few hundred nodes worth of structure
+    n_in = _count_tree_nodes(tree)
+
+    start = time.time()
+    out, removed, applied = simplify_tree_sympy(
+        tree, constants_dict={}, cheap_timeout=1.0, full_timeout=2.0,
+        max_divisions_for_full=7,
+    )
+    elapsed = time.time() - start
+
+    # Generous bound: division-heavy trees skip the full pass entirely, and any
+    # op that does run is capped, so this returns far below the bound.
+    assert elapsed < 20.0, f"simplify_tree_sympy took {elapsed:.1f}s — timeout not effective"
+    # Must never inflate the tree.
+    assert _count_tree_nodes(out) <= n_in
+    assert removed >= 0
+
+
+@pytest.mark.parametrize("n_nodes", [70, 90, 110])
+def test_sympy_bounded_for_each_size(n_nodes):
+    """Each medium/large input must return quickly (the sizes that timed out
+    in the repro: 71, 87, 99 nodes)."""
+    import time
+
+    # Grow a nested-fraction tree until it reaches ~n_nodes.
+    tree = "x0"
+    i = 0
+    while _count_tree_nodes(tree) < n_nodes:
+        var = f"x{i % 6}"
+        tree = ("divide", ("subtract", tree, var), ("add", var, "1.0"))
+        i += 1
+
+    start = time.time()
+    out, removed, applied = simplify_tree_sympy(
+        tree, constants_dict={}, cheap_timeout=1.0, full_timeout=2.0,
+        max_divisions_for_full=7,
+    )
+    elapsed = time.time() - start
+    assert elapsed < 15.0, f"{n_nodes}-node input took {elapsed:.1f}s"
+    assert _count_tree_nodes(out) <= _count_tree_nodes(tree)
+
+
 # -----------------------------------------------------------------------------
 # Integration: predict() invariance across simplify_population
 # -----------------------------------------------------------------------------

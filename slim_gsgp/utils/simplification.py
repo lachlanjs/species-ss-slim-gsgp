@@ -41,6 +41,7 @@ for an end-to-end check.
 """
 
 import re
+import signal
 
 import torch
 
@@ -397,10 +398,20 @@ def simplify_constant_operations(tree_structure, constants_dict):
 
 
 def _count_tree_nodes(structure):
-    """Count nodes in a tree-tuple structure (leaves count as 1)."""
-    if not isinstance(structure, tuple):
-        return 1
-    return 1 + sum(_count_tree_nodes(c) for c in structure[1:])
+    """Count nodes in a tree-tuple structure (leaves count as 1).
+
+    Iterative (explicit stack) so it cannot overflow Python's recursion limit
+    on pathologically deep trees — e.g. a giant polynomial chain produced by
+    Sympy's ``expand``.
+    """
+    stack = [structure]
+    count = 0
+    while stack:
+        node = stack.pop()
+        count += 1
+        if isinstance(node, tuple):
+            stack.extend(node[1:])
+    return count
 
 
 def _clean_node_name(node):
@@ -636,13 +647,101 @@ def _sympy_to_tree(expr, sp):
     return None, False
 
 
-def simplify_tree_sympy(tree_structure, constants_dict, max_input_nodes=200):
-    """Algebraically simplify a tree using Sympy.
+class _SympyTimeout(Exception):
+    """Raised internally when a Sympy operation exceeds its time budget."""
 
-    Multiple Sympy strategies are tried (``simplify``, ``cancel``, ``together``,
-    ``factor``, ``expand``); the smallest valid round-trip is returned. If
-    every candidate either fails to round-trip or grows the tree, the input
-    is returned unchanged.
+
+def _can_use_alarm():
+    """SIGALRM-based timeouts only work on Unix and only from the main thread
+    of a process. Returns True when both conditions hold."""
+    import threading
+    return (
+        hasattr(signal, "SIGALRM")
+        and hasattr(signal, "setitimer")
+        and threading.current_thread() is threading.main_thread()
+    )
+
+
+def _run_with_alarm(fn, seconds):
+    """Run ``fn()`` under a wall-clock timeout using SIGALRM.
+
+    Returns the result, or ``None`` if it timed out or raised. Restores any
+    previously installed SIGALRM handler and cancels the timer on the way out,
+    so we never leave a dangling alarm.
+    """
+    def _handler(signum, frame):
+        raise _SympyTimeout()
+
+    old_handler = signal.signal(signal.SIGALRM, _handler)
+    signal.setitimer(signal.ITIMER_REAL, seconds)
+    try:
+        return fn()
+    except _SympyTimeout:
+        return None
+    except Exception:
+        return None
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, old_handler)
+
+
+def _count_divide_nodes(structure):
+    """Iteratively count 'divide' operator nodes in a tree-tuple structure.
+
+    This is the cheap predictor of the Sympy rational blow-up: the cost of
+    combining a sum of fractions over a common denominator is ~2**(number of
+    distinct denominators), so a high divide count flags an expression where
+    the full pass would explode (and, empirically, yield no node reduction).
+    """
+    stack = [structure]
+    n = 0
+    while stack:
+        node = stack.pop()
+        if isinstance(node, tuple):
+            if str(node[0]) == "divide":
+                n += 1
+            stack.extend(node[1:])
+    return n
+
+
+def simplify_tree_sympy(
+    tree_structure,
+    constants_dict,
+    max_input_nodes=400,
+    cheap_timeout=3.0,
+    full_timeout=5.0,
+    max_divisions_for_full=7,
+):
+    """Algebraically simplify a tree using Sympy — HYBRID strategy.
+
+    The hard problem (see scripts/prove_sympy_blowup_is_intrinsic.py) is that
+    the powerful rational ops (``cancel``/``simplify``/``factor``) place a sum
+    of fractions over a common denominator, which is exponential in the number
+    of distinct denominators. Empirically, when those ops *help* they finish in
+    well under a second; when they *explode* they never finish AND yield no node
+    reduction anyway. So:
+
+    1. **Cheap pass (always):** ``expand`` + ``together``. These never form a
+       common denominator over a sum, so they cannot explode (a short timeout
+       still guards the SLIM\\* product-of-sums edge case). Empirically this
+       already captures essentially all the achievable node reduction.
+
+    2. **Full pass (generous timeout, division-gated):** ``cancel`` →
+       ``simplify`` → ``factor``, each given ``full_timeout`` seconds —
+       deliberately generous so the full simplification has plenty of room to
+       complete on normal individuals (which finish in <1s). It is only
+       attempted when the tree has at most ``max_divisions_for_full`` division
+       nodes: beyond that the rational machinery would explode AND
+       (empirically) yield zero node reduction, so spending the generous
+       budget there is pure waste. If the first op still times out, the
+       remaining ones share the same explosive structure, so we stop early.
+
+    The smallest valid round-trip across every candidate (and the original) is
+    returned, so the result is never larger than the input.
+
+    When SIGALRM is unavailable (non-Unix, or not the main thread — e.g. a
+    multiprocessing worker), the full pass is skipped entirely and only the
+    intrinsically-bounded cheap pass runs, guaranteeing termination everywhere.
 
     Parameters
     ----------
@@ -653,8 +752,18 @@ def simplify_tree_sympy(tree_structure, constants_dict, max_input_nodes=200):
         Maps constant names to either a numeric value or a callable returning
         a torch tensor (the convention used by the SLIM ``CONSTANTS`` dict).
     max_input_nodes : int
-        Hard cap on the input size — Sympy gets expensive on very large
-        expressions, so we skip the rewrite above this many nodes.
+        Skip Sympy entirely above this many nodes (sanity bound on building the
+        symbolic expression at all).
+    cheap_timeout : float
+        Wall-clock seconds allowed per cheap op (``expand``/``together``).
+    full_timeout : float
+        Wall-clock seconds allowed per full op (``cancel``/``simplify``/
+        ``factor``). Generous on purpose — normal individuals finish in well
+        under a second; only borderline ones ever hit this.
+    max_divisions_for_full : int
+        Skip the full pass when the tree has more division nodes than this.
+        Such trees make the rational ops explode for no node-count benefit, so
+        only the cheap pass runs on them.
 
     Returns
     -------
@@ -684,17 +793,46 @@ def simplify_tree_sympy(tree_structure, constants_dict, max_input_nodes=200):
     if expr is None:
         return tree_structure, 0, False
 
+    use_alarm = _can_use_alarm()
     candidates = []
-    for builder in (sp.simplify, sp.cancel, sp.together, sp.factor, sp.expand):
-        try:
-            candidates.append(builder(expr))
-        except Exception:
-            continue
+
+    # --- Cheap pass: never combines fractions, so it cannot blow up. -------
+    for builder in (sp.expand, sp.together):
+        if use_alarm:
+            res = _run_with_alarm(lambda b=builder: b(expr), cheap_timeout)
+        else:
+            try:
+                res = builder(expr)
+            except Exception:
+                res = None
+        if res is not None:
+            candidates.append(res)
+
+    # --- Full pass: powerful but potentially explosive. Only when we can ----
+    #     bound it with an alarm AND the division count is low enough that it
+    #     can actually finish usefully. Generous per-op budget; bail on first
+    #     timeout since the remaining ops share the same explosive structure.
+    if use_alarm and _count_divide_nodes(tree_structure) <= max_divisions_for_full:
+        for builder in (sp.cancel, sp.simplify, sp.factor):
+            res = _run_with_alarm(lambda b=builder: b(expr), full_timeout)
+            if res is None:
+                break
+            candidates.append(res)
+
     candidates.append(expr)
 
     best_tree = tree_structure
     best_count = original_nodes
     for cand in candidates:
+        # Cheap, non-recursive size estimate. A candidate whose Sympy op count
+        # already meets/exceeds the best can never win, so skip the (recursive,
+        # potentially very deep) round-trip — also guards against expand()
+        # producing a huge polynomial.
+        try:
+            if sp.count_ops(cand) >= best_count:
+                continue
+        except Exception:
+            pass
         try:
             back, ok = _sympy_to_tree(cand, sp)
         except Exception:

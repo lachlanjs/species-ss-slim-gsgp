@@ -46,7 +46,7 @@ def build_execution_type(use_linear_scaling=False, use_oms=False,
 
 
 def build_variant_name(slim_version, use_oms=False, use_linear_scaling=False,
-                       use_pareto_tournament=False):
+                       use_pareto_tournament=False, use_simplification=True):
     """
     Build variant name based on SLIM version and enabled variant flags.
 
@@ -55,6 +55,7 @@ def build_variant_name(slim_version, use_oms=False, use_linear_scaling=False,
         use_oms: Whether OMS is enabled
         use_linear_scaling: Whether linear scaling is enabled
         use_pareto_tournament: Whether Pareto tournament is enabled
+        use_simplification: Whether simplification is enabled
 
     Returns:
         str: Variant name with features (e.g., "SLIM+ABS + LS + Pareto")
@@ -68,6 +69,8 @@ def build_variant_name(slim_version, use_oms=False, use_linear_scaling=False,
         'SLIM+ABS + OMS + LS + Pareto'
         >>> build_variant_name("SLIM+N1", use_linear_scaling=True)
         'SLIM+N1 + LS'
+        >>> build_variant_name("SLIM+ABS", use_simplification=False)
+        'SLIM+ABS + NoSimplif'
     """
     variant_parts = [slim_version]
 
@@ -77,5 +80,7 @@ def build_variant_name(slim_version, use_oms=False, use_linear_scaling=False,
         variant_parts.append("LS")
     if use_pareto_tournament:
         variant_parts.append("Pareto")
+    if not use_simplification:
+        variant_parts.append("NoSimplif")
 
     return " + ".join(variant_parts)

@@ -43,7 +43,7 @@ SLIM+N1 / SLIM*N1 versions — choose one of those as SLIM_VERSION to use NM.
 #
 # ============================================================================
 
-SLIM_VERSION = 'SLIM+ABS'
+SLIM_VERSION = 'SLIM+N1'
 # Available options:
 #   'SLIM+ABS'   — Inflate with absolute value and sum operator  (recommended)
 #   'SLIM+SIG2'  — Inflate with sigmoid (version 2) and sum operator
@@ -155,6 +155,7 @@ def main():
         use_oms=use_oms,
         use_linear_scaling=USE_LINEAR_SCALING,
         use_pareto_tournament=USE_PARETO_TOURNAMENT,
+        use_simplification=USE_SIMPLIFICATION,
     )
     execution_type = build_execution_type(
         use_linear_scaling=USE_LINEAR_SCALING,
