@@ -229,7 +229,10 @@ def test_sympy_bounded_for_each_size(n_nodes):
 # Integration: predict() invariance across simplify_population
 # -----------------------------------------------------------------------------
 
-@pytest.mark.parametrize("slim_version", ["SLIM+ABS", "SLIM*ABS", "SLIM+SIG2", "SLIM+N1"])
+@pytest.mark.parametrize(
+    "slim_version",
+    ["SLIM+ABS", "SLIM*ABS", "SLIM+SIG2", "SLIM+N1", "SLIM+N2", "SLIM*N2"],
+)
 def test_simplify_population_does_not_change_predictions(slim_version):
     from slim_gsgp.main_slim import slim
     from slim_gsgp.datasets.data_loader import load_airfoil
@@ -257,3 +260,34 @@ def test_simplify_population_does_not_change_predictions(slim_version):
         assert torch.allclose(before, after, atol=1e-8, rtol=0), (
             f"predictions changed after simplify_population for {slim_version}"
         )
+
+
+@pytest.mark.parametrize("slim_version", ["SLIM+N1", "SLIM*N1", "SLIM+N2", "SLIM*N2"])
+def test_normalized_mutation_train_test_consistency(slim_version):
+    """N1/N2 must reuse the TRAINING normalization constants (mean/std or
+    min/max) at inference time. We check that predict() on the validation set
+    reproduces the test_fitness computed during evolution — which only holds
+    if the stored constants, not freshly recomputed ones, are used."""
+    from slim_gsgp.main_slim import slim
+    from slim_gsgp.datasets.data_loader import load_airfoil
+    from slim_gsgp.evaluators.fitness_functions import rmse
+    from slim_gsgp.utils.utils import train_test_split
+
+    X, y = load_airfoil(X_y=True)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, p_test=0.4, seed=42)
+    X_val, X_test, y_val, y_test = train_test_split(X_test, y_test, p_test=0.5, seed=42)
+
+    results = slim(
+        X_train=X_train, y_train=y_train, X_test=X_val, y_test=y_val,
+        dataset_name="airfoil", slim_version=slim_version,
+        pop_size=30, n_iter=8, ms_lower=0, ms_upper=1, p_inflate=0.5,
+        reconstruct=True, seed=42, verbose=0, test_elite=True,
+    )
+
+    elite = results.best_fitness
+    stored = float(elite.test_fitness)
+    recomputed = float(rmse(y_true=y_val, y_pred=elite.predict(X_val)))
+    assert abs(stored - recomputed) <= 1e-4 * (1 + abs(stored)), (
+        f"{slim_version}: predict() ({recomputed}) disagrees with stored "
+        f"test_fitness ({stored}) — normalization constants not reused"
+    )

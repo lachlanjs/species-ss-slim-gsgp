@@ -57,22 +57,28 @@ def get_nm_counter():
     return _nm_degenerate_count
 
 
-def make_nm_variator(operator, train_stats, two_trees):
+def make_nm_variator(operator, train_stats, two_trees, mode="n1"):
     """
     Create a variator closure for Normalized Mutation that captures training statistics.
 
-    This ensures that predict() and any future reconstruction use the same
-    standardization factors (mean and std) that were computed from training data
-    during mutation, rather than falling back to the standard ABS/SIG variator formula.
+    This ensures that predict() and any future reconstruction reuse the same
+    numeric constants that were computed from training data during mutation
+    (mean/std for N1, min/max for N2), rather than falling back to the standard
+    ABS/SIG variator formula.
 
     Parameters
     ----------
     operator : str
         The aggregation operator ("sum" or "mul").
     train_stats : tuple
-        (mean_val, std_val) computed from the training semantics during mutation.
+        Numeric constants computed from the training semantics during mutation.
+        N1 (standardization): (mean_val, std_val).
+        N2 (min-max normalization): (min_val, max_val).
     two_trees : bool
         Whether the block was built from two random trees (difference) or one.
+    mode : str
+        Normalization mode: "n1" (standardization, Eq. 1 of Bakurov et al. 2024)
+        or "n2" (min-max normalization to [-1, 1], Eq. 3).
 
     Returns
     -------
@@ -80,7 +86,6 @@ def make_nm_variator(operator, train_stats, two_trees):
         A variator function compatible with the Tree.structure convention:
         ``nm_variator(*random_trees, ms, testing)`` → torch.Tensor.
     """
-    mean_val, std_val = train_stats
     epsilon = 1e-8
 
     def nm_variator(*args, testing):
@@ -96,11 +101,23 @@ def make_nm_variator(operator, train_stats, two_trees):
             tr1, ms = args
             raw = tr1.test_semantics if testing else tr1.train_semantics
 
-        if not torch.isfinite(std_val) or std_val < epsilon:
-            norm = torch.zeros_like(raw)
+        if mode == "n2":
+            # N2: MR = 2 * (TR - min) / (max - min) - 1   (Eq. 3)
+            min_val, max_val = train_stats
+            rng = max_val - min_val
+            if not torch.isfinite(rng) or rng < epsilon:
+                norm = torch.zeros_like(raw)
+            else:
+                norm = 2.0 * (raw - min_val) / rng - 1.0
+                norm = torch.nan_to_num(norm, nan=0.0, posinf=0.0, neginf=0.0)
         else:
-            norm = (raw - mean_val) / std_val
-            norm = torch.nan_to_num(norm, nan=0.0, posinf=0.0, neginf=0.0)
+            # N1: SR = (TR - mean) / std   (Eq. 1)
+            mean_val, std_val = train_stats
+            if not torch.isfinite(std_val) or std_val < epsilon:
+                norm = torch.zeros_like(raw)
+            else:
+                norm = (raw - mean_val) / std_val
+                norm = torch.nan_to_num(norm, nan=0.0, posinf=0.0, neginf=0.0)
 
         if operator == "sum":
             return torch.mul(ms, norm)
@@ -111,38 +128,61 @@ def make_nm_variator(operator, train_stats, two_trees):
     return nm_variator
 
 
-def normalize_semantics(s_R, epsilon=1e-8, stats=None):
+def normalize_semantics(s_R, mode="n1", epsilon=1e-8, stats=None):
     """
-    Apply standardization (N1) to the semantic vector of a random program.
+    Normalize the semantic vector of a random program for Normalized Mutation.
 
-    Implements the N1 Normalized Mutation Operator from Bakurov et al. (2024):
-    centers the raw semantic vector of TR to mean 0 and std 1, so that the
-    perturbation is zero-centered, consistent with the SLIM-GSGP formula:
+    Implements the two operators from Bakurov et al. (2024):
 
-        T_M(x) = T_P(x) + ms * (T_R^raw(x) - mean) / std
+      * N1 — standardization (Eq. 1): ``SR = (TR - mean) / std``. Centers TR to
+        mean 0, std 1, so the perturbation is zero-centered.
+      * N2 — min-max normalization to [-1, 1] (Eq. 3):
+        ``MR = 2 * (TR - min) / (max - min) - 1``.
+
+    The resulting random expression replaces the difference of two random
+    programs in GSM:  ``T_M(x) = T_P(x) + ms * <normalized TR>``.
 
     Parameters
     ----------
     s_R : torch.Tensor, shape (n,)
-        Semantic vector of the random program TR evaluated on n points.
+        Raw semantic vector of the random program TR evaluated on n points.
+    mode : str
+        "n1" (standardization) or "n2" (min-max normalization to [-1, 1]).
     epsilon : float, optional
         Numerical threshold to avoid division by zero. Default: 1e-8.
     stats : tuple or None, optional
-        Pre-computed standardization statistics from training data: (mean_val, std_val).
-        If None, statistics are computed from s_R (training call).
-        Pass the stats returned by the training call when normalizing
-        test semantics so that the same scale factors are reused.
+        Pre-computed numeric constants from the training call, to be reused
+        when normalizing test semantics (so the same scale factors apply):
+        N1 → (mean_val, std_val); N2 → (min_val, max_val). If None they are
+        computed from ``s_R`` (the training call).
 
     Returns
     -------
     tuple(torch.Tensor, tuple)
-        - Standardized semantic vector with mean 0 and std 1. If std is zero
-          (constant / degenerate tree), returns a zero vector and increments
-          the global degenerate counter.
-        - The statistics used: (mean_val, std_val). Always returned so the
-          caller can reuse them on test data.
+        - Normalized semantic vector. If the tree is degenerate (std ≈ 0 for
+          N1, or max ≈ min for N2) a zero vector is returned and the global
+          degenerate counter is incremented.
+        - The numeric constants used, always returned so the caller can reuse
+          them on test data. N1 → (mean, std); N2 → (min, max).
     """
     global _nm_degenerate_count
+
+    if mode == "n2":
+        # N2: min-max normalization to [-1, 1]  (Eqs. 2-3)
+        if stats is not None:
+            min_val, max_val = stats
+        else:
+            min_val = s_R.min()
+            max_val = s_R.max()
+        rng = max_val - min_val
+        if not torch.isfinite(rng) or rng < epsilon:
+            _nm_degenerate_count += 1
+            return torch.zeros_like(s_R), (min_val, max_val)
+        normalized = 2.0 * (s_R - min_val) / rng - 1.0
+        normalized = torch.nan_to_num(normalized, nan=0.0, posinf=0.0, neginf=0.0)
+        return normalized, (min_val, max_val)
+
+    # N1: standardization  (Eq. 1)
     if stats is not None:
         mean_val, std_val = stats
     else:
@@ -359,7 +399,7 @@ def one_tree_delta(operator="sum", sig=False):
     return ot_delta
 
 
-def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum",single_tree_sigmoid=False,sig=False, oms: bool=False, nm: bool=False):
+def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum",single_tree_sigmoid=False,sig=False, oms: bool=False, nm: bool=False, nm_mode: str="n1"):
     """
     Generate an inflate mutation function.
 
@@ -383,8 +423,13 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
         Boolean indicating whether the optimal step mutation should be used
     nm : bool
         Boolean indicating whether normalized mutation should be used.
-        Maps T_R^raw to [-1, 1] using training min/max before scaling by ms.
-        Ignored if oms=True.
+        Normalizes the raw semantics of a single random program before scaling
+        by ms, replacing the difference of two random programs.
+    nm_mode : str
+        Which normalization to apply when ``nm`` is True (Bakurov et al. 2024):
+        "n1" → standardization ``(TR - mean) / std`` (Eq. 1);
+        "n2" → min-max normalization to [-1, 1] ``2*(TR - min)/(max - min) - 1``
+        (Eq. 3).
 
     Returns
     -------
@@ -551,10 +596,10 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
                 else:
                     s_r = torch.sub(1, torch.div(2, torch.add(1, torch.abs(tr1.train_semantics))))
 
-        # If NM is active, normalize s_r to [-1, 1] now — before OMS so that OMS
-        # computes the optimal step over the normalized direction.
+        # If NM is active, normalize s_r now — before OMS so that OMS computes
+        # the optimal step over the normalized direction.
         if nm:
-            s_r_norm_train, train_stats = normalize_semantics(s_r)
+            s_r_norm_train, train_stats = normalize_semantics(s_r, mode=nm_mode)
             s_r_for_oms = s_r_norm_train
         elif oms:
             s_r_for_oms = s_r
@@ -586,7 +631,7 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
                 else:
                     # Raw test semantics, mirroring how s_r was built for train.
                     s_r_test = random_trees[0].test_semantics
-                s_r_test_norm, _ = normalize_semantics(s_r_test, stats=train_stats)
+                s_r_test_norm, _ = normalize_semantics(s_r_test, mode=nm_mode, stats=train_stats)
                 block_test_sem = torch.mul(ms, s_r_test_norm) if operator == "sum" else torch.add(1, torch.mul(ms, s_r_test_norm))
             else:
                 block_test_sem = None
@@ -600,7 +645,7 @@ def inflate_mutation(FUNCTIONS, TERMINALS,CONSTANTS,two_trees=True,operator="sum
         # that predict() and any future reconstruction apply the correct NM formula
         # instead of falling back to the ABS/SIG variator.
         structure_variator = (
-            make_nm_variator(operator, train_stats, two_trees)
+            make_nm_variator(operator, train_stats, two_trees, mode=nm_mode)
             if nm
             else variator
         )

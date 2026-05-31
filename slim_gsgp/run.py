@@ -34,7 +34,8 @@ Only edit the CONFIGURATION block below to control:
   - How many times each dataset is run
 
 Note: NM (Normalized Mutation) is NOT a variant flag. It is intrinsic to the
-SLIM+N1 / SLIM*N1 versions — choose one of those as SLIM_VERSION to use NM.
+N1/N2 versions — choose SLIM+N1/SLIM*N1 (standardization) or SLIM+N2/SLIM*N2
+(min-max normalization) as SLIM_VERSION to use NM.
 """
 
 # ============================================================================
@@ -43,7 +44,7 @@ SLIM+N1 / SLIM*N1 versions — choose one of those as SLIM_VERSION to use NM.
 #
 # ============================================================================
 
-SLIM_VERSION = 'SLIM+N1'
+SLIM_VERSION = 'SLIM+SIG2'
 # Available options:
 #   'SLIM+ABS'   — Inflate with absolute value and sum operator  (recommended)
 #   'SLIM+SIG2'  — Inflate with sigmoid (version 2) and sum operator
@@ -51,13 +52,15 @@ SLIM_VERSION = 'SLIM+N1'
 #   'SLIM*ABS'   — Inflate with absolute value and product operator
 #   'SLIM*SIG2'  — Inflate with sigmoid (version 2) and product operator
 #   'SLIM*SIG1'  — Inflate with sigmoid (version 1) and product operator
-#   'SLIM+N1'    — Normalized mutation (standardization) with sum operator
-#   'SLIM*N1'    — Normalized mutation (standardization) with product operator
+#   'SLIM+N1'    — Normalized mutation, STANDARDIZATION (TR-mean)/std, sum operator
+#   'SLIM*N1'    — Normalized mutation, STANDARDIZATION (TR-mean)/std, product operator
+#   'SLIM+N2'    — Normalized mutation, MIN-MAX to [-1,1], sum operator
+#   'SLIM*N2'    — Normalized mutation, MIN-MAX to [-1,1], product operator
 
-USE_OMS = True
-USE_LINEAR_SCALING = True
-USE_PARETO_TOURNAMENT = True
-USE_SIMPLIFICATION = True
+USE_OMS = False
+USE_LINEAR_SCALING = False
+USE_PARETO_TOURNAMENT = False
+USE_SIMPLIFICATION = False
 
 NUM_RUNS = 30
 BASE_SEED = 42
@@ -104,13 +107,21 @@ from run_single_dataset_multiple_runs import (
     DATASET_LOADERS,
 )
 from utils.naming_utils import build_execution_type, build_variant_name
+# Import the simplification telemetry from the SAME module object that
+# main_slim uses ('slim_gsgp.utils.simplification'); importing it as
+# 'utils.simplification' would be a different module with its own (zeroed)
+# counters, so we must use the fully-qualified path here.
+from slim_gsgp.utils.simplification import (
+    reset_simplification_telemetry,
+    get_simplification_telemetry,
+)
 
 
 def _validate_config():
     """Validates configuration before starting and applies compatibility rules."""
     oms = USE_OMS
 
-    compatible_oms_versions = ("SLIM+ABS", "SLIM+SIG2", "SLIM+SIG1", "SLIM+N1")
+    compatible_oms_versions = ("SLIM+ABS", "SLIM+SIG2", "SLIM+SIG1", "SLIM+N1", "SLIM+N2")
     if oms and SLIM_VERSION not in compatible_oms_versions:
         print(
             f"  WARNING: OMS only works with '+' versions. "
@@ -179,10 +190,17 @@ def main():
     successful = []
     failed = []
     all_raw_rows = []
+    per_dataset_simp = []  # (dataset, runs, individuals, div_failed, gated, timeout)
+
+    # Reset the global Sympy-simplification telemetry so the counts below
+    # reflect only this experiment.
+    reset_simplification_telemetry()
 
     # --- Main loop ---
     for i, dataset_name in enumerate(enabled_datasets, start=1):
         print(f"\n[{i}/{len(enabled_datasets)}] Starting '{dataset_name}'...")
+        # Snapshot the telemetry before this dataset so we can report the delta.
+        tel_before = get_simplification_telemetry()
         try:
             raw_rows = run_single_dataset_multiple_times(
                 dataset_name=dataset_name,
@@ -201,6 +219,23 @@ def main():
             print(f"\n  [ERROR] Dataset '{dataset_name}' failed: {e}")
             print(traceback.format_exc())
             failed.append(dataset_name)
+
+        # --- Per-execution simplification report (this dataset's runs) ---
+        tel_after = get_simplification_telemetry()
+        d_runs = tel_after["executions"] - tel_before["executions"]
+        d_ind = tel_after["individuals"] - tel_before["individuals"]
+        d_fail = tel_after["div_failed"] - tel_before["div_failed"]
+        d_gated = tel_after["div_gated"] - tel_before["div_gated"]
+        d_to = tel_after["div_timeout"] - tel_before["div_timeout"]
+        pct = (100.0 * d_fail / d_ind) if d_ind else 0.0
+        avg_ind = (d_ind / d_runs) if d_runs else 0.0
+        per_dataset_simp.append((dataset_name, d_runs, d_ind, d_fail, d_gated, d_to))
+        print(
+            f"  [Simplif '{dataset_name}'] individuals to simplify: {d_ind} "
+            f"(avg {avg_ind:.1f}/run over {d_runs} runs) | "
+            f"divisions NOT simplified: {d_fail} ({pct:.1f}%) "
+            f"[gated {d_gated}, timeout {d_to}]"
+        )
 
     # --- CSV consolidado en formato reproduce_results ---
     if all_raw_rows:
@@ -242,6 +277,37 @@ def main():
     if failed:
         print(f"    → {', '.join(failed)}")
     print(f"  Total time          : {end_time - start_time}")
+    print("=" * 80)
+
+    # --- Global Sympy division-simplification report ---
+    tel = get_simplification_telemetry()
+    total_ind = tel["individuals"]
+    total_fail = tel["div_failed"]
+    total_runs = tel["executions"]
+    print("\n" + "=" * 80)
+    print("  SYMPY DIVISION-SIMPLIFICATION REPORT (global)")
+    print("=" * 80)
+    if total_ind == 0:
+        print("  No individuals were simplified (simplification disabled or no runs).")
+    else:
+        pct = 100.0 * total_fail / total_ind
+        avg = total_ind / total_runs if total_runs else 0.0
+        # Per-dataset breakdown so every dataset's counts are visible at a glance.
+        print(f"  {'Dataset':<24} {'runs':>4} {'indiv':>6} {'avg/run':>8} "
+              f"{'NOT simp':>9} {'gated':>6} {'timeout':>8}")
+        print("  " + "-" * 70)
+        for name, runs, ind, fail, gated, to in per_dataset_simp:
+            a = (ind / runs) if runs else 0.0
+            print(f"  {name:<24} {runs:>4} {ind:>6} {a:>8.1f} "
+                  f"{fail:>9} {gated:>6} {to:>8}")
+        print("  " + "-" * 70)
+        print(f"  Executions (runs that simplified) : {total_runs}")
+        print(f"  Total individuals to simplify     : {total_ind}")
+        print(f"  Avg individuals per execution     : {avg:.2f}")
+        print(f"  Divisions NOT simplified          : {total_fail} / {total_ind} "
+              f"({pct:.1f}%)")
+        print(f"    → gated (too many divisions)    : {tel['div_gated']}")
+        print(f"    → timed out                     : {tel['div_timeout']}")
     print("=" * 80)
 
 

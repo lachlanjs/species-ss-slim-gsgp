@@ -651,6 +651,43 @@ class _SympyTimeout(Exception):
     """Raised internally when a Sympy operation exceeds its time budget."""
 
 
+# ---------------------------------------------------------------------------
+# Telemetry for the Sympy division (rational) simplification pass.
+#
+# Tracks, across every simplify_population call, how many individuals could
+# NOT have their divisions simplified — i.e. the full (rational) pass was
+# either preemptively skipped because the tree has too many divisions ("gated",
+# it would explode) or it was attempted but timed out ("timeout"). Both mean
+# the divisions of that individual were left un-combined.
+#
+# run.py resets these at the start and reports per-execution deltas and a
+# global summary at the end.
+# ---------------------------------------------------------------------------
+_simp_telemetry = {
+    "executions": 0,     # number of simplify_population calls (≈ slim runs that simplified)
+    "individuals": 0,    # individuals attempted (valid converted tree)
+    "div_failed": 0,     # individuals whose division pass did not complete (gated + timeout + skipped)
+    "div_gated": 0,      # subset: skipped preemptively (divisions > threshold)
+    "div_timeout": 0,    # subset: full op actually timed out
+}
+
+# Outcome of the most recent simplify_tree_sympy full pass, read by
+# simplify_population to update the telemetry above. One of:
+#   "completed" | "gated" | "timeout" | "skipped"
+_last_full_pass = "skipped"
+
+
+def reset_simplification_telemetry():
+    """Zero all Sympy simplification telemetry counters."""
+    for k in _simp_telemetry:
+        _simp_telemetry[k] = 0
+
+
+def get_simplification_telemetry():
+    """Return a snapshot (copy) of the Sympy simplification telemetry counters."""
+    return dict(_simp_telemetry)
+
+
 def _can_use_alarm():
     """SIGALRM-based timeouts only work on Unix and only from the main thread
     of a process. Returns True when both conditions hold."""
@@ -773,6 +810,9 @@ def simplify_tree_sympy(
         ``applied`` is ``True`` when a strictly smaller tree was produced.
         ``nodes_removed`` is always >= 0.
     """
+    global _last_full_pass
+    _last_full_pass = "skipped"  # default until/unless the full pass runs
+
     try:
         import sympy as sp
     except ImportError:
@@ -813,11 +853,20 @@ def simplify_tree_sympy(
     #     can actually finish usefully. Generous per-op budget; bail on first
     #     timeout since the remaining ops share the same explosive structure.
     if use_alarm and _count_divide_nodes(tree_structure) <= max_divisions_for_full:
+        timed_out = False
         for builder in (sp.cancel, sp.simplify, sp.factor):
             res = _run_with_alarm(lambda b=builder: b(expr), full_timeout)
             if res is None:
+                timed_out = True
                 break
             candidates.append(res)
+        _last_full_pass = "timeout" if timed_out else "completed"
+    elif use_alarm:
+        # Skipped preemptively: too many divisions → would explode for no gain.
+        _last_full_pass = "gated"
+    else:
+        # No timeout mechanism available → full pass not attempted.
+        _last_full_pass = "skipped"
 
     candidates.append(expr)
 
@@ -875,13 +924,24 @@ def simplify_population(population, debug=False):
         - 'simplified': Number of individuals that were simplified
         - 'failed': Number that failed to simplify
         - 'nodes_removed_total': Total nodes removed across all individuals
+        - 'div_individuals': Individuals with a valid tree (division pass attempted)
+        - 'div_failed': Of those, individuals whose division pass did not complete
+        - 'div_gated': Subset skipped preemptively (too many divisions)
+        - 'div_timeout': Subset where the full op actually timed out
     """
     total = len(population)
     simplified = 0
     failed = 0
     nodes_removed_total = 0
     debug_printed = False
-    
+
+    # --- Per-call telemetry for the division simplification ---
+    _simp_telemetry["executions"] += 1
+    call_individuals = 0     # individuals with a valid converted tree (attempted)
+    call_div_failed = 0      # of those, divisions not simplified (gated/timeout/skipped)
+    call_div_gated = 0
+    call_div_timeout = 0
+
     for i, individual in enumerate(population):
         try:
             # Convert SLIM individual to tree structure
@@ -907,6 +967,16 @@ def simplify_population(population, debug=False):
                 sympy_tree, sympy_removed, _ = simplify_tree_sympy(
                     tree_structure, tree_dicts['CONSTANTS']
                 )
+
+                # Telemetry: did the division (rational) pass complete for this
+                # individual? simplify_tree_sympy recorded the outcome.
+                call_individuals += 1
+                if _last_full_pass != "completed":
+                    call_div_failed += 1
+                    if _last_full_pass == "gated":
+                        call_div_gated += 1
+                    elif _last_full_pass == "timeout":
+                        call_div_timeout += 1
 
                 # Second pass: conservative constant folding cleans up any
                 # remaining identity/constant patterns the Sympy result may
@@ -954,9 +1024,20 @@ def simplify_population(population, debug=False):
                 traceback.print_exc()
                 debug_printed = True
     
+    # Roll this call's division telemetry into the global counters.
+    _simp_telemetry["individuals"] += call_individuals
+    _simp_telemetry["div_failed"] += call_div_failed
+    _simp_telemetry["div_gated"] += call_div_gated
+    _simp_telemetry["div_timeout"] += call_div_timeout
+
     return {
         'total': total,
         'simplified': simplified,
         'failed': failed,
-        'nodes_removed_total': nodes_removed_total
+        'nodes_removed_total': nodes_removed_total,
+        # Division-simplification telemetry for this call.
+        'div_individuals': call_individuals,
+        'div_failed': call_div_failed,
+        'div_gated': call_div_gated,
+        'div_timeout': call_div_timeout,
     }

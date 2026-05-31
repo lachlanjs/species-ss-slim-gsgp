@@ -175,9 +175,17 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
 
     op, sig, trees = check_slim_version(slim_version=slim_version)
 
-    # NM (Normalized Mutation) is intrinsic to the SLIM+N1 / SLIM*N1 versions,
-    # not an orthogonal variant flag. It is derived from slim_version alone.
-    nm = slim_version in ("SLIM+N1", "SLIM*N1")
+    # NM (Normalized Mutation) is intrinsic to the N1/N2 versions, not an
+    # orthogonal variant flag. Both the on/off state and the normalization
+    # mode are derived from slim_version alone (Bakurov et al. 2024):
+    #   N1 → standardization   (TR - mean) / std
+    #   N2 → min-max to [-1, 1] 2*(TR - min)/(max - min) - 1
+    if slim_version in ("SLIM+N1", "SLIM*N1"):
+        nm, nm_mode = True, "n1"
+    elif slim_version in ("SLIM+N2", "SLIM*N2"):
+        nm, nm_mode = True, "n2"
+    else:
+        nm, nm_mode = False, "n1"
 
     validate_inputs(X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test, pop_size=pop_size, n_iter=n_iter,
                     elitism=elitism, n_elites=n_elites, init_depth=init_depth, log_path=log_path, prob_const=prob_const,
@@ -290,6 +298,7 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
         sig=sig,
         oms=oms,
         nm=nm,
+        nm_mode=nm_mode,
     )
     current_slim_gsgp_parameters["initializer"] = initializer_options[initializer]
     current_slim_gsgp_parameters["ms"] = ms

@@ -233,8 +233,8 @@ def run_single_dataset_multiple_times(dataset_name, num_runs=30, slim_version='S
         print(f"Available datasets: {', '.join(DATASET_LOADERS.keys())}")
         return
     
-    # Validate OMS usage (compatible with '+' versions, including SLIM+N1)
-    compatible_oms_versions = ["SLIM+ABS", "SLIM+SIG2", "SLIM+SIG1", "SLIM+N1"]
+    # Validate OMS usage (compatible with '+' versions, including SLIM+N1/N2)
+    compatible_oms_versions = ["SLIM+ABS", "SLIM+SIG2", "SLIM+SIG1", "SLIM+N1", "SLIM+N2"]
     if use_oms and slim_version not in compatible_oms_versions:
         print(f"⚠️  WARNING: OMS only works with '+' versions ({', '.join(compatible_oms_versions)}).")
         print(f"   Current version: {slim_version}. OMS will be disabled.")

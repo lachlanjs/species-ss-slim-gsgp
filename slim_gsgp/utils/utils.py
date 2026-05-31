@@ -651,6 +651,10 @@ def check_slim_version(slim_version):
         return "sum", False, False
     elif slim_version == "SLIM*N1":
         return "mul", False, False
+    elif slim_version == "SLIM+N2":
+        return "sum", False, False
+    elif slim_version == "SLIM*N2":
+        return "mul", False, False
     else:
         raise Exception('Invalid SLIM configuration')
 
