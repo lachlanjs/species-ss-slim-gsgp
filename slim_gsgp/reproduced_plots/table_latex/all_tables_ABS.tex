@@ -1,0 +1,16 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1cm]{geometry}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage[table]{xcolor}
+\usepackage{tikz}
+\newcommand{\colorcelltesttwo}[2]{%
+  \pgfmathtruncatemacro{\cvtmp}{max(0, min(85, #1*100))}%
+  \xdef\cv{\cvtmp}%
+  \cellcolor{green!\cv}#2%
+}
+\pagestyle{empty}
+\begin{document}
+\input{fitness_table_ABS.tex}
+\input{size_table_ABS.tex}
+\end{document}

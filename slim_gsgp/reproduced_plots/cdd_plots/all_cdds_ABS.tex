@@ -1,0 +1,68 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1.2cm]{geometry}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{subcaption}
+\usepackage{amsmath}
+\pagestyle{empty}
+\begin{document}
+
+\begin{figure}[t]
+\centering
+\begin{subfigure}{0.48\textwidth}
+\centering
+\resizebox{\linewidth}{!}{\input{best_fitness/fitness_cdd_ABS.tex}}
+\caption{BF: Test RMSE}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.48\textwidth}
+\centering
+\resizebox{\linewidth}{!}{\input{best_fitness/size_cdd_ABS.tex}}
+\caption{BF: Size}
+\end{subfigure}
+\vspace{1.5em}
+\begin{subfigure}{0.48\textwidth}
+\centering
+\resizebox{\linewidth}{!}{\input{best_size/fitness_cdd_ABS.tex}}
+\caption{BS: Test RMSE}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.48\textwidth}
+\centering
+\resizebox{\linewidth}{!}{\input{best_size/size_cdd_ABS.tex}}
+\caption{BS: Size}
+\end{subfigure}
+\vspace{1.5em}
+\begin{subfigure}{0.48\textwidth}
+\centering
+\resizebox{\linewidth}{!}{\input{optimal_compromise/fitness_cdd_ABS.tex}}
+\caption{OC: Test RMSE}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.48\textwidth}
+\centering
+\resizebox{\linewidth}{!}{\input{optimal_compromise/size_cdd_ABS.tex}}
+\caption{OC: Size}
+\end{subfigure}
+\caption{Critical difference diagrams for the Best Fitness (BF), Optimal Compromise (OC) and Best Size (BS) models; where A.: ALL and B.: BASE. (SLIM+ABS)}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\begin{subfigure}{0.48\textwidth}
+\centering
+\resizebox{\linewidth}{!}{\input{ALL_fitness_cdd_ABS.tex}}
+\caption{Test RMSE}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.48\textwidth}
+\centering
+\resizebox{\linewidth}{!}{\input{ALL_size_cdd_ABS.tex}}
+\caption{Size}
+\end{subfigure}
+\caption{Critical Difference Diagram comparing the final models (BF, BS and OC) found by the ALL variant with the SLIM (BASE) BF model. (SLIM+ABS)}
+\end{figure}
+
+\end{document}

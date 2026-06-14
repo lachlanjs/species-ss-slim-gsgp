@@ -44,7 +44,7 @@ N1/N2 versions — choose SLIM+N1/SLIM*N1 (standardization) or SLIM+N2/SLIM*N2
 #
 # ============================================================================
 
-SLIM_VERSION = 'SLIM+SIG2'
+SLIM_VERSION = 'SLIM+ABS'
 # Available options:
 #   'SLIM+ABS'   — Inflate with absolute value and sum operator  (recommended)
 #   'SLIM+SIG2'  — Inflate with sigmoid (version 2) and sum operator
@@ -57,10 +57,10 @@ SLIM_VERSION = 'SLIM+SIG2'
 #   'SLIM+N2'    — Normalized mutation, MIN-MAX to [-1,1], sum operator
 #   'SLIM*N2'    — Normalized mutation, MIN-MAX to [-1,1], product operator
 
-USE_OMS = False
-USE_LINEAR_SCALING = False
-USE_PARETO_TOURNAMENT = False
-USE_SIMPLIFICATION = False
+USE_OMS = True
+USE_LINEAR_SCALING = True
+USE_PARETO_TOURNAMENT = True
+USE_SIMPLIFICATION = True
 
 NUM_RUNS = 30
 BASE_SEED = 42

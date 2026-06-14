@@ -57,14 +57,14 @@ DATASETS = list(DATASET_LOADERS.keys())
 # ============================================================================
 #                         C O N F I G U R A T I O N
 # ============================================================================
-SLIM_VERSION = "SLIM+ABS"
-# Available options:
+SLIM_VERSION = "SLIM+N2"
+# Available options (each run writes to reproduced_results_2/<version>/):
 #   'SLIM+ABS'  — Inflate with absolute value and sum operator
-#   'SLIM+N1'   — Normalized mutation (standardization) and sum operator
-#   'SLIM*ABS'  — Inflate with absolute value and product operator
-#   'SLIM*N1'   — Normalized mutation (standardization) and product operator
+#   'SLIM+SIG1' — Inflate with sigmoid (version 1) and sum operator
 #   'SLIM+SIG2' — Inflate with sigmoid (version 2) and sum operator
-#   'SLIM*SIG2' — Inflate with sigmoid (version 2) and product operator
+#   'SLIM+N1'   — Normalized mutation, STANDARDIZATION (TR-mean)/std, sum operator
+#   'SLIM+N2'   — Normalized mutation, MIN-MAX to [-1,1], sum operator
+#   (and the SLIM*xxx product-operator counterparts)
 # ============================================================================
 
 # Flags that can be combined with any SLIM version.
@@ -227,9 +227,18 @@ if __name__ == '__main__':
 
     os.environ
 
-    # note: must be abs path or child processes might write to the wrong path
-    REPRODUCED_RESULTS_FILEPATH = os.path.abspath("./slim_gsgp/reproduced_results_2")
-    
+    # note: must be abs path or child processes might write to the wrong path.
+    # Results go into a per-version subfolder so different SLIM versions
+    # (SLIM+ABS, SLIM+N1, SLIM+N2, ...) do NOT overwrite each other — each run
+    # of this script with a different SLIM_VERSION lands in its own directory.
+    _version_dir = SLIM_VERSION.replace("*", "x")  # '*' is awkward in paths
+    REPRODUCED_RESULTS_FILEPATH = os.path.abspath(
+        f"./slim_gsgp/reproduced_results_2/{_version_dir}"
+    )
+    os.makedirs(REPRODUCED_RESULTS_FILEPATH, exist_ok=True)
+
+    print(f"SLIM version : {SLIM_VERSION}")
+    print(f"Output dir   : {REPRODUCED_RESULTS_FILEPATH}")
     print(f"Starting {len(VARIANTS_DICT)} experiments")
     
     # create shared dictionary for progress tracking

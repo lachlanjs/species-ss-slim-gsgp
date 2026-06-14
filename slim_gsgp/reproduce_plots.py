@@ -285,8 +285,21 @@ def produce_cdd(df_cdd, metric: str, filepath: str):
 
 if __name__ == "__main__":
 
-    REPRODUCED_RESULTS_FILEPATH = os.path.abspath("./slim_gsgp/reproduced_results_2")
+    # ------------------------------------------------------------------
+    # Which SLIM version's results to plot. Must match the SLIM_VERSION
+    # used in reproduce_results.py (results live in a per-version subfolder).
+    # ------------------------------------------------------------------
+    SLIM_VERSION = "SLIM+N2"
+    _version_dir = SLIM_VERSION.replace("*", "x")              # folder name (matches reproduce_results.py)
+    VERSION_TAG = SLIM_VERSION.replace("SLIM+", "").replace("SLIM*", "x")  # short tag: N1, N2, ABS, ...
+
+    REPRODUCED_RESULTS_FILEPATH = os.path.abspath(
+        f"./slim_gsgp/reproduced_results_2/{_version_dir}"
+    )
     base_plots_path = os.path.abspath("slim_gsgp/reproduced_plots")
+
+    print(f"Plotting version : {SLIM_VERSION}  (tag '{VERSION_TAG}')")
+    print(f"Reading results  : {REPRODUCED_RESULTS_FILEPATH}")
 
     full_df = collate_variants(REPRODUCED_RESULTS_FILEPATH)
 
@@ -304,7 +317,7 @@ if __name__ == "__main__":
     # create line plots:    
     for col_idx, metric in enumerate(["fitness", "size"]):
         y_label="RMSE Change (%)" if metric == "fitness" else "Size Change (%)"
-        ylim = (-125, 60) if metric == "fitness" else (-125, 125)
+        ylim = (-100, 100)
         for row_idx, individual in enumerate(["best_fitness", "best_size", "optimal_compromise"]):
             lplots_new = create_line_plot(
                 fig, axs[row_idx][col_idx],
@@ -345,24 +358,99 @@ if __name__ == "__main__":
 
     # save figure
     plt.subplots_adjust(hspace=0.1) # A smaller value reduces space
-    fig.savefig(f"{base_plots_path}/median/median_full.pdf", format="pdf", bbox_inches="tight")
+    fig.savefig(f"{base_plots_path}/median/median_full_{VERSION_TAG}.pdf", format="pdf", bbox_inches="tight")
+    print(f"Saved: {base_plots_path}/median/median_full_{VERSION_TAG}.pdf")
 
-    # create cdds:    
-    
+    # ------------------------------------------------------------------
+    # "Mean Change in Size vs RMSE" plot (a.k.a. full_pareto).
+    # For each variant: average over the 14 datasets of the median % change
+    # vs baseline (BASE best_fitness), one value per individual, connecting
+    # BF -> OC -> BS. Axes are free (autoscale). Lower-left is better.
+    # ------------------------------------------------------------------
+    VARIANT_NAMES = list(VARIANTS_DICT.values())
+    VARIANT_MARKERS["BASE"] = "x"
+
+    baseline_pareto = full_medians.xs(("BASE", "best_fitness"), level=["variant", "individual"])
+    full_pcs = full_medians.sub(baseline_pareto, level="dataset").div(baseline_pareto, level="dataset") * 100
+    mean_pcs = full_pcs.groupby(level=["variant", "individual"]).mean()
+
+    df_pareto = mean_pcs.reset_index()
+    df_pareto = df_pareto.set_index(["variant", "individual"])
+
+    fig_p, ax_p = plt.subplots(figsize=(6, 3.5))
+    ax_p.axhline(0.0, color="black")
+    ax_p.axvline(0.0, color="black")
+
+    lines = []
+    for variant_name in VARIANT_NAMES:
+        vcolor = VARIANT_COLORS[variant_name]
+        xs, ys = [], []
+        for individual in ["best_fitness", "optimal_compromise", "best_size"]:
+            fitness = df_pareto.loc[(variant_name, individual)]["fitness"]
+            size = df_pareto.loc[(variant_name, individual)]["size"]
+            xs.append(size)
+            ys.append(fitness)
+
+            xyoffset = (0, 0)
+            if variant_name in ["ALL", "BASE"]:
+                xyoffset = (4, -13)
+            if variant_name in ["BASE + PT", "ALL - PT", "BASE + AS", "ALL - AS"]:
+                xyoffset = (-13, -13)
+            if variant_name in ["BASE + LS", "ALL - LS"]:
+                xyoffset = (-13, 4)
+            if variant_name in ["ALL + OMS", "ALL - OMS"]:
+                xyoffset = (4, 4)
+
+            ind_label = {"optimal_compromise": "OC", "best_fitness": "BF", "best_size": "BS"}[individual]
+            ax_p.annotate(ind_label, (size, fitness), fontsize=9, xytext=xyoffset,
+                          textcoords="offset points", color=vcolor)
+
+        markerfacecolor = vcolor if ("+" in variant_name) or variant_name in ["ALL", "BASE"] else "none"
+        line, = ax_p.plot(
+            xs, ys,
+            linewidth=2, markersize=6,
+            marker=VARIANT_MARKERS[variant_name],
+            markeredgecolor=vcolor,
+            markerfacecolor=markerfacecolor,
+            linestyle=VARIANT_LINESTYLES[variant_name],
+            color=vcolor,
+            label=variant_name, alpha=0.75,
+        )
+        lines.append(line)
+
+    ax_p.set_xlabel("Mean Change in Size (%)", fontsize=11)
+    ax_p.set_ylabel("Mean Change in RMSE (%)", fontsize=11)
+    ax_p.xaxis.set_label_position("top")
+    # Fixed axes so the scatter is comparable across versions (ABS/N1/N2).
+    ax_p.set_xlim(-100, 20)
+    ax_p.set_ylim(-50, 30)
+    ax_p.grid()
+    fig_p.legend(
+        handles=lines, loc="upper center", labels=list(VARIANTS_DICT.values()),
+        bbox_to_anchor=(0.5, 0.04), ncol=5, frameon=False, fontsize=8,
+    )
+    fig_p.savefig(f"{base_plots_path}/full_pareto_{VERSION_TAG}.pdf", format="pdf", bbox_inches="tight")
+    print(f"Saved: {base_plots_path}/full_pareto_{VERSION_TAG}.pdf")
+
+    # create cdds:  (now stored under reproduced_plots/cdd_plots/)
+    _cdd_base = "slim_gsgp/reproduced_plots/cdd_plots"
+    for _sub in ["", "best_fitness", "best_size", "optimal_compromise"]:
+        os.makedirs(os.path.join(_cdd_base, _sub), exist_ok=True)
+
     for metric in ["fitness", "size"]:
         df_cdd = full_medians.reset_index()
-        
+
         df_cdd["variant_individual"] = df_cdd["variant"].astype(str) + " " + df_cdd["individual"].astype(str)
         df_cdd = df_cdd.pivot(index="dataset", columns="variant_individual")
-        
-        produce_cdd(df_cdd, metric, f"slim_gsgp/cdd_plots/full_{metric}_cdd.tex")
+
+        produce_cdd(df_cdd, metric, f"slim_gsgp/reproduced_plots/cdd_plots/full_{metric}_cdd_{VERSION_TAG}.tex")
     for metric in ["fitness", "size"]:
         for individual in ["best_fitness", "best_size", "optimal_compromise"]:
             df_cdd = full_medians.xs(individual, level=2).reset_index()
-            
+
             df_cdd = df_cdd.pivot(index="dataset", columns="variant")
-            
-            produce_cdd(df_cdd, metric, f"slim_gsgp/cdd_plots/{individual}/{metric}_cdd.tex")
+
+            produce_cdd(df_cdd, metric, f"slim_gsgp/reproduced_plots/cdd_plots/{individual}/{metric}_cdd_{VERSION_TAG}.tex")
 
     for metric in ["fitness", "size"]:
         df_cdd = full_medians.loc[[("ALL", ds, "best_fitness") for ds in DATASET_NAMES] + [("ALL", ds, "best_size") for ds in DATASET_NAMES] + [("ALL", ds, "optimal_compromise") for ds in DATASET_NAMES]
@@ -370,8 +458,31 @@ if __name__ == "__main__":
         df_cdd = df_cdd.reset_index()
         df_cdd["variant_individual"] = df_cdd["variant"].astype(str) + " " + df_cdd["individual"].astype(str)
         df_cdd = df_cdd.pivot(index="dataset", columns="variant_individual")
-        produce_cdd(df_cdd, metric, f"slim_gsgp/cdd_plots/ALL_{metric}_cdd.tex")
-        
+        produce_cdd(df_cdd, metric, f"slim_gsgp/reproduced_plots/cdd_plots/ALL_{metric}_cdd_{VERSION_TAG}.tex")
+
+    # ------------------------------------------------------------------
+    # Bundle every CDD of this version into a single PDF (paper's Fig. 3 + 4)
+    # by compiling the just-written .tex fragments with tectonic. Best-effort:
+    # if tectonic is missing or compilation fails, the .tex are still produced.
+    # ------------------------------------------------------------------
+    try:
+        import build_cdd_pdf
+        build_cdd_pdf.VERSION_TAG = VERSION_TAG
+        if build_cdd_pdf.main() != 0:
+            print("  [WARNING] Combined CDD PDF was not produced (see messages above).")
+    except Exception as e:
+        print(f"  [WARNING] Could not build combined CDD PDF: {e}")
+
+    # ------------------------------------------------------------------
+    # Also generate the LaTeX result tables for this version (fitness/size),
+    # same as running results_tables.py. Best-effort.
+    # ------------------------------------------------------------------
+    try:
+        import results_tables
+        results_tables.build_tables(SLIM_VERSION)
+    except Exception as e:
+        print(f"  [WARNING] Could not generate result tables: {e}")
+
     # FINAL plot of the results
 
     plt.figure(figsize=(FIGWIDTH_INCHES, FIGWIDTH_INCHES))
