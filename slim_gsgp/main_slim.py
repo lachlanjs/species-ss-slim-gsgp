@@ -75,6 +75,14 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
          linear_scaling: bool = False,
          use_simplification: bool = True,
          enable_plotting: bool = False,
+         early_stop_enable: bool = False,
+         early_stop_patience: int = 15,
+         early_stop_warmup: int = 5, 
+         early_stop_tolerance: float = 0.01, 
+         early_stop_type: str = "moving_window", 
+         early_stop_deg_window: int = 15,
+         early_stop_deg_slope_tol: float = 0.1,
+         early_stop_patience_deg: int = 10,
          **kwargs):
 
     """
@@ -344,6 +352,15 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
         y_train=y_train,
         y_test=y_test,
         curr_dataset=dataset_name,
+        early_stop_enable=early_stop_enable,
+        early_stop_patience=early_stop_patience, 
+        early_stop_warmup=early_stop_warmup, 
+        early_stop_tolerance=early_stop_tolerance, 
+        early_stop_type=early_stop_type, 
+        slim_version=slim_version,
+        early_stop_deg_window=early_stop_deg_window,
+        early_stop_deg_slope_tol=early_stop_deg_slope_tol,
+        early_stop_patience_deg=early_stop_patience_deg,
         **current_slim_gsgp_solve_parameters
     )
 
@@ -409,16 +426,19 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
 
     # Return three individuals: best fitness, best normalized, and smallest
     class SlimResults:
-        def __init__(self, best_fitness, best_normalized, smallest):
+        def __init__(self, best_fitness, best_normalized, smallest, stopping_iteration):
             self.best_fitness = best_fitness
             self.best_normalized = best_normalized
             self.smallest = smallest
+            self.stopping_iteration = stopping_iteration
             
         # For backward compatibility, allow access to best_fitness as if it were the main result
         def __getattr__(self, name):
             return getattr(self.best_fitness, name)
     
-    return SlimResults(optimizer.elite, best_normalized_individual, smallest_individual)
+    stop_iter = getattr(optimizer, 'stopping_iteration', n_iter) 
+
+    return SlimResults(optimizer.elite, best_normalized_individual, smallest_individual, stop_iter) 
 
 
 if __name__ == "__main__":
@@ -440,7 +460,7 @@ if __name__ == "__main__":
             for algorithm in ["SLIM+SIG2", "SLIM*SIG2", "SLIM+ABS", "SLIM*ABS", "SLIM+SIG1", "SLIM*SIG1"]:
 
                 final_tree = slim(X_train=X_train, y_train=y_train, X_test=X_val, y_test=y_val,
-                                  dataset_name=ds, slim_version=algorithm, max_depth=None, pop_size=100, n_iter=10, seed=s, p_inflate=0.2,
-                                log_path=os.path.join(os.getcwd(),
+                                    dataset_name=ds, slim_version=algorithm, max_depth=None, pop_size=100, n_iter=10, seed=s, p_inflate=0.2,
+                                    log_path=os.path.join(os.getcwd(),
                                                                 "log", f"test_{ds}-size.csv"),
-                                   reconstruct=True, n_jobs=1)
+                                    reconstruct=True, n_jobs=1)

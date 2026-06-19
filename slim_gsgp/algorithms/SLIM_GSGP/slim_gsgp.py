@@ -25,7 +25,7 @@ SLIM_GSGP Class for Evolutionary Computation using PyTorch.
 
 import random
 import time
-
+import copy
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
@@ -39,6 +39,7 @@ from slim_gsgp.algorithms.SLIM_GSGP.operators.mutators import reset_oms_counter,
 from slim_gsgp.utils.diversity import gsgp_pop_div_from_vectors
 from slim_gsgp.utils.logger import logger, log_oms_transformations, log_nm_degenerate
 from slim_gsgp.utils.utils import verbose_reporter, select_best_normalized_individual
+from slim_gsgp.utils.early_stopping import get_early_stopping
 
 # Global variable to store the figure for persistent plotting
 _plot_figure = None
@@ -500,8 +501,32 @@ class SLIM_GSGP:
         if self.enable_plotting:
             plot_generation_fitness_vs_nodes(population, 0, X_test, y_test, ffunction, self.operator)
 
+        final_iteration = 0 # Generation at which the run actually stopped
+
+        # Build the early stopping strategy from the run's configuration; 
+        # returns None if early_stop_enable is falsy, in which case the loop 
+        # simply runs for the full number of generations.
+        es_module = get_early_stopping(
+            es_type=kwargs.get("early_stop_type", "moving_window"),
+            enable=kwargs.get("early_stop_enable", False),
+            patience=kwargs.get("early_stop_patience", 10),
+            warmup=kwargs.get("early_stop_warmup", 5),
+            tolerance=kwargs.get("early_stop_tolerance", 0.01),
+            deg_window=kwargs.get("early_stop_deg_window", 15),
+            deg_slope_tol=kwargs.get("early_stop_deg_slope_tol", 0.1),
+            patience_deg=kwargs.get("early_stop_patience_deg", 10)
+        )
+
+        # Initial early-stopping checkpoint (generation 0): only relevant when test
+        # fitness is actually being tracked, since both early-stopping strategies key
+        # off current_val (here, test_fitness) to decide on improvement/convergence.
+        if es_module is not None and test_elite and self.elite.test_fitness is not None:
+            self.elite.version = kwargs["slim_version"] # Needed by predict() to know which SLIM operator/tree combination to apply.
+            es_module.update(0, self.elite.test_fitness, self.elite, y_pred=self.elite.predict(X_test), y_target=y_test)
+
         # begining the evolution process
         for it in range(1, n_iter + 1, 1):
+            final_iteration = it
             # Reset OMS and NM counters at the start of each generation
             reset_oms_counter()
             reset_nm_counter()
@@ -836,11 +861,32 @@ class SLIM_GSGP:
             if self.enable_plotting:
                 plot_generation_fitness_vs_nodes(population, it, X_test, y_test, ffunction, self.operator)
 
+            # Same early-stopping check as the initial generation 0 call above, but now
+            # inside the main loop (generation `it`): update the strategy's state and, if
+            # it signals convergence/no-improvement, stop the evolutionary loop early.
+            if es_module is not None and test_elite and self.elite.test_fitness is not None:
+                self.elite.version = kwargs["slim_version"]
+                stop = es_module.update(it, self.elite.test_fitness, self.elite, y_pred=self.elite.predict(X_test), y_target=y_test)
+                if stop:
+                    if verbose != 0: 
+                        print(f"\n[!] Early stopping en iteración {it} por {es_module.stop_reason}.")
+                    break 
+
+
         # Keep the evolution plot open until user presses Enter
         if self.enable_plotting:
             print("\n🎯 Evolución completada! El gráfico se mantiene activo.")
             print("📊 Presiona ENTER para cerrar el gráfico y continuar...")
             input()  # Wait for user input
             close_evolution_plot()
+
+
+        self.stopping_iteration = final_iteration  # Record the generation at which the loop actually ended
+
+        # If early stopping was active and it ever recorded a checkpoint, that checkpoint
+        # (best test_fitness seen across all generations) replaces self.elite as the final result
+        if es_module is not None and es_module.get_best_individual() is not None:
+            self.elite = es_module.get_best_individual()
+            return self.elite
 
         return self.elite

@@ -4,6 +4,7 @@ README.md
 setup.py
 slim_gsgp/CDD_plot.py
 slim_gsgp/__init__.py
+slim_gsgp/build_cdd_pdf.py
 slim_gsgp/example_gp.py
 slim_gsgp/example_gsgp.py
 slim_gsgp/example_slim.py
@@ -52,6 +53,8 @@ slim_gsgp/config/gsgp_config.py
 slim_gsgp/config/slim_config.py
 slim_gsgp/datasets/__init__.py
 slim_gsgp/datasets/data_loader.py
+slim_gsgp/datasets/__pycache__/__init__.cpython-312.pyc
+slim_gsgp/datasets/__pycache__/data_loader.cpython-312.pyc
 slim_gsgp/datasets/data/airfoil.txt
 slim_gsgp/datasets/data/bike_sharing_day.txt
 slim_gsgp/datasets/data/bioavailability.txt
@@ -76,6 +79,7 @@ slim_gsgp/selection/__init__.py
 slim_gsgp/selection/selection_algorithms.py
 slim_gsgp/utils/__init__.py
 slim_gsgp/utils/diversity.py
+slim_gsgp/utils/early_stopping.py
 slim_gsgp/utils/logger.py
 slim_gsgp/utils/naming_utils.py
 slim_gsgp/utils/simplification.py
@@ -85,5 +89,6 @@ tests/__init__.py
 tests/test_gp.py
 tests/test_gsgp.py
 tests/test_slim.py
+tests/test_sympy_simplification.py
 tests/test_utils.py
 tests/test_validate_inputs.py

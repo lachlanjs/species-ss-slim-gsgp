@@ -36,20 +36,20 @@ from evaluators.fitness_functions import rmse
 
 DATASET_LOADERS = {
     'airfoil': load_airfoil,                    # Dataset 1
-    'bike_sharing': load_bike_sharing,          # Dataset 2
-    'bioavailability': load_bioav,              # Dataset 3
-    'boston': load_boston,                      # Dataset 4
-    'breast_cancer': load_breast_cancer,        # Dataset 5
-    'concrete_slump': load_concrete_slump,      # Dataset 6
-    'concrete_strength': load_concrete_strength,# Dataset 7
-    'diabetes': load_diabetes,                  # Dataset 8
-    'efficiency_cooling': load_efficiency_cooling,  # Dataset 9
-    'efficiency_heating': load_efficiency_heating,  # Dataset 10
-    'forest_fires': load_forest_fires,          # Dataset 11
-    # 'istanbul': load_istanbul,                # Dataset 12 - COMMENTED OUT (uncomment to re-enable)
-    'parkinson_updrs': load_parkinson_updrs,    # Dataset 13
-    'ppb': load_ppb,                            # Dataset 14
-    'resid_build_sale_price': load_resid_build_sale_price  # Dataset 15
+    #'bike_sharing': load_bike_sharing,          # Dataset 2
+    #'bioavailability': load_bioav,              # Dataset 3
+    #'boston': load_boston,                      # Dataset 4
+    #'breast_cancer': load_breast_cancer,        # Dataset 5
+    #'concrete_slump': load_concrete_slump,      # Dataset 6
+    #'concrete_strength': load_concrete_strength,# Dataset 7
+    #'diabetes': load_diabetes,                  # Dataset 8
+    #'efficiency_cooling': load_efficiency_cooling,  # Dataset 9
+    #'efficiency_heating': load_efficiency_heating,  # Dataset 10
+    #'forest_fires': load_forest_fires,          # Dataset 11
+    ## 'istanbul': load_istanbul,                # Dataset 12 - COMMENTED OUT (uncomment to re-enable)
+    #'parkinson_updrs': load_parkinson_updrs,    # Dataset 13
+    #'ppb': load_ppb,                            # Dataset 14
+    #'resid_build_sale_price': load_resid_build_sale_price  # Dataset 15
 }
 
 DATASETS = list(DATASET_LOADERS.keys())
@@ -70,15 +70,15 @@ SLIM_VERSION = "SLIM+N2"
 # Flags that can be combined with any SLIM version.
 # Each key is a tuple of active flags; the value is the label used for output files.
 VARIANTS_DICT = {
-    tuple():                    "BASE",
-    ("PT",):                    "BASE + PT",
-    ("OMS",):                   "BASE + OMS",
-    ("LS",):                    "BASE + LS",
-    ("AS",):                    "BASE + AS",
-    ("OMS", "LS", "AS"):        "ALL - PT",
-    ("PT", "LS", "AS"):         "ALL - OMS",
-    ("PT", "OMS", "AS"):        "ALL - LS",
-    ("PT", "OMS", "LS"):        "ALL - AS",
+    #tuple():                    "BASE",
+    #("PT",):                    "BASE + PT",
+    #("OMS",):                   "BASE + OMS",
+    #("LS",):                    "BASE + LS",
+    #("AS",):                    "BASE + AS",
+    #("OMS", "LS", "AS"):        "ALL - PT",
+    #("PT", "LS", "AS"):         "ALL - OMS",
+    #("PT", "OMS", "AS"):        "ALL - LS",
+    #("PT", "OMS", "LS"):        "ALL - AS",
     ("PT", "OMS", "LS", "AS"): "ALL",
 }
 
@@ -89,7 +89,15 @@ BASE_ALGO_PARAMS = {
     'ms_lower': 0,
     'ms_upper': 1,
     'p_inflate': 0.5,
-    'reconstruct': True    
+    'reconstruct': True,
+    'early_stop_enable': True,
+    'early_stop_patience': 15,
+    'early_stop_warmup': 5,
+    'early_stop_tolerance': 0.01,
+    'early_stop_patience_deg': 15, 
+    'early_stop_deg_window': 5,
+    'early_stop_deg_slope_tol': 0.01,
+    'early_stop_type': "moving_window"
 }
 
 DATASET_ITERATIONS = 30
@@ -133,7 +141,8 @@ def get_result_dataset(variant_tuple: tuple[str], dataset_name: str, seed: int):
             "dataset_name": dataset_name,
             "oms": use_oms,
             "linear_scaling": use_ls,
-            "use_simplification": use_as            
+            "use_simplification": use_as,
+            "test_elite": True      
         },
         **({} if not use_pt else {
             "tournament_type": "pareto",
@@ -152,7 +161,8 @@ def get_result_dataset(variant_tuple: tuple[str], dataset_name: str, seed: int):
     result_dict = {
         "best_fitness":         dict(zip(metrics, process_helper(results.best_fitness))),
         "best_size":            dict(zip(metrics, process_helper(results.smallest))),
-        "optimal_compromise":   dict(zip(metrics, process_helper(results.best_normalized)))
+        "optimal_compromise":   dict(zip(metrics, process_helper(results.best_normalized))),
+        "stopping_iteration":   results.stopping_iteration
     }
 
     return result_dict
@@ -174,6 +184,7 @@ def get_results(args):
         for seed in range(DATASET_ITERATIONS):
             
             result = get_result_dataset(variant_tuple, dataset_name, seed)
+            stop_it = result["stopping_iteration"] 
 
             for individual_name in ["best_fitness", "best_size", "optimal_compromise"]:
                 row = {
@@ -181,7 +192,8 @@ def get_results(args):
                     'individual': individual_name,
                     'run': seed,
                     "fitness": result[individual_name]["fitness"],
-                    "size": result[individual_name]["size"]
+                    "size": result[individual_name]["size"],
+                    "stopping_iteration": stop_it 
                 }
 
                 rows.append(row)
@@ -233,7 +245,7 @@ if __name__ == '__main__':
     # of this script with a different SLIM_VERSION lands in its own directory.
     _version_dir = SLIM_VERSION.replace("*", "x")  # '*' is awkward in paths
     REPRODUCED_RESULTS_FILEPATH = os.path.abspath(
-        f"./slim_gsgp/reproduced_results_2/{_version_dir}"
+        f"./reproduced_results_3/{_version_dir}"
     )
     os.makedirs(REPRODUCED_RESULTS_FILEPATH, exist_ok=True)
 
@@ -269,6 +281,9 @@ if __name__ == '__main__':
                 # Final progress report
                 print_progress(progress_dict, len(VARIANTS_DICT))
                 print("-" * 80)
+
+                result.get()
+
             except KeyboardInterrupt:
                 print("\n\n Ctrl+C detected! Terminating all processes...")
                 pool.terminate()  # immediately stop all workers
