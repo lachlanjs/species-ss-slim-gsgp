@@ -102,25 +102,49 @@ slim_version = 'SLIM+N1'
 
 # --- Algorithm variant flags ---
 oms = True                   # Optimal Mutation Step
-linear_scaling = False        # Linear Scaling
-pareto_tournament = False     # Pareto tournament selection
-use_simplification = False    # Simplification of individuals
+linear_scaling = True        # Linear Scaling
+pareto_tournament = True     # Pareto tournament selection
+use_simplification = True    # Simplification of individuals
 save_tree_png = False          # Save tree visualizations as PNG
+
+# --- Early stopping (set to False to always run the full n_iter generations) ---
+use_early_stopping = False
+
+# Early-stopping settings (ignored when use_early_stopping is False).
+early_stopping = {
+    "early_stop_enable":        use_early_stopping,
+    "early_stop_type":          "moving_window",  # "moving_window" or "angular"
+    "early_stop_patience":      15,
+    "early_stop_warmup":        5,
+    "early_stop_tolerance":     0.01,
+    "early_stop_deg_window":    5,
+    "early_stop_deg_slope_tol": 0.01,
+    "early_stop_patience_deg":  15,
+}
+
+n_iter = 100
 
 # Apply the SLIM GSGP algorithm (with fixed seed for reproducibility)
 results = slim(X_train=X_train, y_train=y_train,
                X_test=X_val, y_test=y_val,
-               dataset_name='airfoil', slim_version=slim_version, pop_size=100, n_iter=100,
+               dataset_name='airfoil', slim_version=slim_version, pop_size=100, n_iter=n_iter,
                ms_lower=0, ms_upper=1, p_inflate=0.5, reconstruct=True,
                tournament_type="pareto" if pareto_tournament else "standard",
                tournament_size=5, multi_obj_attrs=["fitness", "size"],
                oms=oms, linear_scaling=linear_scaling,
-               use_simplification=use_simplification, enable_plotting=False, seed=42)
+               use_simplification=use_simplification, enable_plotting=False, seed=42,
+               **early_stopping)
 
 # Extract all three individuals
 best_fitness_individual = results.best_fitness
 best_normalized_individual = results.best_normalized
 smallest_individual = results.smallest
+
+# Report how many generations actually ran (early stopping may end the run sooner)
+if use_early_stopping:
+    print(f"\nEarly stopping: ON  — evolution stopped at generation {results.stopping_iteration} of {n_iter}")
+else:
+    print(f"\nEarly stopping: OFF — ran the full {results.stopping_iteration} generations")
 
 print("\n" + "="*80)
 print("RESULTS FOR BEST FITNESS INDIVIDUAL")
