@@ -36,20 +36,20 @@ from evaluators.fitness_functions import rmse
 
 DATASET_LOADERS = {
     'airfoil': load_airfoil,                    # Dataset 1
-    #'bike_sharing': load_bike_sharing,          # Dataset 2
-    #'bioavailability': load_bioav,              # Dataset 3
-    #'boston': load_boston,                      # Dataset 4
-    #'breast_cancer': load_breast_cancer,        # Dataset 5
-    #'concrete_slump': load_concrete_slump,      # Dataset 6
-    #'concrete_strength': load_concrete_strength,# Dataset 7
-    #'diabetes': load_diabetes,                  # Dataset 8
-    #'efficiency_cooling': load_efficiency_cooling,  # Dataset 9
-    #'efficiency_heating': load_efficiency_heating,  # Dataset 10
-    #'forest_fires': load_forest_fires,          # Dataset 11
-    ## 'istanbul': load_istanbul,                # Dataset 12 - COMMENTED OUT (uncomment to re-enable)
-    #'parkinson_updrs': load_parkinson_updrs,    # Dataset 13
-    #'ppb': load_ppb,                            # Dataset 14
-    #'resid_build_sale_price': load_resid_build_sale_price  # Dataset 15
+    'bike_sharing': load_bike_sharing,          # Dataset 2
+    'bioavailability': load_bioav,              # Dataset 3
+    'boston': load_boston,                      # Dataset 4
+    'breast_cancer': load_breast_cancer,        # Dataset 5
+    'concrete_slump': load_concrete_slump,      # Dataset 6
+    'concrete_strength': load_concrete_strength,# Dataset 7
+    'diabetes': load_diabetes,                  # Dataset 8
+    'efficiency_cooling': load_efficiency_cooling,  # Dataset 9
+    'efficiency_heating': load_efficiency_heating,  # Dataset 10
+    'forest_fires': load_forest_fires,          # Dataset 11
+    # 'istanbul': load_istanbul,                # Dataset 12 - COMMENTED OUT (uncomment to re-enable)
+    'parkinson_updrs': load_parkinson_updrs,    # Dataset 13
+    'ppb': load_ppb,                            # Dataset 14
+    'resid_build_sale_price': load_resid_build_sale_price  # Dataset 15
 }
 
 DATASETS = list(DATASET_LOADERS.keys())
@@ -90,7 +90,7 @@ BASE_ALGO_PARAMS = {
     'ms_upper': 1,
     'p_inflate': 0.5,
     'reconstruct': True,
-    'early_stop_enable': True,
+    'early_stop_enable': False,
     'early_stop_patience': 15,
     'early_stop_warmup': 5,
     'early_stop_tolerance': 0.01,
@@ -243,13 +243,21 @@ if __name__ == '__main__':
     # Results go into a per-version subfolder so different SLIM versions
     # (SLIM+ABS, SLIM+N1, SLIM+N2, ...) do NOT overwrite each other — each run
     # of this script with a different SLIM_VERSION lands in its own directory.
+    #
+    # Early stopping on/off also lands in separate roots so the two sets of
+    # results never overwrite each other:
+    #   early_stop_enable=True  -> ./reproduced_results_3/<version>/
+    #   early_stop_enable=False -> ./reproduced_results_3_noES/<version>/
+    _early_stop_on = BASE_ALGO_PARAMS.get("early_stop_enable", False)
+    _results_root = "reproduced_results_3" if _early_stop_on else "reproduced_results_3_noES"
     _version_dir = SLIM_VERSION.replace("*", "x")  # '*' is awkward in paths
     REPRODUCED_RESULTS_FILEPATH = os.path.abspath(
-        f"./reproduced_results_3/{_version_dir}"
+        f"./{_results_root}/{_version_dir}"
     )
     os.makedirs(REPRODUCED_RESULTS_FILEPATH, exist_ok=True)
 
     print(f"SLIM version : {SLIM_VERSION}")
+    print(f"Early stop   : {_early_stop_on}")
     print(f"Output dir   : {REPRODUCED_RESULTS_FILEPATH}")
     print(f"Starting {len(VARIANTS_DICT)} experiments")
     
