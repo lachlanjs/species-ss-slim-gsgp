@@ -415,7 +415,25 @@ def slim(X_train: torch.Tensor, y_train: torch.Tensor, X_test: torch.Tensor = No
     # Step 2: Apply simplification ONLY to Pareto frontier for normalization (if enabled)
     if use_simplification:
         simplif_stats_pareto = simplify_population(non_dominated_population, debug=False)
-    
+
+    # Step 2b: When early stopping is active, optimizer.elite is a deepcopy
+    # checkpoint that lives OUTSIDE optimizer.population.population, so it missed
+    # both the node recount above and the Pareto-frontier simplification, and its
+    # size would be reported raw (un-simplified) and not comparable to runs
+    # without early stopping. Give the returned elite the same treatment when it
+    # is not part of the population that was already processed above (that only
+    # happens for the early-stopping checkpoint; a normal elite is a population
+    # member and is left untouched here).
+    if all(optimizer.elite is not ind for ind in optimizer.population.population):
+        try:
+            tree_structure, _ = convert_slim_individual_to_normal_tree(optimizer.elite)
+            if tree_structure:
+                optimizer.elite.nodes_count = count_tree_nodes(tree_structure)
+        except:
+            pass  # Keep original count if conversion fails
+        if use_simplification:
+            simplify_population([optimizer.elite], debug=False)
+
     # Step 3: Apply normalization to Pareto frontier (simplified or not, depending on flag)
     best_normalized_individual = select_best_normalized_individual(non_dominated_population)
     best_normalized_individual.version = slim_version

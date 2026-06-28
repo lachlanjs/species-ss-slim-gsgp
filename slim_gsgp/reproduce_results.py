@@ -90,7 +90,7 @@ BASE_ALGO_PARAMS = {
     'ms_upper': 1,
     'p_inflate': 0.5,
     'reconstruct': True,
-    'early_stop_enable': False,
+    'early_stop_enable': True,
     'early_stop_patience': 15,
     'early_stop_warmup': 5,
     'early_stop_tolerance': 0.01,
